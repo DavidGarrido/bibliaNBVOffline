@@ -1,0 +1,132 @@
+:root {
+    --tg-theme-bg-color: #ffffff;
+    --tg-theme-text-color: #000000;
+    --tg-theme-hint-color: #999999;
+    --tg-theme-link-color: #2481cc;
+    --tg-theme-button-color: #2481cc;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #f4f4f5;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--tg-bg-color, var(--tg-theme-bg-color));
+    color: var(--tg-text-color, var(--tg-theme-text-color));
+    margin: 0;
+    padding: 0;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+header {
+    padding: 16px;
+    background-color: var(--tg-secondary-bg-color, var(--tg-theme-secondary-bg-color));
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+h1 {
+    margin: 0 0 12px 0;
+    font-size: 20px;
+    text-align: center;
+}
+
+.search-container input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--tg-hint-color, var(--tg-theme-hint-color));
+    background-color: var(--tg-bg-color, var(--tg-theme-bg-color));
+    color: var(--tg-text-color, var(--tg-theme-text-color));
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+main {
+    padding: 16px;
+}
+
+#loader {
+    text-align: center;
+    padding: 40px;
+}
+
+.view {
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+ul#books-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+ul#books-list li {
+    padding: 14px;
+    border-bottom: 1px solid var(--tg-secondary-bg-color, var(--tg-theme-secondary-bg-color));
+    cursor: pointer;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: var(--tg-link-color, var(--tg-theme-link-color));
+    font-size: 16px;
+    padding: 8px 0;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+#chapters-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+
+.chapter-btn {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--tg-secondary-bg-color, var(--tg-theme-secondary-bg-color));
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#verses-content {
+    line-height: 1.6;
+    font-size: 18px;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.verse {
+    margin-bottom: 8px;
+}
+
+.v-num {
+    font-size: 0.8em;
+    color: var(--tg-link-color, var(--tg-theme-link-color));
+    font-weight: bold;
+    margin-right: 4px;
+    vertical-align: super;
+}
+
+.reader-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+h2 {
+    margin: 10px 0;
+    font-size: 22px;
+}

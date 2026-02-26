@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Biblia NBV Offline</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Biblia NBV</h1>
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Buscar libro o pasaje (ej: Juan 3:16)">
+            </div>
+        </header>
+
+        <main id="content">
+            <div id="loader">Cargando Biblia...</div>
+            <div id="view-books" class="view">
+                <ul id="books-list"></ul>
+            </div>
+            <div id="view-chapters" class="view" style="display:none">
+                <button class="back-btn">⬅ Volver</button>
+                <h2 id="current-book-name"></h2>
+                <div id="chapters-grid"></div>
+            </div>
+            <div id="view-reader" class="view" style="display:none">
+                <div class="reader-nav">
+                    <button class="back-btn">⬅ Volver</button>
+                    <h2 id="reader-title"></h2>
+                </div>
+                <div id="verses-content"></div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('SW registrado', reg);
+                }).catch(err => {
+                    console.log('SW error', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
