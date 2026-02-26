@@ -84,10 +84,18 @@ ul#books-list li {
     margin-bottom: 10px;
 }
 
+#app {
+    max-width: 600px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background-color: var(--tg-bg-color, var(--tg-theme-bg-color));
+}
+
 #chapters-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 12px;
+    padding: 10px 0;
 }
 
 .chapter-btn {
@@ -96,9 +104,39 @@ ul#books-list li {
     align-items: center;
     justify-content: center;
     background-color: var(--tg-secondary-bg-color, var(--tg-theme-secondary-bg-color));
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.chapter-btn:active {
+    transform: scale(0.9);
+    background-color: var(--tg-hint-color, var(--tg-theme-hint-color));
+}
+
+.chapter-navigation {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0 40px 0;
+    gap: 10px;
+}
+
+.nav-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
     border-radius: 8px;
+    background-color: var(--tg-button-color, var(--tg-theme-button-color));
+    color: var(--tg-button-text-color, var(--tg-theme-button-text-color));
     font-weight: bold;
     cursor: pointer;
+}
+
+.nav-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 #verses-content {

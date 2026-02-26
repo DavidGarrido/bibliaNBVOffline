@@ -73,8 +73,28 @@ function showReader(book, chapter) {
         elements.versesContent.appendChild(p);
     });
 
+    // Configurar navegación de capítulos
+    const prevBtn = document.getElementById('prev-chap');
+    const nextBtn = document.getElementById('next-chap');
+    
+    const chapIndex = book.chapters.findIndex(c => c.n === chapter.n);
+    
+    prevBtn.disabled = chapIndex === 0;
+    nextBtn.disabled = chapIndex === book.chapters.length - 1;
+    
+    prevBtn.onclick = () => showReader(book, book.chapters[chapIndex - 1]);
+    nextBtn.onclick = () => showReader(book, book.chapters[chapIndex + 1]);
+
     switchView('reader');
     window.scrollTo(0, 0);
+}
+
+function handleBack() {
+    if (elements.viewReader.style.display === 'block') {
+        switchView('chapters');
+    } else if (elements.viewChapters.style.display === 'block') {
+        switchView('books');
+    }
 }
 
 function switchView(view) {
@@ -95,17 +115,11 @@ function switchView(view) {
 }
 
 if (tg.isVersionAtLeast('6.1')) {
-    tg.BackButton.onClick(() => {
-        if (elements.viewReader.style.display === 'block') {
-            switchView('chapters');
-        } else if (elements.viewChapters.style.display === 'block') {
-            switchView('books');
-        }
-    });
+    tg.BackButton.onClick(handleBack);
 }
 
 document.querySelectorAll('.back-btn').forEach(btn => {
-    btn.onclick = () => tg.BackButton.show() && tg.BackButton.onClick();
+    btn.onclick = handleBack;
 });
 
 elements.searchInput.oninput = (e) => {
