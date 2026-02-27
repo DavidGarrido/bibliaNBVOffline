@@ -114,13 +114,15 @@ function switchView(view) {
     }
 }
 
-if (tg.isVersionAtLeast('6.1')) {
-    tg.BackButton.onClick(handleBack);
-}
+tg.BackButton.onClick(handleBack);
 
 document.querySelectorAll('.back-btn').forEach(btn => {
     btn.onclick = handleBack;
 });
+
+document.getElementById('home-btn').onclick = () => {
+    switchView('books');
+};
 
 elements.searchInput.oninput = (e) => {
     renderBooks(e.target.value);

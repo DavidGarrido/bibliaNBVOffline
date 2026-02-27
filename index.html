@@ -23,14 +23,17 @@
                 <ul id="books-list"></ul>
             </div>
             <div id="view-chapters" class="view" style="display:none">
-                <button class="back-btn">⬅ Volver</button>
-                <h2 id="current-book-name"></h2>
+                <div class="view-header">
+                    <button class="back-btn">⬅ Libros</button>
+                    <h2 id="current-book-name"></h2>
+                </div>
                 <div id="chapters-grid"></div>
             </div>
             <div id="view-reader" class="view" style="display:none">
                 <div class="reader-nav">
-                    <button class="back-btn">📚</button>
+                    <button class="back-btn" title="Volver a Capítulos">⬅ Cap.</button>
                     <h2 id="reader-title"></h2>
+                    <button id="home-btn" class="icon-btn">📚</button>
                 </div>
                 <div id="verses-content"></div>
                 <div class="chapter-navigation">
