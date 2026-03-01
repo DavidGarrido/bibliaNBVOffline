@@ -198,6 +198,16 @@ ul#books-list li {
     justify-content: space-between;
     margin-bottom: 16px;
     gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--tg-bg-color, var(--tg-theme-bg-color));
+    padding: 8px 0;
+    transition: transform 0.25s ease;
+}
+
+.reader-nav.nav-hidden {
+    transform: translateY(-120%);
 }
 
 .reader-version-select {

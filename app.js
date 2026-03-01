@@ -272,9 +272,21 @@ function showReaderContinuous(book, chapter) {
 
 // ── Scroll (solo modo continuo) ───────────────────────────────
 
+let lastScrollY = 0;
+const readerNav = document.querySelector('.reader-nav');
+
 let scrollDebounce = null;
 window.addEventListener('scroll', () => {
     if (elements.viewReader.style.display !== 'block' || readingMode !== 'continuous') return;
+
+    // Mostrar/ocultar nav según dirección de scroll
+    const currentY = window.scrollY;
+    if (currentY < lastScrollY - 5) {
+        readerNav.classList.remove('nav-hidden');   // subiendo → mostrar
+    } else if (currentY > lastScrollY + 10) {
+        readerNav.classList.add('nav-hidden');       // bajando → ocultar
+    }
+    lastScrollY = currentY;
     clearTimeout(scrollDebounce);
     scrollDebounce = setTimeout(() => {
         const verses = elements.versesContent.querySelectorAll('.verse');
@@ -375,6 +387,7 @@ function switchView(view) {
     elements.viewChapters.style.display = view === 'chapters' ? 'block' : 'none';
     elements.viewReader.style.display = view === 'reader' ? 'block' : 'none';
     document.querySelector('header').style.display = view === 'books' ? 'block' : 'none';
+    if (view === 'reader') { readerNav.classList.remove('nav-hidden'); lastScrollY = 0; }
 
     if (tg.isVersionAtLeast('6.1')) {
         view === 'books' ? tg.BackButton.hide() : tg.BackButton.show();
