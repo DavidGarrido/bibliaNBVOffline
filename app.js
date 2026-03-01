@@ -307,29 +307,26 @@ document.getElementById('view-reader').addEventListener('touchstart', e => {
 
 document.getElementById('view-reader').addEventListener('touchend', e => {
     if (readingMode === 'continuous') return;
-
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+    simulateSwipe(dx > 0 ? 'right' : 'left');
+}, { passive: true });
 
+// ── Teclado (PC) ─────────────────────────────────────────────
+
+document.addEventListener('keydown', e => {
+    if (elements.viewReader.style.display !== 'block') return;
+    if (e.key === 'ArrowRight') simulateSwipe('left');
+    if (e.key === 'ArrowLeft')  simulateSwipe('right');
+});
+
+function simulateSwipe(direction) {
     const bookIndex = bibleData.findIndex(b => b.id === currentBook.id);
     const chapIndex = currentBook.chapters.findIndex(c => c.n === currentChapter.n);
 
-    if (dx > 0) {
-        // Swipe derecha → página anterior
-        if (currentPageNum > 0) {
-            scrollToPage(currentPageNum - 1);
-        } else if (chapIndex > 0) {
-            cleanupPageMode();
-            showReader(currentBook, currentBook.chapters[chapIndex - 1]);
-        } else if (bookIndex > 0) {
-            const prevBook = bibleData[bookIndex - 1];
-            cleanupPageMode();
-            showReader(prevBook, prevBook.chapters[prevBook.chapters.length - 1]);
-        }
-    } else {
-        // Swipe izquierda → página siguiente
-        if (currentPageNum < totalPageCount - 1) {
+    if (direction === 'left') {
+        if (readingMode === 'paged' && currentPageNum < totalPageCount - 1) {
             scrollToPage(currentPageNum + 1);
         } else if (chapIndex < currentBook.chapters.length - 1) {
             cleanupPageMode();
@@ -339,8 +336,19 @@ document.getElementById('view-reader').addEventListener('touchend', e => {
             cleanupPageMode();
             showReader(nextBook, nextBook.chapters[0]);
         }
+    } else {
+        if (readingMode === 'paged' && currentPageNum > 0) {
+            scrollToPage(currentPageNum - 1);
+        } else if (chapIndex > 0) {
+            cleanupPageMode();
+            showReader(currentBook, currentBook.chapters[chapIndex - 1]);
+        } else if (bookIndex > 0) {
+            const prevBook = bibleData[bookIndex - 1];
+            cleanupPageMode();
+            showReader(prevBook, prevBook.chapters[prevBook.chapters.length - 1]);
+        }
     }
-}, { passive: true });
+}
 
 // ── Helpers ───────────────────────────────────────────────────
 
