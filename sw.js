@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-v4';
+const CACHE_NAME = 'biblia-v5';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -29,7 +29,7 @@ self.addEventListener('fetch', event => {
   const isBibleJson = url.pathname.includes('bible-') && url.pathname.endsWith('.json');
 
   if (isBibleJson) {
-    // Cache-first para JSONs de traducción: sirve rápido si ya está, si no descarga y guarda
+    // Cache-first: los JSONs son grandes y no cambian
     event.respondWith(
       caches.open(CACHE_NAME).then(cache =>
         cache.match(event.request).then(cached => {
@@ -42,9 +42,15 @@ self.addEventListener('fetch', event => {
       )
     );
   } else {
-    // Cache-first para el resto
+    // Network-first: la app siempre intenta obtener la versión más reciente
     event.respondWith(
-      caches.match(event.request).then(response => response || fetch(event.request))
+      fetch(event.request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
   }
 });
