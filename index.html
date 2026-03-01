@@ -11,7 +11,8 @@
 <body>
     <div id="app">
         <header>
-            <h1>Biblia NBV</h1>
+            <h1 id="app-title">Biblia</h1>
+            <select id="translation-select"></select>
             <div class="search-container">
                 <input type="text" id="search-input" placeholder="Buscar libro o pasaje (ej: Juan 3:16)">
             </div>
@@ -33,6 +34,7 @@
                 <div class="reader-nav">
                     <button class="back-btn" title="Volver a Capítulos">⬅ Cap.</button>
                     <h2 id="reader-title"></h2>
+                    <select id="reader-translation-select" class="reader-version-select"></select>
                     <button id="home-btn" class="icon-btn">📚</button>
                 </div>
                 <div id="verses-content"></div>
@@ -52,6 +54,9 @@
                 }).catch(err => {
                     console.log('SW error', err);
                 });
+            });
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                window.location.reload();
             });
         }
     </script>
