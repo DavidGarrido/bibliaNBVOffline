@@ -422,4 +422,23 @@ elements.readerTranslationSelect.onchange = async (e) => {
     }
 };
 
-init();
+async function checkVersion() {
+  try {
+    const res = await fetch('version.json');
+    const { v } = await res.json();
+    const stored = localStorage.getItem('app-version');
+    if (stored !== null && stored !== v) {
+      localStorage.setItem('app-version', v);
+      const keys = await caches.keys();
+      await Promise.all(
+        keys.filter(k => !k.includes('json')).map(k => caches.delete(k))
+      );
+      window.location.reload();
+      return false;
+    }
+    localStorage.setItem('app-version', v);
+  } catch (e) { /* offline, continuar */ }
+  return true;
+}
+
+checkVersion().then(ok => { if (ok) init(); });

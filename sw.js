@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-v5';
+const CACHE_NAME = 'biblia-v6';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -26,10 +26,17 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  const isBibleJson = url.pathname.includes('bible-') && url.pathname.endsWith('.json');
 
-  if (isBibleJson) {
-    // Cache-first: los JSONs son grandes y no cambian
+  // version.json: siempre de red para detectar actualizaciones
+  if (url.pathname.endsWith('version.json')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // bible-*.json: cache first (son grandes, no cambian)
+  if (url.pathname.includes('bible-') && url.pathname.endsWith('.json')) {
     event.respondWith(
       caches.open(CACHE_NAME).then(cache =>
         cache.match(event.request).then(cached => {
@@ -41,16 +48,19 @@ self.addEventListener('fetch', event => {
         })
       )
     );
-  } else {
-    // Network-first: la app siempre intenta obtener la versión más reciente
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
+    return;
   }
+
+  // Todo lo demás: cache first para offline, actualiza en segundo plano
+  event.respondWith(
+    caches.open(CACHE_NAME).then(cache =>
+      cache.match(event.request).then(cached => {
+        const networkFetch = fetch(event.request).then(response => {
+          cache.put(event.request, response.clone());
+          return response;
+        }).catch(() => null);
+        return cached || networkFetch;
+      })
+    )
+  );
 });
