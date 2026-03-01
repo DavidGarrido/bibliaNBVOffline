@@ -156,41 +156,46 @@ function showReaderPaged(book, chapter) {
     elements.versesContent.innerHTML = '';
     elements.chapNav.style.display = 'none';
 
+    // Wrapper interno: este se mueve; versesContent actúa de ventana fija
+    const inner = document.createElement('div');
+    inner.id = 'verses-inner';
     chapter.v.forEach(v => {
         const p = document.createElement('div');
         p.className = 'verse';
         p.innerHTML = `<span class="v-num">${v.n}</span> ${v.t}`;
-        elements.versesContent.appendChild(p);
+        inner.appendChild(p);
     });
+    elements.versesContent.appendChild(inner);
 
     savePosition(book, chapter, {});
     switchView('reader');
 
-    // Calcular altura disponible después de que el DOM se pinte
     requestAnimationFrame(() => {
         const navH = document.querySelector('.reader-nav').offsetHeight;
-        const mainPad = 32; // padding top + bottom del main
+        const mainPad = 32;
         pageHeight = window.innerHeight - navH - mainPad;
 
         elements.versesContent.classList.add('page-mode');
         elements.versesContent.style.height = pageHeight + 'px';
 
-        totalPageCount = Math.ceil(elements.versesContent.scrollHeight / pageHeight);
+        totalPageCount = Math.ceil(inner.offsetHeight / pageHeight);
 
         const saved = JSON.parse(localStorage.getItem('bible-position'));
         currentPageNum = (saved && saved.bookId === book.id && saved.chapterN === chapter.n && saved.pageNum != null)
             ? saved.pageNum : 0;
 
-        elements.versesContent.style.transition = 'none';
-        elements.versesContent.style.transform = `translateY(-${currentPageNum * pageHeight}px)`;
+        inner.style.transition = 'none';
+        inner.style.transform = `translateY(-${currentPageNum * pageHeight}px)`;
         updatePageIndicator();
     });
 }
 
 function scrollToPage(pageNum) {
     currentPageNum = Math.max(0, Math.min(pageNum, totalPageCount - 1));
-    elements.versesContent.style.transition = 'transform 0.3s ease';
-    elements.versesContent.style.transform = `translateY(-${currentPageNum * pageHeight}px)`;
+    const inner = document.getElementById('verses-inner');
+    if (!inner) return;
+    inner.style.transition = 'transform 0.3s ease';
+    inner.style.transform = `translateY(-${currentPageNum * pageHeight}px)`;
     updatePageIndicator();
     const pos = JSON.parse(localStorage.getItem('bible-position'));
     if (pos) {
@@ -206,8 +211,6 @@ function updatePageIndicator() {
 function cleanupPageMode() {
     elements.versesContent.classList.remove('page-mode');
     elements.versesContent.style.height = '';
-    elements.versesContent.style.transform = '';
-    elements.versesContent.style.transition = '';
 }
 
 // ── Modo continuo ─────────────────────────────────────────────
