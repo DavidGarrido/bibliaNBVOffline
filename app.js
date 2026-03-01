@@ -141,15 +141,51 @@ function showReader(book, chapter) {
     prevBtn.onclick = () => showReader(book, book.chapters[chapIndex - 1]);
     nextBtn.onclick = () => showReader(book, book.chapters[chapIndex + 1]);
 
+    const saved = JSON.parse(localStorage.getItem('bible-position'));
+    const savedVerseN = (saved && saved.bookId === book.id && saved.chapterN === chapter.n)
+        ? saved.verseN : null;
+
     localStorage.setItem('bible-position', JSON.stringify({
         translationId: elements.translationSelect.value,
         bookId: book.id,
-        chapterN: chapter.n
+        chapterN: chapter.n,
+        verseN: savedVerseN
     }));
 
     switchView('reader');
-    window.scrollTo(0, 0);
+
+    if (savedVerseN) {
+        requestAnimationFrame(() => {
+            const target = [...elements.versesContent.querySelectorAll('.verse')]
+                .find(el => el.querySelector('.v-num')?.textContent == savedVerseN);
+            if (target) target.scrollIntoView({ block: 'start' });
+        });
+    } else {
+        window.scrollTo(0, 0);
+    }
 }
+
+let scrollDebounce = null;
+window.addEventListener('scroll', () => {
+    if (elements.viewReader.style.display !== 'block') return;
+    clearTimeout(scrollDebounce);
+    scrollDebounce = setTimeout(() => {
+        const verses = elements.versesContent.querySelectorAll('.verse');
+        for (const verse of verses) {
+            if (verse.getBoundingClientRect().top >= 0) {
+                const verseN = verse.querySelector('.v-num')?.textContent;
+                if (verseN) {
+                    const pos = JSON.parse(localStorage.getItem('bible-position'));
+                    if (pos) {
+                        pos.verseN = verseN;
+                        localStorage.setItem('bible-position', JSON.stringify(pos));
+                    }
+                }
+                break;
+            }
+        }
+    }, 300);
+}, { passive: true });
 
 let touchStartX = 0;
 
