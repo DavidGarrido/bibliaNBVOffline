@@ -172,14 +172,7 @@ ul#books-list li {
 }
 
 #verses-content.page-mode {
-    overflow-y: scroll;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    overscroll-behavior: none;
-}
-
-#verses-content.page-mode::-webkit-scrollbar {
-    display: none;
+    overflow: hidden;
 }
 
 .chap-header {

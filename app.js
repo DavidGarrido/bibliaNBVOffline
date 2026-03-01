@@ -181,14 +181,16 @@ function showReaderPaged(book, chapter) {
         currentPageNum = (saved && saved.bookId === book.id && saved.chapterN === chapter.n && saved.pageNum != null)
             ? saved.pageNum : 0;
 
-        elements.versesContent.scrollTop = currentPageNum * pageHeight;
+        elements.versesContent.style.transition = 'none';
+        elements.versesContent.style.transform = `translateY(-${currentPageNum * pageHeight}px)`;
         updatePageIndicator();
     });
 }
 
 function scrollToPage(pageNum) {
     currentPageNum = Math.max(0, Math.min(pageNum, totalPageCount - 1));
-    elements.versesContent.scrollTo({ top: currentPageNum * pageHeight, behavior: 'smooth' });
+    elements.versesContent.style.transition = 'transform 0.3s ease';
+    elements.versesContent.style.transform = `translateY(-${currentPageNum * pageHeight}px)`;
     updatePageIndicator();
     const pos = JSON.parse(localStorage.getItem('bible-position'));
     if (pos) {
@@ -204,12 +206,9 @@ function updatePageIndicator() {
 function cleanupPageMode() {
     elements.versesContent.classList.remove('page-mode');
     elements.versesContent.style.height = '';
+    elements.versesContent.style.transform = '';
+    elements.versesContent.style.transition = '';
 }
-
-// Bloquear scroll libre en modo páginas
-elements.versesContent.addEventListener('touchmove', e => {
-    if (readingMode === 'paged') e.preventDefault();
-}, { passive: false });
 
 // ── Modo continuo ─────────────────────────────────────────────
 
