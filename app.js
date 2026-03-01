@@ -188,14 +188,17 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 let touchStartX = 0;
+let touchStartY = 0;
 
 document.getElementById('view-reader').addEventListener('touchstart', e => {
     touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
 }, { passive: true });
 
 document.getElementById('view-reader').addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) < 50) return;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
 
     const prevBtn = document.getElementById('prev-chap');
     const nextBtn = document.getElementById('next-chap');
