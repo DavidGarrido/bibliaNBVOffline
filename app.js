@@ -6,6 +6,8 @@ let currentBook = null;
 let currentChapter = null;
 let translations = [];
 const bibleCache = {};
+let readingMode = localStorage.getItem('bible-reading-mode') || 'paged';
+let chapterObserver = null;
 
 const elements = {
     booksList: document.getElementById('books-list'),
@@ -20,7 +22,22 @@ const elements = {
     searchInput: document.getElementById('search-input'),
     translationSelect: document.getElementById('translation-select'),
     readerTranslationSelect: document.getElementById('reader-translation-select'),
-    appTitle: document.getElementById('app-title')
+    appTitle: document.getElementById('app-title'),
+    modeBtn: document.getElementById('mode-btn'),
+    chapNav: document.querySelector('.chapter-navigation')
+};
+
+function updateModeBtn() {
+    elements.modeBtn.textContent = readingMode === 'paged' ? '📄' : '📜';
+    elements.modeBtn.title = readingMode === 'paged' ? 'Cambiar a modo continuo' : 'Cambiar a modo por capítulos';
+}
+updateModeBtn();
+
+elements.modeBtn.onclick = () => {
+    readingMode = readingMode === 'paged' ? 'continuous' : 'paged';
+    localStorage.setItem('bible-reading-mode', readingMode);
+    updateModeBtn();
+    if (currentBook && currentChapter) showReader(currentBook, currentChapter);
 };
 
 async function init() {
@@ -118,6 +135,16 @@ function showChapters(book) {
 }
 
 function showReader(book, chapter) {
+    if (readingMode === 'continuous') {
+        showReaderContinuous(book, chapter);
+    } else {
+        showReaderPaged(book, chapter);
+    }
+}
+
+function showReaderPaged(book, chapter) {
+    if (chapterObserver) { chapterObserver.disconnect(); chapterObserver = null; }
+
     currentBook = book;
     currentChapter = chapter;
     elements.readerTitle.innerText = `${book.name} ${chapter.n}`;
@@ -132,27 +159,21 @@ function showReader(book, chapter) {
 
     const prevBtn = document.getElementById('prev-chap');
     const nextBtn = document.getElementById('next-chap');
-
     const chapIndex = book.chapters.findIndex(c => c.n === chapter.n);
 
     prevBtn.disabled = chapIndex === 0;
     nextBtn.disabled = chapIndex === book.chapters.length - 1;
-
     prevBtn.onclick = () => showReader(book, book.chapters[chapIndex - 1]);
     nextBtn.onclick = () => showReader(book, book.chapters[chapIndex + 1]);
+
+    elements.chapNav.style.display = 'flex';
+
+    savePosition(book, chapter, null);
+    switchView('reader');
 
     const saved = JSON.parse(localStorage.getItem('bible-position'));
     const savedVerseN = (saved && saved.bookId === book.id && saved.chapterN === chapter.n)
         ? saved.verseN : null;
-
-    localStorage.setItem('bible-position', JSON.stringify({
-        translationId: elements.translationSelect.value,
-        bookId: book.id,
-        chapterN: chapter.n,
-        verseN: savedVerseN
-    }));
-
-    switchView('reader');
 
     if (savedVerseN) {
         requestAnimationFrame(() => {
@@ -165,6 +186,64 @@ function showReader(book, chapter) {
     }
 }
 
+function showReaderContinuous(book, chapter) {
+    currentBook = book;
+    currentChapter = chapter;
+    elements.readerTitle.innerText = `${book.name} ${chapter.n}`;
+    elements.versesContent.innerHTML = '';
+    elements.chapNav.style.display = 'none';
+
+    book.chapters.forEach(chap => {
+        const header = document.createElement('h3');
+        header.className = 'chap-header';
+        header.id = `chap-${chap.n}`;
+        header.textContent = `Capítulo ${chap.n}`;
+        elements.versesContent.appendChild(header);
+
+        chap.v.forEach(v => {
+            const p = document.createElement('div');
+            p.className = 'verse';
+            p.setAttribute('data-chap', chap.n);
+            p.innerHTML = `<span class="v-num">${v.n}</span> ${v.t}`;
+            elements.versesContent.appendChild(p);
+        });
+    });
+
+    if (chapterObserver) chapterObserver.disconnect();
+    chapterObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const chapN = parseInt(entry.target.id.replace('chap-', ''));
+                const chap = book.chapters.find(c => c.n === chapN);
+                if (chap) {
+                    currentChapter = chap;
+                    elements.readerTitle.innerText = `${book.name} ${chapN}`;
+                    savePosition(book, chap, null);
+                }
+            }
+        });
+    }, { rootMargin: '-10% 0px -80% 0px' });
+
+    elements.versesContent.querySelectorAll('.chap-header').forEach(h => chapterObserver.observe(h));
+
+    switchView('reader');
+
+    requestAnimationFrame(() => {
+        const target = document.getElementById(`chap-${chapter.n}`);
+        if (target) target.scrollIntoView({ block: 'start' });
+    });
+}
+
+function savePosition(book, chapter, verseN) {
+    localStorage.setItem('bible-position', JSON.stringify({
+        translationId: elements.translationSelect.value,
+        bookId: book.id,
+        chapterN: chapter.n,
+        verseN: verseN
+    }));
+}
+
+// Guardar versículo visible al hacer scroll
 let scrollDebounce = null;
 window.addEventListener('scroll', () => {
     if (elements.viewReader.style.display !== 'block') return;
@@ -178,6 +257,9 @@ window.addEventListener('scroll', () => {
                     const pos = JSON.parse(localStorage.getItem('bible-position'));
                     if (pos) {
                         pos.verseN = verseN;
+                        if (readingMode === 'continuous') {
+                            pos.chapterN = parseInt(verse.getAttribute('data-chap'));
+                        }
                         localStorage.setItem('bible-position', JSON.stringify(pos));
                     }
                 }
@@ -187,6 +269,7 @@ window.addEventListener('scroll', () => {
     }, 300);
 }, { passive: true });
 
+// Swipe para cambiar capítulo (solo en modo paged)
 let touchStartX = 0;
 let touchStartY = 0;
 
@@ -196,6 +279,7 @@ document.getElementById('view-reader').addEventListener('touchstart', e => {
 }, { passive: true });
 
 document.getElementById('view-reader').addEventListener('touchend', e => {
+    if (readingMode === 'continuous') return;
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
@@ -272,7 +356,6 @@ elements.readerTranslationSelect.onchange = async (e) => {
     const savedChapter = currentChapter;
     localStorage.setItem('bible-translation', id);
     await loadBible(id);
-    // Volver al mismo libro y capítulo en la nueva traducción
     const book = bibleData.find(b => b.id === savedBook.id);
     if (book) {
         const chapter = book.chapters.find(c => c.n === savedChapter.n) || book.chapters[0];
