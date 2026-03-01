@@ -171,6 +171,17 @@ ul#books-list li {
     margin-bottom: 8px;
 }
 
+#verses-content.page-mode {
+    overflow-y: scroll;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    overscroll-behavior: none;
+}
+
+#verses-content.page-mode::-webkit-scrollbar {
+    display: none;
+}
+
 .chap-header {
     font-size: 16px;
     font-weight: bold;
