@@ -261,21 +261,21 @@ function showReaderContinuous(book, chapter) {
 
     switchView('reader');
 
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            const saved = JSON.parse(localStorage.getItem('bible-position'));
-            const savedVerseN = (saved && saved.bookId === book.id && saved.chapterN === chapter.n)
-                ? saved.verseN : null;
+    setTimeout(() => {
+        const saved = JSON.parse(localStorage.getItem('bible-position'));
+        const savedVerseN = (saved && saved.bookId === book.id && saved.chapterN === chapter.n)
+            ? saved.verseN : null;
 
-            if (savedVerseN) {
-                const target = [...elements.versesContent.querySelectorAll('.verse')]
-                    .find(el => el.querySelector('.v-num')?.textContent == savedVerseN);
-                if (target) { target.scrollIntoView({ block: 'start' }); return; }
-            }
-            const chapTarget = document.getElementById(`chap-${chapter.n}`);
-            if (chapTarget) chapTarget.scrollIntoView({ block: 'start' });
-        });
-    });
+        const targetEl = savedVerseN
+            ? [...elements.versesContent.querySelectorAll('.verse')]
+                .find(el => el.querySelector('.v-num')?.textContent == savedVerseN)
+            : document.getElementById(`chap-${chapter.n}`);
+
+        if (targetEl) {
+            const y = targetEl.getBoundingClientRect().top + window.scrollY;
+            window.scrollTo({ top: y, behavior: 'instant' });
+        }
+    }, 80);
 }
 
 // ── Scroll (solo modo continuo) ───────────────────────────────
