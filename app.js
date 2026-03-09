@@ -160,16 +160,16 @@ function showReaderPaged(book, chapter) {
     elements.versesContent.innerHTML = '';
     elements.chapNav.style.display = 'none';
 
-    // Wrapper interno: este se mueve; versesContent actúa de ventana fija
-    const inner = document.createElement('div');
-    inner.id = 'verses-inner';
+    // Fase 1: renderizar en div oculto para medir alturas
+    const measurer = document.createElement('div');
+    measurer.style.visibility = 'hidden';
     chapter.v.forEach(v => {
         const p = document.createElement('div');
         p.className = 'verse';
         p.innerHTML = `<span class="v-num">${v.n}</span> ${v.t}`;
-        inner.appendChild(p);
+        measurer.appendChild(p);
     });
-    elements.versesContent.appendChild(inner);
+    elements.versesContent.appendChild(measurer);
 
     savePosition(book, chapter, {});
     switchView('reader');
@@ -178,38 +178,63 @@ function showReaderPaged(book, chapter) {
         const navH = document.querySelector('.reader-nav').offsetHeight;
         const mainPad = 32;
         pageHeight = window.innerHeight - navH - mainPad;
+        const pageWidth = elements.versesContent.offsetWidth;
 
         elements.versesContent.classList.add('page-mode');
         elements.versesContent.style.height = pageHeight + 'px';
 
-        // Calcular cortes en límites de versículos para no cortar líneas
+        // Fase 2: calcular cortes por índice de versículo
+        const verseEls = [...measurer.querySelectorAll('.verse')];
         pageBreaks = [0];
         let pageStart = 0;
-        for (const verse of inner.querySelectorAll('.verse')) {
-            const verseBottom = verse.offsetTop + verse.offsetHeight;
+        for (let i = 0; i < verseEls.length; i++) {
+            const verseBottom = verseEls[i].offsetTop + verseEls[i].offsetHeight;
             if (verseBottom - pageStart > pageHeight) {
-                pageBreaks.push(verse.offsetTop);
-                pageStart = verse.offsetTop;
+                pageBreaks.push(i);
+                pageStart = verseEls[i].offsetTop;
             }
         }
         totalPageCount = pageBreaks.length;
+        elements.versesContent.innerHTML = '';
+
+        // Fase 3: construir strip horizontal con una página por div
+        const strip = document.createElement('div');
+        strip.id = 'pages-strip';
+        strip.style.cssText = `display:flex;width:${totalPageCount * pageWidth}px;height:${pageHeight}px`;
+
+        for (let p = 0; p < totalPageCount; p++) {
+            const startIdx = pageBreaks[p];
+            const endIdx = p + 1 < totalPageCount ? pageBreaks[p + 1] : chapter.v.length;
+            const pageDiv = document.createElement('div');
+            pageDiv.style.cssText = `width:${pageWidth}px;height:${pageHeight}px;overflow:hidden;flex-shrink:0;box-sizing:border-box`;
+            for (let i = startIdx; i < endIdx; i++) {
+                const v = chapter.v[i];
+                const el = document.createElement('div');
+                el.className = 'verse';
+                el.innerHTML = `<span class="v-num">${v.n}</span> ${v.t}`;
+                pageDiv.appendChild(el);
+            }
+            strip.appendChild(pageDiv);
+        }
+        elements.versesContent.appendChild(strip);
 
         const saved = JSON.parse(localStorage.getItem('bible-position'));
         currentPageNum = (saved && saved.bookId === book.id && saved.chapterN === chapter.n && saved.pageNum != null)
             ? Math.min(saved.pageNum, totalPageCount - 1) : 0;
 
-        inner.style.transition = 'none';
-        inner.style.transform = `translateY(-${pageBreaks[currentPageNum]}px)`;
+        strip.style.transition = 'none';
+        strip.style.transform = `translateX(-${currentPageNum * pageWidth}px)`;
         updatePageIndicator();
     });
 }
 
 function scrollToPage(pageNum) {
     currentPageNum = Math.max(0, Math.min(pageNum, totalPageCount - 1));
-    const inner = document.getElementById('verses-inner');
-    if (!inner) return;
-    inner.style.transition = 'transform 0.3s ease';
-    inner.style.transform = `translateY(-${pageBreaks[currentPageNum]}px)`;
+    const strip = document.getElementById('pages-strip');
+    if (!strip) return;
+    const pageWidth = elements.versesContent.offsetWidth;
+    strip.style.transition = 'transform 0.3s ease';
+    strip.style.transform = `translateX(-${currentPageNum * pageWidth}px)`;
     updatePageIndicator();
     const pos = JSON.parse(localStorage.getItem('bible-position'));
     if (pos) {
