@@ -13,6 +13,7 @@ let chapterObserver = null;
 let currentPageNum = 0;
 let totalPageCount = 0;
 let pageHeight = 0;
+let pageBreaks = []; // offsets en px donde empieza cada página
 
 const elements = {
     booksList: document.getElementById('books-list'),
@@ -181,14 +182,24 @@ function showReaderPaged(book, chapter) {
         elements.versesContent.classList.add('page-mode');
         elements.versesContent.style.height = pageHeight + 'px';
 
-        totalPageCount = Math.ceil(inner.offsetHeight / pageHeight);
+        // Calcular cortes en límites de versículos para no cortar líneas
+        pageBreaks = [0];
+        let pageStart = 0;
+        for (const verse of inner.querySelectorAll('.verse')) {
+            const verseBottom = verse.offsetTop + verse.offsetHeight;
+            if (verseBottom - pageStart > pageHeight) {
+                pageBreaks.push(verse.offsetTop);
+                pageStart = verse.offsetTop;
+            }
+        }
+        totalPageCount = pageBreaks.length;
 
         const saved = JSON.parse(localStorage.getItem('bible-position'));
         currentPageNum = (saved && saved.bookId === book.id && saved.chapterN === chapter.n && saved.pageNum != null)
-            ? saved.pageNum : 0;
+            ? Math.min(saved.pageNum, totalPageCount - 1) : 0;
 
         inner.style.transition = 'none';
-        inner.style.transform = `translateY(-${currentPageNum * pageHeight}px)`;
+        inner.style.transform = `translateY(-${pageBreaks[currentPageNum]}px)`;
         updatePageIndicator();
     });
 }
@@ -198,7 +209,7 @@ function scrollToPage(pageNum) {
     const inner = document.getElementById('verses-inner');
     if (!inner) return;
     inner.style.transition = 'transform 0.3s ease';
-    inner.style.transform = `translateY(-${currentPageNum * pageHeight}px)`;
+    inner.style.transform = `translateY(-${pageBreaks[currentPageNum]}px)`;
     updatePageIndicator();
     const pos = JSON.parse(localStorage.getItem('bible-position'));
     if (pos) {
