@@ -481,7 +481,13 @@ async function checkVersion() {
       return false;
     }
     localStorage.setItem('app-version', v);
-  } catch (e) { /* offline, continuar */ }
+    const el = document.getElementById('app-version');
+    if (el) el.textContent = `v${v}`;
+  } catch (e) {
+    const stored = localStorage.getItem('app-version');
+    const el = document.getElementById('app-version');
+    if (el && stored) el.textContent = `v${stored}`;
+  }
   return true;
 }
 
