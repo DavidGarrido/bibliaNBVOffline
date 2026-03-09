@@ -14,9 +14,10 @@
     </div>
     <div id="app">
         <header>
-            <div style="display:flex;align-items:baseline;justify-content:center;gap:6px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px">
                 <h1 id="app-title" style="margin:0">Biblia</h1>
                 <span id="app-version" style="font-size:11px;opacity:0.35"></span>
+                <button id="qs-open-btn" class="icon-btn" title="Búsqueda rápida (/)">🔍</button>
             </div>
             <select id="translation-select"></select>
             <div class="search-container">
@@ -38,11 +39,16 @@
             </div>
             <div id="view-reader" class="view" style="display:none">
                 <div class="reader-nav">
-                    <button class="back-btn" title="Volver a Capítulos">⬅ Cap.</button>
-                    <h2 id="reader-title"></h2>
-                    <select id="reader-translation-select" class="reader-version-select"></select>
-                    <button id="mode-btn" class="icon-btn" title="Cambiar modo de lectura"></button>
-                    <button id="home-btn" class="icon-btn">📚</button>
+                    <div class="reader-nav-row">
+                        <button class="back-btn" title="Volver a Capítulos">⬅ Cap.</button>
+                        <select id="reader-translation-select" class="reader-version-select"></select>
+                        <button id="mode-btn" class="icon-btn" title="Cambiar modo de lectura"></button>
+                        <button id="home-btn" class="icon-btn">📚</button>
+                        <button id="qs-reader-btn" class="icon-btn" title="Búsqueda rápida (/)">🔍</button>
+                    </div>
+                    <div class="reader-nav-row reader-title-row">
+                        <h2 id="reader-title"></h2>
+                    </div>
                 </div>
                 <div id="verses-content"></div>
                 <div class="chapter-navigation">
@@ -52,6 +58,20 @@
             </div>
         </main>
     </div>
+    <!-- Modal búsqueda rápida -->
+    <div id="quick-search" class="qs-hidden">
+        <div id="qs-overlay"></div>
+        <div id="qs-box">
+            <div id="qs-input-wrap">
+                <span class="qs-icon">🔍</span>
+                <input id="qs-input" type="text" placeholder="Juan 3:16 · Sal 23 · Génesis" autocomplete="off" spellcheck="false">
+                <span id="qs-esc">esc</span>
+            </div>
+            <div id="qs-results"></div>
+            <div id="qs-hint">Escribe el libro, capítulo y/o versículo</div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {

@@ -222,6 +222,18 @@ function showReaderPaged(book, chapter) {
         currentPageNum = (saved && saved.bookId === book.id && saved.chapterN === chapter.n && saved.pageNum != null)
             ? Math.min(saved.pageNum, totalPageCount - 1) : 0;
 
+        // Si hay un verso pendiente de búsqueda, ir a su página
+        if (pendingVerse) {
+            const pages = [...strip.children];
+            for (let p = 0; p < pages.length; p++) {
+                if ([...pages[p].querySelectorAll('.v-num')].some(el => parseInt(el.textContent) === pendingVerse)) {
+                    currentPageNum = p;
+                    break;
+                }
+            }
+            pendingVerse = null;
+        }
+
         strip.style.transition = 'none';
         strip.style.transform = `translateX(-${currentPageNum * pageWidth}px)`;
         updatePageIndicator();
@@ -244,7 +256,11 @@ function scrollToPage(pageNum) {
 }
 
 function updatePageIndicator() {
-    elements.readerTitle.innerText = `${currentBook.name} ${currentChapter.n}  ·  ${currentPageNum + 1}/${totalPageCount}`;
+    if (readingMode === 'paged') {
+        elements.readerTitle.innerText = `${currentBook.name} ${currentChapter.n}`;
+    } else {
+        elements.readerTitle.innerText = `${currentBook.name} ${currentChapter.n}  ·  ${currentPageNum + 1}/${totalPageCount}`;
+    }
 }
 
 function cleanupPageMode() {
@@ -299,10 +315,10 @@ function showReaderContinuous(book, chapter) {
 
     setTimeout(() => {
         const saved = JSON.parse(localStorage.getItem('bible-position'));
-        const savedVerseN = (saved && saved.bookId === book.id && saved.chapterN === chapter.n)
-            ? saved.verseN : null;
+        const resolvedVerse = pendingVerse ? String(pendingVerse) : (saved && saved.bookId === book.id && saved.chapterN === chapter.n ? saved.verseN : null);
+        pendingVerse = null;
 
-        const targetEl = savedVerseN
+        const targetEl = resolvedVerse
             ? [...elements.versesContent.querySelectorAll('.verse')]
                 .find(el => el.querySelector('.v-num')?.textContent == savedVerseN)
             : document.getElementById(`chap-${chapter.n}`);
@@ -490,6 +506,174 @@ async function checkVersion() {
   }
   return true;
 }
+
+// ── Búsqueda Rápida ───────────────────────────────────────────
+
+let qsActiveIdx = -1;
+let qsSuggestions = [];
+let pendingVerse = null;
+
+function normStr(s) {
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').trim();
+}
+
+function findBooks(query) {
+    const q = normStr(query);
+    if (q.length < 1) return [];
+    return (bibleData || []).filter(b => {
+        const n = normStr(b.name);
+        return n.startsWith(q) || n.includes(q);
+    }).slice(0, 5);
+}
+
+function parseQuery(raw) {
+    const text = raw.trim();
+    if (!text) return null;
+
+    // libro cap:verso  o  libro cap verso
+    let m = text.match(/^(.+?)\s+(\d+)[:\s]+(\d+)$/);
+    if (m) {
+        const books = findBooks(m[1]);
+        if (books.length) return { type: 'verse', books, chap: parseInt(m[2]), verse: parseInt(m[3]) };
+    }
+
+    // libro cap
+    m = text.match(/^(.+?)\s+(\d+)$/);
+    if (m) {
+        const books = findBooks(m[1]);
+        if (books.length) return { type: 'chapter', books, chap: parseInt(m[2]) };
+    }
+
+    // solo libro
+    const books = findBooks(text);
+    if (books.length) return { type: 'book', books };
+
+    return null;
+}
+
+function buildQsSuggestions(raw) {
+    if (!raw.trim()) return [];
+    const parsed = parseQuery(raw);
+    if (!parsed) return [];
+    const items = [];
+
+    if (parsed.type === 'verse') {
+        parsed.books.forEach(book => {
+            const chapObj = book.chapters.find(c => c.n === parsed.chap);
+            if (!chapObj) return;
+            const verseObj = chapObj.v.find(v => v.n === parsed.verse);
+            items.push({
+                icon: '📖',
+                title: `${book.name} ${parsed.chap}:${parsed.verse}`,
+                sub: verseObj ? verseObj.t.substring(0, 70) + '…' : 'Versículo no encontrado',
+                action: () => {
+                    pendingVerse = parsed.verse;
+                    closeQS();
+                    showChapters(book);
+                    showReader(book, chapObj);
+                }
+            });
+        });
+    } else if (parsed.type === 'chapter') {
+        parsed.books.forEach(book => {
+            const chapObj = book.chapters.find(c => c.n === parsed.chap);
+            if (!chapObj) return;
+            items.push({
+                icon: '📄',
+                title: `${book.name} ${parsed.chap}`,
+                sub: `Capítulo ${parsed.chap} · ${book.chapters.length} caps en total`,
+                action: () => { closeQS(); showChapters(book); showReader(book, chapObj); }
+            });
+        });
+        if (!items.length) {
+            parsed.books.forEach(book => items.push({
+                icon: '📚', title: book.name,
+                sub: `Capítulo ${parsed.chap} no existe (${book.chapters.length} caps)`,
+                action: () => { closeQS(); showChapters(book); }
+            }));
+        }
+    } else {
+        parsed.books.forEach(book => items.push({
+            icon: '📚',
+            title: book.name,
+            sub: `${book.chapters.length} capítulos → ir al capítulo 1`,
+            action: () => { closeQS(); showChapters(book); showReader(book, book.chapters[0]); }
+        }));
+    }
+
+    return items.slice(0, 6);
+}
+
+function renderQS() {
+    const input = document.getElementById('qs-input');
+    const results = document.getElementById('qs-results');
+    const hint = document.getElementById('qs-hint');
+    qsSuggestions = buildQsSuggestions(input.value);
+    qsActiveIdx = -1;
+    results.innerHTML = '';
+    hint.style.display = qsSuggestions.length ? 'none' : 'block';
+
+    qsSuggestions.forEach((item) => {
+        const div = document.createElement('div');
+        div.className = 'qs-item';
+        div.innerHTML = `
+            <span class="qs-item-icon">${item.icon}</span>
+            <div class="qs-item-main">
+                <div class="qs-item-title">${item.title}</div>
+                ${item.sub ? `<div class="qs-item-sub">${item.sub}</div>` : ''}
+            </div>`;
+        div.onclick = item.action;
+        results.appendChild(div);
+    });
+}
+
+function updateQsActive() {
+    document.querySelectorAll('.qs-item').forEach((el, i) =>
+        el.classList.toggle('qs-active', i === qsActiveIdx));
+}
+
+function openQS() {
+    const modal = document.getElementById('quick-search');
+    const input = document.getElementById('qs-input');
+    modal.classList.remove('qs-hidden');
+    input.value = '';
+    document.getElementById('qs-results').innerHTML = '';
+    document.getElementById('qs-hint').style.display = 'block';
+    setTimeout(() => input.focus(), 50);
+}
+
+function closeQS() {
+    document.getElementById('quick-search').classList.add('qs-hidden');
+}
+
+document.getElementById('qs-input').addEventListener('input', renderQS);
+document.getElementById('qs-overlay').addEventListener('click', closeQS);
+document.getElementById('qs-open-btn').addEventListener('click', openQS);
+document.getElementById('qs-reader-btn').addEventListener('click', openQS);
+
+document.addEventListener('keydown', e => {
+    // Abrir con / o Ctrl+K
+    if ((e.key === '/' || (e.key === 'k' && (e.ctrlKey || e.metaKey))) &&
+        !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        e.preventDefault();
+        openQS();
+        return;
+    }
+    if (document.getElementById('quick-search').classList.contains('qs-hidden')) return;
+    if (e.key === 'Escape') { closeQS(); return; }
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        qsActiveIdx = Math.min(qsActiveIdx + 1, qsSuggestions.length - 1);
+        updateQsActive();
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        qsActiveIdx = Math.max(qsActiveIdx - 1, -1);
+        updateQsActive();
+    } else if (e.key === 'Enter') {
+        const target = qsActiveIdx >= 0 ? qsSuggestions[qsActiveIdx] : qsSuggestions[0];
+        if (target) target.action();
+    }
+});
 
 function hideSplash() {
     const splash = document.getElementById('splash');
