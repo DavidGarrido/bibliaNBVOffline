@@ -1,11 +1,11 @@
-const CACHE_NAME = 'biblia-v15';
+const CACHE_NAME = 'biblia-v16';
 const CORE_ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './translations.json',
-  './logo_iglesia.jpg',
+  './logo_iglesia.svg',
   'https://telegram.org/js/telegram-web-app.js'
 ];
 
