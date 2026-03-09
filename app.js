@@ -262,17 +262,19 @@ function showReaderContinuous(book, chapter) {
     switchView('reader');
 
     requestAnimationFrame(() => {
-        const saved = JSON.parse(localStorage.getItem('bible-position'));
-        const savedVerseN = (saved && saved.bookId === book.id && saved.chapterN === chapter.n)
-            ? saved.verseN : null;
+        requestAnimationFrame(() => {
+            const saved = JSON.parse(localStorage.getItem('bible-position'));
+            const savedVerseN = (saved && saved.bookId === book.id && saved.chapterN === chapter.n)
+                ? saved.verseN : null;
 
-        if (savedVerseN) {
-            const target = [...elements.versesContent.querySelectorAll('.verse')]
-                .find(el => el.querySelector('.v-num')?.textContent == savedVerseN);
-            if (target) { target.scrollIntoView({ block: 'start' }); return; }
-        }
-        const chapTarget = document.getElementById(`chap-${chapter.n}`);
-        if (chapTarget) chapTarget.scrollIntoView({ block: 'start' });
+            if (savedVerseN) {
+                const target = [...elements.versesContent.querySelectorAll('.verse')]
+                    .find(el => el.querySelector('.v-num')?.textContent == savedVerseN);
+                if (target) { target.scrollIntoView({ block: 'start' }); return; }
+            }
+            const chapTarget = document.getElementById(`chap-${chapter.n}`);
+            if (chapTarget) chapTarget.scrollIntoView({ block: 'start' });
+        });
     });
 }
 
