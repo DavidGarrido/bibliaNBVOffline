@@ -512,6 +512,7 @@ async function checkVersion() {
 let qsActiveIdx = -1;
 let qsSuggestions = [];
 let pendingVerse = null;
+let qsLastTappedTitle = null;
 
 function normStr(s) {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').trim();
@@ -564,6 +565,7 @@ function buildQsSuggestions(raw) {
             const verseObj = chapObj.v.find(v => v.n === parsed.verse);
             items.push({
                 icon: '📖',
+                bookName: book.name,
                 title: `${book.name} ${parsed.chap}:${parsed.verse}`,
                 sub: verseObj ? verseObj.t.substring(0, 70) + '…' : 'Versículo no encontrado',
                 action: () => {
@@ -580,6 +582,7 @@ function buildQsSuggestions(raw) {
             if (!chapObj) return;
             items.push({
                 icon: '📄',
+                bookName: book.name,
                 title: `${book.name} ${parsed.chap}`,
                 sub: `Capítulo ${parsed.chap} · ${book.chapters.length} caps en total`,
                 action: () => { closeQS(); showChapters(book); showReader(book, chapObj); }
@@ -587,7 +590,7 @@ function buildQsSuggestions(raw) {
         });
         if (!items.length) {
             parsed.books.forEach(book => items.push({
-                icon: '📚', title: book.name,
+                icon: '📚', bookName: book.name, title: book.name,
                 sub: `Capítulo ${parsed.chap} no existe (${book.chapters.length} caps)`,
                 action: () => { closeQS(); showChapters(book); }
             }));
@@ -595,6 +598,7 @@ function buildQsSuggestions(raw) {
     } else {
         parsed.books.forEach(book => items.push({
             icon: '📚',
+            bookName: book.name,
             title: book.name,
             sub: `${book.chapters.length} capítulos → ir al capítulo 1`,
             action: () => { closeQS(); showChapters(book); showReader(book, book.chapters[0]); }
@@ -610,10 +614,11 @@ function renderQS() {
     const hint = document.getElementById('qs-hint');
     qsSuggestions = buildQsSuggestions(input.value);
     qsActiveIdx = -1;
+    qsLastTappedTitle = null;
     results.innerHTML = '';
     hint.style.display = qsSuggestions.length ? 'none' : 'block';
 
-    qsSuggestions.forEach((item) => {
+    qsSuggestions.forEach((item, i) => {
         const div = document.createElement('div');
         div.className = 'qs-item';
         div.innerHTML = `
@@ -622,7 +627,19 @@ function renderQS() {
                 <div class="qs-item-title">${item.title}</div>
                 ${item.sub ? `<div class="qs-item-sub">${item.sub}</div>` : ''}
             </div>`;
-        div.onclick = item.action;
+        div.addEventListener('click', () => {
+            if (qsLastTappedTitle === item.title) {
+                // Segundo toque: navegar
+                qsLastTappedTitle = null;
+                item.action();
+            } else {
+                // Primer toque: completar nombre y resaltar
+                qsLastTappedTitle = item.title;
+                qsActiveIdx = i;
+                updateQsActive();
+                input.value = item.bookName;
+            }
+        });
         results.appendChild(div);
     });
 }
@@ -661,14 +678,18 @@ document.addEventListener('keydown', e => {
     }
     if (document.getElementById('quick-search').classList.contains('qs-hidden')) return;
     if (e.key === 'Escape') { closeQS(); return; }
-    if (e.key === 'ArrowDown' || e.key === 'Tab') {
+    if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
         e.preventDefault();
-        qsActiveIdx = Math.min(qsActiveIdx + 1, qsSuggestions.length - 1);
+        if (!qsSuggestions.length) return;
+        qsActiveIdx = (qsActiveIdx + 1) % qsSuggestions.length;
         updateQsActive();
-    } else if (e.key === 'ArrowUp') {
+        document.getElementById('qs-input').value = qsSuggestions[qsActiveIdx].bookName;
+    } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
         e.preventDefault();
-        qsActiveIdx = Math.max(qsActiveIdx - 1, -1);
+        if (!qsSuggestions.length) return;
+        qsActiveIdx = (qsActiveIdx - 1 + qsSuggestions.length) % qsSuggestions.length;
         updateQsActive();
+        document.getElementById('qs-input').value = qsSuggestions[qsActiveIdx].bookName;
     } else if (e.key === 'Enter') {
         const target = qsActiveIdx >= 0 ? qsSuggestions[qsActiveIdx] : qsSuggestions[0];
         if (target) target.action();
