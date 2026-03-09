@@ -68,7 +68,7 @@ async function init() {
     await loadBible(saved);
 }
 
-async function loadBible(translationId) {
+async function loadBible(translationId, restorePosition = true) {
     const translation = translations.find(t => t.id === translationId);
     if (!translation) return;
 
@@ -95,15 +95,17 @@ async function loadBible(translationId) {
     elements.loader.style.display = 'none';
     renderBooks();
 
-    const saved = JSON.parse(localStorage.getItem('bible-position'));
-    if (saved && saved.bookId && saved.chapterN) {
-        const book = bibleData.find(b => b.id === saved.bookId);
-        if (book) {
-            const chapter = book.chapters.find(c => c.n === saved.chapterN);
-            if (chapter) {
-                showChapters(book);
-                showReader(book, chapter);
-                return;
+    if (restorePosition) {
+        const saved = JSON.parse(localStorage.getItem('bible-position'));
+        if (saved && saved.bookId && saved.chapterN) {
+            const book = bibleData.find(b => b.id === saved.bookId);
+            if (book) {
+                const chapter = book.chapters.find(c => c.n === saved.chapterN);
+                if (chapter) {
+                    showChapters(book);
+                    showReader(book, chapter);
+                    return;
+                }
             }
         }
     }
@@ -409,7 +411,7 @@ elements.translationSelect.onchange = (e) => {
     localStorage.setItem('bible-translation', id);
     elements.searchInput.value = '';
     cleanupPageMode();
-    loadBible(id);
+    loadBible(id, false);
 };
 
 elements.readerTranslationSelect.onchange = async (e) => {
@@ -418,7 +420,7 @@ elements.readerTranslationSelect.onchange = async (e) => {
     const savedChapter = currentChapter;
     localStorage.setItem('bible-translation', id);
     cleanupPageMode();
-    await loadBible(id);
+    await loadBible(id, false);
     const book = bibleData.find(b => b.id === savedBook.id);
     if (book) {
         const chapter = book.chapters.find(c => c.n === savedChapter.n) || book.chapters[0];
