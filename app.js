@@ -491,4 +491,16 @@ async function checkVersion() {
   return true;
 }
 
-checkVersion().then(ok => { if (ok) init(); });
+function hideSplash() {
+    const splash = document.getElementById('splash');
+    if (!splash) return;
+    splash.classList.add('fade-out');
+    setTimeout(() => splash.remove(), 650);
+}
+
+checkVersion().then(ok => {
+    if (ok) {
+        const minWait = new Promise(r => setTimeout(r, 1500));
+        Promise.all([init(), minWait]).then(hideSplash);
+    }
+});
