@@ -661,7 +661,7 @@ document.addEventListener('keydown', e => {
     }
     if (document.getElementById('quick-search').classList.contains('qs-hidden')) return;
     if (e.key === 'Escape') { closeQS(); return; }
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown' || e.key === 'Tab') {
         e.preventDefault();
         qsActiveIdx = Math.min(qsActiveIdx + 1, qsSuggestions.length - 1);
         updateQsActive();
