@@ -93,13 +93,15 @@ async function loadBible(translationId) {
     }
 
     elements.loader.style.display = 'none';
+    renderBooks();
 
     const saved = JSON.parse(localStorage.getItem('bible-position'));
-    if (saved && saved.translationId === translationId) {
+    if (saved && saved.bookId && saved.chapterN) {
         const book = bibleData.find(b => b.id === saved.bookId);
         if (book) {
             const chapter = book.chapters.find(c => c.n === saved.chapterN);
             if (chapter) {
+                showChapters(book);
                 showReader(book, chapter);
                 return;
             }
@@ -107,7 +109,6 @@ async function loadBible(translationId) {
     }
 
     switchView('books');
-    renderBooks();
 }
 
 function renderBooks(filter = '') {
