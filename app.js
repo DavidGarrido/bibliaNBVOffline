@@ -142,6 +142,7 @@ function showChapters(book) {
 }
 
 function showReader(book, chapter) {
+    clearVerseSelection();
     if (readingMode === 'continuous') {
         showReaderContinuous(book, chapter);
     } else {
@@ -745,6 +746,81 @@ document.addEventListener('keydown', e => {
         const target = qsActiveIdx >= 0 ? qsSuggestions[qsActiveIdx] : qsSuggestions[0];
         if (target) target.action();
     }
+});
+
+// ── Selección de versículo y acciones ─────────────────────────
+
+let selectedVerseEl = null;
+
+function clearVerseSelection() {
+    if (selectedVerseEl) {
+        selectedVerseEl.classList.remove('verse-selected');
+        selectedVerseEl = null;
+    }
+    document.getElementById('verse-actions').classList.remove('va-active');
+}
+
+elements.versesContent.addEventListener('click', e => {
+    const verseEl = e.target.closest('.verse');
+    if (!verseEl) { clearVerseSelection(); return; }
+
+    if (selectedVerseEl === verseEl) {
+        clearVerseSelection();
+        return;
+    }
+
+    if (selectedVerseEl) selectedVerseEl.classList.remove('verse-selected');
+    selectedVerseEl = verseEl;
+    verseEl.classList.add('verse-selected');
+
+    const verseN = parseInt(verseEl.querySelector('.v-num')?.textContent);
+    const chapN = parseInt(verseEl.getAttribute('data-chap')) || currentChapter.n;
+    document.getElementById('va-ref').textContent = `${currentBook.name} ${chapN}:${verseN}`;
+    document.getElementById('verse-actions').classList.add('va-active');
+});
+
+document.getElementById('va-compare').addEventListener('click', () => {
+    if (!selectedVerseEl) return;
+    const verseN = parseInt(selectedVerseEl.querySelector('.v-num')?.textContent);
+    const chapN = parseInt(selectedVerseEl.getAttribute('data-chap')) || currentChapter.n;
+    openVerseCompare(currentBook.id, chapN, verseN);
+});
+
+async function openVerseCompare(bookId, chapN, verseN) {
+    const modal = document.getElementById('verse-compare');
+    const content = document.getElementById('vc-content');
+    document.getElementById('vc-title').textContent =
+        `${currentBook.name} ${chapN}:${verseN}`;
+    content.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.5">Cargando…</div>';
+    modal.classList.remove('vc-hidden');
+
+    const results = await Promise.all(translations.map(async t => {
+        let data = bibleCache[t.id];
+        if (!data) {
+            try {
+                const res = await fetch(t.file);
+                data = await res.json();
+                bibleCache[t.id] = data;
+            } catch { return { label: t.label, text: null }; }
+        }
+        const book = data.find(b => b.id === bookId);
+        const chap = book?.chapters.find(c => c.n === chapN);
+        const verse = chap?.v.find(v => v.n === verseN);
+        return { label: t.label, text: verse?.t || null };
+    }));
+
+    content.innerHTML = results.map(r => `
+        <div class="vc-item">
+            <div class="vc-label">${r.label}</div>
+            <div class="vc-text">${r.text ?? '<em style="opacity:0.4">No disponible</em>'}</div>
+        </div>`).join('');
+}
+
+document.getElementById('vc-overlay').addEventListener('click', () => {
+    document.getElementById('verse-compare').classList.add('vc-hidden');
+});
+document.getElementById('vc-close').addEventListener('click', () => {
+    document.getElementById('verse-compare').classList.add('vc-hidden');
 });
 
 function hideSplash() {
