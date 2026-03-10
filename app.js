@@ -218,9 +218,14 @@ function showReaderPaged(book, chapter) {
         }
         elements.versesContent.appendChild(strip);
 
-        const saved = JSON.parse(localStorage.getItem('bible-position'));
-        currentPageNum = (saved && saved.bookId === book.id && saved.chapterN === chapter.n && saved.pageNum != null)
-            ? Math.min(saved.pageNum, totalPageCount - 1) : 0;
+        if (pendingPage !== null) {
+            currentPageNum = pendingPage === -1 ? totalPageCount - 1 : Math.min(pendingPage, totalPageCount - 1);
+            pendingPage = null;
+        } else {
+            const saved = JSON.parse(localStorage.getItem('bible-position'));
+            currentPageNum = (saved && saved.bookId === book.id && saved.chapterN === chapter.n && saved.pageNum != null)
+                ? Math.min(saved.pageNum, totalPageCount - 1) : 0;
+        }
 
         // Si hay un verso pendiente de búsqueda, ir a su página
         if (pendingVerse) {
@@ -413,10 +418,12 @@ function simulateSwipe(direction) {
             scrollToPage(currentPageNum - 1);
         } else if (chapIndex > 0) {
             cleanupPageMode();
+            pendingPage = -1;
             showReader(currentBook, currentBook.chapters[chapIndex - 1]);
         } else if (bookIndex > 0) {
             const prevBook = bibleData[bookIndex - 1];
             cleanupPageMode();
+            pendingPage = -1;
             showReader(prevBook, prevBook.chapters[prevBook.chapters.length - 1]);
         }
     }
@@ -512,6 +519,7 @@ async function checkVersion() {
 let qsActiveIdx = -1;
 let qsSuggestions = [];
 let pendingVerse = null;
+let pendingPage = null;  // -1 = última página, N = página específica
 let qsLastTappedTitle = null;
 
 function normStr(s) {
