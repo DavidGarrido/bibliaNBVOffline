@@ -393,19 +393,6 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft')  simulateSwipe('right');
 });
 
-document.addEventListener('keydown', e => {
-    if (e.key !== 't' && e.key !== 'T') return;
-    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
-    e.preventDefault();
-    const select = elements.viewReader.style.display === 'block'
-        ? elements.readerTranslationSelect
-        : elements.translationSelect;
-    const opts = [...select.options];
-    const next = (opts.findIndex(o => o.value === select.value) + 1) % opts.length;
-    select.value = opts[next].value;
-    select.dispatchEvent(new Event('change'));
-});
-
 function simulateSwipe(direction) {
     const bookIndex = bibleData.findIndex(b => b.id === currentBook.id);
     const chapIndex = currentBook.chapters.findIndex(c => c.n === currentChapter.n);
