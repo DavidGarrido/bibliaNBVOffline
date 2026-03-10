@@ -572,6 +572,7 @@ function buildQsSuggestions(raw) {
             if (!chapObj) return;
             const verseObj = chapObj.v.find(v => v.n === parsed.verse);
             items.push({
+                type: 'verse',
                 icon: '📖',
                 bookName: book.name,
                 title: `${book.name} ${parsed.chap}:${parsed.verse}`,
@@ -589,6 +590,7 @@ function buildQsSuggestions(raw) {
             const chapObj = book.chapters.find(c => c.n === parsed.chap);
             if (!chapObj) return;
             items.push({
+                type: 'chapter',
                 icon: '📄',
                 bookName: book.name,
                 title: `${book.name} ${parsed.chap}`,
@@ -598,6 +600,7 @@ function buildQsSuggestions(raw) {
         });
         if (!items.length) {
             parsed.books.forEach(book => items.push({
+                type: 'book',
                 icon: '📚', bookName: book.name, title: book.name,
                 sub: `Capítulo ${parsed.chap} no existe (${book.chapters.length} caps)`,
                 action: () => { closeQS(); showChapters(book); }
@@ -605,6 +608,7 @@ function buildQsSuggestions(raw) {
         }
     } else {
         parsed.books.forEach(book => items.push({
+            type: 'book',
             icon: '📚',
             bookName: book.name,
             title: book.name,
@@ -636,16 +640,21 @@ function renderQS() {
                 ${item.sub ? `<div class="qs-item-sub">${item.sub}</div>` : ''}
             </div>`;
         div.addEventListener('click', () => {
-            if (qsLastTappedTitle === item.title) {
-                // Segundo toque: navegar
+            if (item.type !== 'book') {
+                // Capítulo o versículo: navegar directo con un solo toque
+                item.action();
+            } else if (qsLastTappedTitle === item.title) {
+                // Segundo toque sobre el mismo libro: navegar
                 qsLastTappedTitle = null;
                 item.action();
             } else {
-                // Primer toque: completar nombre y resaltar
+                // Primer toque sobre libro: completar nombre + espacio y posicionar cursor
                 qsLastTappedTitle = item.title;
                 qsActiveIdx = i;
                 updateQsActive();
-                input.value = item.bookName;
+                input.value = item.bookName + ' ';
+                input.focus();
+                setTimeout(() => input.setSelectionRange(input.value.length, input.value.length), 0);
             }
         });
         results.appendChild(div);
