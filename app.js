@@ -581,13 +581,15 @@ function buildQsSuggestions(raw) {
         parsed.books.forEach(book => {
             const chapObj = book.chapters.find(c => c.n === parsed.chap);
             if (!chapObj) return;
-            const startVerse = chapObj.v.find(v => v.n === parsed.verseStart);
+            const verses = chapObj.v.filter(v => v.n >= parsed.verseStart && v.n <= parsed.verseEnd);
+            if (!verses.length) return;
+            const rangeText = verses.map(v => `${v.n} ${v.t}`).join('\n');
             items.push({
                 type: 'verse',
                 icon: '📖',
                 bookName: book.name,
                 title: `${book.name} ${parsed.chap}:${parsed.verseStart}-${parsed.verseEnd}`,
-                sub: startVerse ? startVerse.t.substring(0, 70) + '…' : 'Versículo no encontrado',
+                rangeText,
                 action: () => {
                     pendingVerse = parsed.verseStart;
                     closeQS();
@@ -667,7 +669,9 @@ function renderQS() {
             <span class="qs-item-icon">${item.icon}</span>
             <div class="qs-item-main">
                 <div class="qs-item-title">${item.title}</div>
-                ${item.sub ? `<div class="qs-item-sub">${item.sub}</div>` : ''}
+                ${item.rangeText
+                    ? `<div class="qs-item-sub qs-item-range">${item.rangeText.replace(/\n/g, '<br>')}</div>`
+                    : item.sub ? `<div class="qs-item-sub">${item.sub}</div>` : ''}
             </div>`;
         div.addEventListener('click', () => {
             if (item.type !== 'book') {

@@ -328,6 +328,7 @@ h2 {
 .qs-item-main { flex: 1; min-width: 0; }
 .qs-item-title { font-size: 16px; font-weight: 500; }
 .qs-item-sub { font-size: 12px; opacity: 0.5; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qs-item-range { white-space: normal; overflow: visible; text-overflow: unset; line-height: 1.5; }
 
 #splash {
     position: fixed;
