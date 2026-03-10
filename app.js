@@ -539,8 +539,19 @@ function parseQuery(raw) {
     const text = raw.trim();
     if (!text) return null;
 
+    // libro cap:verso1-verso2  o  libro cap verso1 verso2
+    let m = text.match(/^(.+?)\s+(\d+)[:\s]+(\d+)[\s-]+(\d+)$/);
+    if (m) {
+        const books = findBooks(m[1]);
+        if (books.length) {
+            const v1 = parseInt(m[3]), v2 = parseInt(m[4]);
+            return { type: 'range', books, chap: parseInt(m[2]),
+                     verseStart: Math.min(v1, v2), verseEnd: Math.max(v1, v2) };
+        }
+    }
+
     // libro cap:verso  o  libro cap verso
-    let m = text.match(/^(.+?)\s+(\d+)[:\s]+(\d+)$/);
+    m = text.match(/^(.+?)\s+(\d+)[:\s]+(\d+)$/);
     if (m) {
         const books = findBooks(m[1]);
         if (books.length) return { type: 'verse', books, chap: parseInt(m[2]), verse: parseInt(m[3]) };
@@ -566,7 +577,26 @@ function buildQsSuggestions(raw) {
     if (!parsed) return [];
     const items = [];
 
-    if (parsed.type === 'verse') {
+    if (parsed.type === 'range') {
+        parsed.books.forEach(book => {
+            const chapObj = book.chapters.find(c => c.n === parsed.chap);
+            if (!chapObj) return;
+            const startVerse = chapObj.v.find(v => v.n === parsed.verseStart);
+            items.push({
+                type: 'verse',
+                icon: '📖',
+                bookName: book.name,
+                title: `${book.name} ${parsed.chap}:${parsed.verseStart}-${parsed.verseEnd}`,
+                sub: startVerse ? startVerse.t.substring(0, 70) + '…' : 'Versículo no encontrado',
+                action: () => {
+                    pendingVerse = parsed.verseStart;
+                    closeQS();
+                    showChapters(book);
+                    showReader(book, chapObj);
+                }
+            });
+        });
+    } else if (parsed.type === 'verse') {
         parsed.books.forEach(book => {
             const chapObj = book.chapters.find(c => c.n === parsed.chap);
             if (!chapObj) return;
