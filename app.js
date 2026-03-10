@@ -803,9 +803,9 @@ async function openVerseCompare(bookId, chapN, verseN) {
                 bibleCache[t.id] = data;
             } catch { return { label: t.label, text: null }; }
         }
-        const book = data.find(b => b.id === bookId);
-        const chap = book?.chapters.find(c => c.n === chapN);
-        const verse = chap?.v.find(v => v.n === verseN);
+        const book = data.find(b => b.id == bookId);
+        const chap = book?.chapters.find(c => c.n == chapN);
+        const verse = chap?.v.find(v => v.n == verseN);
         return { label: t.label, text: verse?.t || null };
     }));
 
