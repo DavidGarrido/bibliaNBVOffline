@@ -581,13 +581,18 @@ function buildQsSuggestions(raw) {
                 bookName: book.name,
                 title: `${book.name} ${parsed.chap}:${parsed.verseStart}-${parsed.verseEnd}`,
                 rangeText,
+                verseData: verses[0] ? { ref: `${book.name} ${parsed.chap}:${verses[0].n}`, bookId: book.id, chapN: parsed.chap, verseN: verses[0].n, text: verses[0].t } : null,
                 action: () => {
                     const fv = verses[0];
                     if (fv && studiesState) {
-                        const activeStudy = studiesGetActive(studiesState);
-                        studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref: `${book.name} ${parsed.chap}:${fv.n}`, bookId: book.id, chapN: parsed.chap, verseN: fv.n, text: fv.t, translationId: elements.translationSelect.value, note: '' });
-                        studiesSave(studiesState);
-                        showSaveToast('Guardado ✓');
+                        const ref = `${book.name} ${parsed.chap}:${fv.n}`;
+                        const tid = elements.translationSelect.value;
+                        if (!isVerseAlreadySaved(ref, tid)) {
+                            const activeStudy = studiesGetActive(studiesState);
+                            studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref, bookId: book.id, chapN: parsed.chap, verseN: fv.n, text: fv.t, translationId: tid, note: '' });
+                            studiesSave(studiesState);
+                            showSaveToast('Guardado ✓');
+                        }
                     }
                     pendingVerse = parsed.verseStart;
                     closeQS();
@@ -606,12 +611,15 @@ function buildQsSuggestions(raw) {
                 icon: '📖',
                 bookName: book.name,
                 title: `${book.name} ${parsed.chap}:${parsed.verse}`,
-                sub: verseObj ? verseObj.t.substring(0, 70) + '…' : 'Versículo no encontrado',
+                sub: verseObj ? verseObj.t : 'Versículo no encontrado',
+                verseData: verseObj ? { ref: `${book.name} ${parsed.chap}:${parsed.verse}`, bookId: book.id, chapN: parsed.chap, verseN: parsed.verse, text: verseObj.t } : null,
                 action: () => {
-                    if (studiesState) {
+                    const ref = `${book.name} ${parsed.chap}:${parsed.verse}`;
+                    const tid = elements.translationSelect.value;
+                    if (studiesState && !isVerseAlreadySaved(ref, tid)) {
                         const verseText = verseObj ? verseObj.t : (chapObj.v.find(v => v.n == parsed.verse) || {}).t || '';
                         const activeStudy = studiesGetActive(studiesState);
-                        studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref: `${book.name} ${parsed.chap}:${parsed.verse}`, bookId: book.id, chapN: parsed.chap, verseN: parsed.verse, text: verseText, translationId: elements.translationSelect.value, note: '' });
+                        studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref, bookId: book.id, chapN: parsed.chap, verseN: parsed.verse, text: verseText, translationId: tid, note: '' });
                         studiesSave(studiesState);
                         showSaveToast('Guardado ✓');
                     }
@@ -676,7 +684,8 @@ function renderQS() {
                 <div class="qs-item-title">${item.title}</div>
                 ${item.rangeText
                     ? `<div class="qs-item-sub qs-item-range">${item.rangeText.replace(/\n/g, '<br>')}</div>`
-                    : item.sub ? `<div class="qs-item-sub">${item.sub}</div>` : ''}
+                    : item.sub ? `<div class="qs-item-sub qs-item-verse-text">${item.sub}</div>` : ''}
+                ${item.verseData ? `<button class="qs-save-btn">🔖 Guardar</button>` : ''}
             </div>`;
         div.addEventListener('click', () => {
             if (item.type !== 'book') {
@@ -696,6 +705,26 @@ function renderQS() {
                 setTimeout(() => input.setSelectionRange(input.value.length, input.value.length), 0);
             }
         });
+        const saveBtn = div.querySelector('.qs-save-btn');
+        if (saveBtn) {
+            const tid = elements.translationSelect.value;
+            if (isVerseAlreadySaved(item.verseData.ref, tid)) {
+                saveBtn.textContent = '✓ Guardado';
+                saveBtn.disabled = true;
+            }
+            saveBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                if (studiesState && !isVerseAlreadySaved(item.verseData.ref, tid)) {
+                    const activeStudy = studiesGetActive(studiesState);
+                    studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref: item.verseData.ref, bookId: item.verseData.bookId, chapN: item.verseData.chapN, verseN: item.verseData.verseN, text: item.verseData.text, translationId: tid, note: '' });
+                    studiesSave(studiesState);
+                    showSaveToast('Guardado ✓');
+                    saveBtn.textContent = '✓ Guardado';
+                    saveBtn.disabled = true;
+                }
+            });
+        }
+
         results.appendChild(div);
     });
 }
@@ -847,6 +876,15 @@ checkVersion().then(ok => {
 // ═══════════════════════════════════════════════════════════════
 // ── Estudios Bíblicos ─────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
+
+function isVerseAlreadySaved(ref, translationId) {
+    if (!studiesState) return false;
+    const active = studiesGetActive(studiesState);
+    const entries = active.entries;
+    if (!entries.length) return false;
+    const last = entries[entries.length - 1];
+    return last.type === 'verse' && last.ref === ref && last.translationId === translationId;
+}
 
 const STORAGE_KEY = 'bible-studies';
 const DEFAULT_STATE = {
@@ -1073,7 +1111,7 @@ function openStudySheet(studyId, isStartup = false) {
     const study = studiesState.studies.find(s => s.id === studyId);
     if (!study) return;
 
-    title.textContent = `📓 Estudios`;
+    title.textContent = `📓 ${study.name}`;
 
     const content = document.getElementById('ss-content');
     if (isStartup) {
@@ -1193,7 +1231,7 @@ function renderStudyEntries(study) {
         if (entry.type === 'verse') {
             return `
                 <div class="ss-entry">
-                    <div class="ss-entry-ref" data-entry-id="${entry.id}">${entry.ref}</div>
+                    <div class="ss-entry-ref" data-entry-id="${entry.id}">${entry.ref}${entry.translationId ? ` <span class="ss-entry-version">${entry.translationId.toUpperCase()}</span>` : ''}</div>
                     <div class="ss-entry-text">${entry.text}</div>
                     ${entry.note ? `<div class="ss-entry-note">${entry.note}</div>` : ''}
                     <div class="ss-entry-actions">

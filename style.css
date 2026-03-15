@@ -435,8 +435,10 @@ h2 {
 .qs-item-icon { font-size: 18px; flex-shrink: 0; }
 .qs-item-main { flex: 1; min-width: 0; }
 .qs-item-title { font-size: 16px; font-weight: 500; }
-.qs-item-sub { font-size: 12px; opacity: 0.5; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qs-item-sub { font-size: 12px; opacity: 0.6; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qs-item-verse-text { white-space: normal; overflow: visible; text-overflow: unset; line-height: 1.5; }
 .qs-item-range { white-space: normal; overflow: visible; text-overflow: unset; line-height: 1.5; }
+.qs-save-btn { margin-top: 6px; background: none; border: 1px solid var(--tg-hint-color, #aaa); border-radius: 12px; font-size: 11px; color: var(--tg-hint-color, #888); padding: 2px 10px; cursor: pointer; }
 
 #splash {
     position: fixed;
@@ -662,6 +664,13 @@ h2 {
     font-weight: bold;
     color: var(--tg-link-color, var(--tg-theme-link-color));
     cursor: pointer;
+}
+
+.ss-entry-version {
+    font-size: 11px;
+    font-weight: normal;
+    opacity: 0.6;
+    margin-left: 4px;
 }
 
 .ss-entry-text {
