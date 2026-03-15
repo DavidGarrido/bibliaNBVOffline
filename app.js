@@ -988,8 +988,11 @@ function studiesInit() {
     renderStudiesDropdown();
     updateModeToggleText();
     
-    // Alerta de estudio activo al iniciar (siempre)
-    showActiveStudyAlert(studiesState.activeStudyId || 'general');
+    // Alerta de estudio activo al iniciar (si está habilitada)
+    updateStudyAlertToggleText();
+    if (localStorage.getItem('bible-study-alert') !== 'off') {
+        showActiveStudyAlert(studiesState.activeStudyId || 'general');
+    }
 }
 
 function setupStudiesListeners() {
@@ -1013,6 +1016,13 @@ function setupStudiesListeners() {
         openStudySheet(activeStudy.id);
     });
     
+    // Study alert toggle
+    document.getElementById('sd-study-alert-toggle').addEventListener('click', () => {
+        const current = localStorage.getItem('bible-study-alert');
+        localStorage.setItem('bible-study-alert', current === 'off' ? 'on' : 'off');
+        updateStudyAlertToggleText();
+    });
+
     // Mode toggle in dropdown
     const modeToggle = document.getElementById('sd-mode-toggle');
     modeToggle.addEventListener('click', () => {
@@ -1094,6 +1104,13 @@ function updateStudiesButton() {
     } else {
         btn.classList.remove('has-active');
     }
+}
+
+function updateStudyAlertToggleText() {
+    const btn = document.getElementById('sd-study-alert-toggle');
+    if (!btn) return;
+    const enabled = localStorage.getItem('bible-study-alert') !== 'off';
+    btn.textContent = enabled ? '🔔 Advertir estudio al iniciar' : '🔕 Advertir estudio al iniciar';
 }
 
 function updateModeToggleText() {

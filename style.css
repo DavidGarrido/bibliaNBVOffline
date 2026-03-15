@@ -534,7 +534,7 @@ h2 {
     margin: 4px 0;
 }
 
-#sd-new-note, #sd-new-study, #sd-mode-toggle {
+#sd-new-note, #sd-new-study, #sd-mode-toggle, #sd-study-alert-toggle {
     width: 100%;
     padding: 12px 16px;
     border: none;
@@ -545,7 +545,7 @@ h2 {
     color: var(--tg-text-color, #000);
 }
 
-#sd-new-note:hover, #sd-new-study:hover, #sd-mode-toggle:hover {
+#sd-new-note:hover, #sd-new-study:hover, #sd-mode-toggle:hover, #sd-study-alert-toggle:hover {
     background: var(--tg-secondary-bg-color, #f4f4f5);
 }
 
