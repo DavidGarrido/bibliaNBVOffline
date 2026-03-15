@@ -22,30 +22,35 @@ const elements = {
     viewBooks: document.getElementById('view-books'),
     viewChapters: document.getElementById('view-chapters'),
     viewReader: document.getElementById('view-reader'),
-    currentBookName: document.getElementById('current-book-name'),
-    readerTitle: document.getElementById('reader-title'),
     loader: document.getElementById('loader'),
-    searchInput: document.getElementById('search-input'),
     translationSelect: document.getElementById('translation-select'),
-    readerTranslationSelect: document.getElementById('reader-translation-select'),
-    appTitle: document.getElementById('app-title'),
-    modeBtn: document.getElementById('mode-btn'),
+    readerTranslationSelect: document.getElementById('translation-select'), // unified
+    appTitle: document.getElementById('tb-title'),
+    currentBookName: document.getElementById('tb-title'),
+    readerTitle: document.getElementById('tb-title'),
     chapNav: document.querySelector('.chapter-navigation')
 };
 
-function updateModeBtn() {
-    elements.modeBtn.textContent = readingMode === 'paged' ? '📄' : '📜';
-    elements.modeBtn.title = readingMode === 'paged' ? 'Cambiar a modo continuo' : 'Cambiar a modo por capítulos';
-}
-updateModeBtn();
+function updateTopBar(view, data = {}) {
+    const back = document.getElementById('tb-back');
+    const title = document.getElementById('tb-title');
 
-elements.modeBtn.onclick = () => {
-    cleanupPageMode();
-    readingMode = readingMode === 'paged' ? 'continuous' : 'paged';
-    localStorage.setItem('bible-reading-mode', readingMode);
-    updateModeBtn();
-    if (currentBook && currentChapter) showReader(currentBook, currentChapter);
-};
+    if (view === 'books') {
+        title.textContent = 'Biblia';
+        back.classList.add('tb-hidden');
+        back.onclick = null;
+    } else if (view === 'chapters') {
+        title.textContent = data.bookName || '';
+        back.textContent = '⬅ Libros';
+        back.classList.remove('tb-hidden');
+        back.onclick = () => { cleanupPageMode(); switchView('books'); };
+    } else if (view === 'reader') {
+        title.textContent = data.title || '';
+        back.textContent = '⬅ Cap.';
+        back.classList.remove('tb-hidden');
+        back.onclick = () => { cleanupPageMode(); showChapters(currentBook); };
+    }
+}
 
 async function init() {
     const response = await fetch('translations.json');
@@ -54,13 +59,8 @@ async function init() {
     translations.forEach(t => {
         const opt = document.createElement('option');
         opt.value = t.id;
-        opt.textContent = t.label;
+        opt.textContent = t.id.toUpperCase();
         elements.translationSelect.appendChild(opt);
-
-        const opt2 = document.createElement('option');
-        opt2.value = t.id;
-        opt2.textContent = t.id.toUpperCase();
-        elements.readerTranslationSelect.appendChild(opt2);
     });
 
     const saved = localStorage.getItem('bible-translation') || translations[0].id;
@@ -73,9 +73,7 @@ async function loadBible(translationId, restorePosition = true) {
     const translation = translations.find(t => t.id === translationId);
     if (!translation) return;
 
-    elements.appTitle.textContent = translation.id.toUpperCase();
     elements.translationSelect.value = translationId;
-    elements.readerTranslationSelect.value = translationId;
     elements.loader.style.display = 'block';
     elements.viewBooks.style.display = 'none';
 
@@ -129,7 +127,6 @@ function renderBooks(filter = '') {
 
 function showChapters(book) {
     currentBook = book;
-    elements.currentBookName.innerText = book.name;
     elements.chaptersGrid.innerHTML = '';
     book.chapters.forEach(chap => {
         const btn = document.createElement('div');
@@ -139,6 +136,7 @@ function showChapters(book) {
         elements.chaptersGrid.appendChild(btn);
     });
     switchView('chapters');
+    updateTopBar('chapters', { bookName: book.name });
 }
 
 function showReader(book, chapter) {
@@ -157,7 +155,7 @@ function showReaderPaged(book, chapter) {
 
     currentBook = book;
     currentChapter = chapter;
-    elements.readerTitle.innerText = `${book.name} ${chapter.n}`;
+    document.getElementById('tb-title').textContent = `${book.name} ${chapter.n}`;
     elements.versesContent.innerHTML = '';
     elements.chapNav.style.display = 'none';
 
@@ -176,9 +174,10 @@ function showReaderPaged(book, chapter) {
     switchView('reader');
 
     requestAnimationFrame(() => {
-        const navH = document.querySelector('.reader-nav').offsetHeight;
-        const mainPad = 32;
-        pageHeight = window.innerHeight - navH - mainPad;
+        const navH = document.getElementById('top-bar').offsetHeight;
+        const chapNavH = elements.chapNav ? elements.chapNav.offsetHeight : 0;
+        const mainPad = parseInt(getComputedStyle(document.querySelector('main')).paddingTop) * 2;
+        pageHeight = window.innerHeight - navH - chapNavH - mainPad;
         const pageWidth = elements.versesContent.offsetWidth;
 
         elements.versesContent.classList.add('page-mode');
@@ -263,9 +262,9 @@ function scrollToPage(pageNum) {
 
 function updatePageIndicator() {
     if (readingMode === 'paged') {
-        elements.readerTitle.innerText = `${currentBook.name} ${currentChapter.n}`;
+        document.getElementById('tb-title').textContent = `${currentBook.name} ${currentChapter.n}`;
     } else {
-        elements.readerTitle.innerText = `${currentBook.name} ${currentChapter.n}  ·  ${currentPageNum + 1}/${totalPageCount}`;
+        document.getElementById('tb-title').textContent = `${currentBook.name} ${currentChapter.n}  ·  ${currentPageNum + 1}/${totalPageCount}`;
     }
 }
 
@@ -280,7 +279,7 @@ function showReaderContinuous(book, chapter) {
     cleanupPageMode();
     currentBook = book;
     currentChapter = chapter;
-    elements.readerTitle.innerText = `${book.name} ${chapter.n}`;
+    document.getElementById('tb-title').textContent = `${book.name} ${chapter.n}`;
     elements.versesContent.innerHTML = '';
     elements.chapNav.style.display = 'none';
 
@@ -308,7 +307,7 @@ function showReaderContinuous(book, chapter) {
                 const chap = book.chapters.find(c => c.n === chapN);
                 if (chap) {
                     currentChapter = chap;
-                    elements.readerTitle.innerText = `${book.name} ${chapN}`;
+                    document.getElementById('tb-title').textContent = `${book.name} ${chapN}`;
                     savePosition(book, chap, {});
                 }
             }
@@ -339,7 +338,6 @@ function showReaderContinuous(book, chapter) {
 // ── Scroll (solo modo continuo) ───────────────────────────────
 
 let lastScrollY = 0;
-const readerNav = document.querySelector('.reader-nav');
 
 let scrollDebounce = null;
 window.addEventListener('scroll', () => {
@@ -347,10 +345,8 @@ window.addEventListener('scroll', () => {
 
     // Mostrar/ocultar nav según dirección de scroll
     const currentY = window.scrollY;
-    if (currentY < lastScrollY - 5) {
-        readerNav.classList.remove('nav-hidden');   // subiendo → mostrar
-    } else if (currentY > lastScrollY + 10) {
-        readerNav.classList.add('nav-hidden');       // bajando → ocultar
+    if (currentY < lastScrollY - 5 || currentY > lastScrollY + 10) {
+        // top-bar siempre visible, solo actualizamos lastScrollY
     }
     lastScrollY = currentY;
     clearTimeout(scrollDebounce);
@@ -454,8 +450,7 @@ function switchView(view) {
     elements.viewBooks.style.display = view === 'books' ? 'block' : 'none';
     elements.viewChapters.style.display = view === 'chapters' ? 'block' : 'none';
     elements.viewReader.style.display = view === 'reader' ? 'block' : 'none';
-    document.querySelector('header').style.display = view === 'books' ? 'block' : 'none';
-    if (view === 'reader') { readerNav.classList.remove('nav-hidden'); lastScrollY = 0; }
+    if (view === 'books') { lastScrollY = 0; updateTopBar('books'); }
 
     if (tg.isVersionAtLeast('6.1')) {
         view === 'books' ? tg.BackButton.hide() : tg.BackButton.show();
@@ -463,30 +458,25 @@ function switchView(view) {
 }
 
 tg.BackButton.onClick(handleBack);
-document.querySelectorAll('.back-btn').forEach(btn => { btn.onclick = handleBack; });
-document.getElementById('home-btn').onclick = () => { cleanupPageMode(); switchView('books'); };
 
-elements.searchInput.oninput = (e) => renderBooks(e.target.value);
 
-elements.translationSelect.onchange = (e) => {
+elements.translationSelect.onchange = async (e) => {
     const id = e.target.value;
     localStorage.setItem('bible-translation', id);
-    elements.searchInput.value = '';
-    cleanupPageMode();
-    loadBible(id, false);
-};
-
-elements.readerTranslationSelect.onchange = async (e) => {
-    const id = e.target.value;
-    const savedBook = currentBook;
-    const savedChapter = currentChapter;
-    localStorage.setItem('bible-translation', id);
-    cleanupPageMode();
-    await loadBible(id, false);
-    const book = bibleData.find(b => b.id === savedBook.id);
-    if (book) {
-        const chapter = book.chapters.find(c => c.n === savedChapter.n) || book.chapters[0];
-        showReader(book, chapter);
+    if (elements.viewReader.style.display === 'block' && currentBook && currentChapter) {
+        // Cambio desde el lector: mantener posición
+        const savedBook = currentBook;
+        const savedChapter = currentChapter;
+        cleanupPageMode();
+        await loadBible(id, false);
+        const book = bibleData.find(b => b.id == savedBook.id);
+        if (book) {
+            const chapter = book.chapters.find(c => c.n == savedChapter.n) || book.chapters[0];
+            showReader(book, chapter);
+        }
+    } else {
+        cleanupPageMode();
+        loadBible(id, false);
     }
 };
 
@@ -718,7 +708,7 @@ function closeQS() {
 document.getElementById('qs-input').addEventListener('input', renderQS);
 document.getElementById('qs-overlay').addEventListener('click', closeQS);
 document.getElementById('qs-open-btn').addEventListener('click', openQS);
-document.getElementById('qs-reader-btn').addEventListener('click', openQS);
+document.getElementById('qs-open-btn').addEventListener('click', openQS);
 
 document.addEventListener('keydown', e => {
     // Abrir con / o Ctrl+K
@@ -833,6 +823,525 @@ function hideSplash() {
 checkVersion().then(ok => {
     if (ok) {
         const minWait = new Promise(r => setTimeout(r, 1500));
-        Promise.all([init(), minWait]).then(hideSplash);
+        Promise.all([init(), minWait]).then(() => {
+            hideSplash();
+            setTimeout(() => studiesInit(), 700); // after splash fade (650ms)
+        });
     }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// ── Estudios Bíblicos ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+const STORAGE_KEY = 'bible-studies';
+const DEFAULT_STATE = {
+    activeStudyId: 'general',
+    studies: [
+        {
+            id: 'general',
+            name: 'General',
+            createdAt: new Date().toISOString(),
+            entries: []
+        }
+    ]
+};
+
+// Capa de datos
+function studiesLoad() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { ...DEFAULT_STATE };
+        const parsed = JSON.parse(raw);
+        // Ensure general study exists
+        if (!parsed.studies.find(s => s.id === 'general')) {
+            parsed.studies.unshift({
+                id: 'general',
+                name: 'General',
+                createdAt: new Date().toISOString(),
+                entries: []
+            });
+        }
+        return parsed;
+    } catch {
+        return { ...DEFAULT_STATE };
+    }
+}
+
+function studiesSave(state) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function studiesGetActive(state) {
+    return state.studies.find(s => s.id === (state.activeStudyId || 'general')) || state.studies[0];
+}
+
+function studiesCreate(state, name) {
+    const id = 'study_' + Date.now();
+    const newStudy = {
+        id,
+        name,
+        createdAt: new Date().toISOString(),
+        entries: []
+    };
+    return {
+        ...state,
+        studies: [...state.studies, newStudy]
+    };
+}
+
+function studiesSetActive(state, id) {
+    return {
+        ...state,
+        activeStudyId: id
+    };
+}
+
+function studiesAddEntry(state, studyId, entry) {
+    const studies = state.studies.map(s => {
+        if (s.id !== studyId) return s;
+        return {
+            ...s,
+            entries: [...s.entries, { ...entry, id: 'entry_' + Date.now(), savedAt: new Date().toISOString() }]
+        };
+    });
+    return { ...state, studies };
+}
+
+function studiesDeleteEntry(state, studyId, entryId) {
+    const studies = state.studies.map(s => {
+        if (s.id !== studyId) return s;
+        return {
+            ...s,
+            entries: s.entries.filter(e => e.id !== entryId)
+        };
+    });
+    return { ...state, studies };
+}
+
+function studiesDeleteStudy(state, studyId) {
+    if (studyId === 'general') return state;
+    const studies = state.studies.filter(s => s.id !== studyId);
+    const newActiveId = state.activeStudyId === studyId ? 'general' : state.activeStudyId;
+    return { ...state, studies, activeStudyId: newActiveId };
+}
+
+// Variables de estado
+let studiesState = studiesLoad();
+
+// UI Functions
+function studiesInit() {
+    setupStudiesListeners();
+    updateStudiesButton();
+    renderStudiesDropdown();
+    updateModeToggleText();
+    
+    // Alerta de estudio activo al iniciar (siempre)
+    showActiveStudyAlert(studiesState.activeStudyId || 'general');
+}
+
+function setupStudiesListeners() {
+    const btn = document.getElementById('studies-btn');
+    const header = document.getElementById('sd-header');
+    const newNote = document.getElementById('sd-new-note');
+    const newStudy = document.getElementById('sd-new-study');
+    
+    // Toggle dropdown
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleStudiesDropdown();
+    });
+    
+    // Cerrar con overlay
+    document.getElementById('sd-overlay').addEventListener('click', closeStudiesDropdown);
+    
+    // Header opens sheet for active study
+    header.addEventListener('click', () => {
+        const activeStudy = studiesGetActive(studiesState);
+        openStudySheet(activeStudy.id);
+    });
+    
+    // Mode toggle in dropdown
+    const modeToggle = document.getElementById('sd-mode-toggle');
+    modeToggle.addEventListener('click', () => {
+        cleanupPageMode();
+        readingMode = readingMode === 'paged' ? 'continuous' : 'paged';
+        localStorage.setItem('bible-reading-mode', readingMode);
+        updateModeToggleText();
+        toggleStudiesDropdown();
+        if (currentBook && currentChapter) showReader(currentBook, currentChapter);
+    });
+    
+    // New note
+    newNote.addEventListener('click', () => {
+        openNoteSheet();
+    });
+    
+    // New study
+    newStudy.addEventListener('click', () => {
+        const name = prompt('Nombre del nuevo estudio:');
+        if (name && name.trim()) {
+            studiesState = studiesCreate(studiesState, name.trim());
+            studiesSave(studiesState);
+            renderStudiesDropdown();
+            showSaveToast(`Estudio "${name.trim()}" creado`);
+        }
+    });
+    
+    // Sheet overlays
+    document.getElementById('ss-overlay').addEventListener('click', closeStudySheet);
+    document.getElementById('ss-close').addEventListener('click', closeStudySheet);
+    
+    document.getElementById('ns-overlay').addEventListener('click', closeNoteSheet);
+    document.getElementById('ns-close').addEventListener('click', closeNoteSheet);
+    
+    // Save note
+    document.getElementById('ns-save-btn').addEventListener('click', handleSaveNote);
+    
+    // Save verse button in verse-actions
+    document.getElementById('va-save').addEventListener('click', handleSaveVerse);
+}
+
+function toggleStudiesDropdown() {
+    const drawer = document.getElementById('studies-drawer');
+    const isOpen = drawer.classList.contains('sd-open');
+    if (isOpen) {
+        drawer.classList.remove('sd-open');
+    } else {
+        renderStudiesDropdown();
+        drawer.classList.add('sd-open');
+    }
+}
+
+function renderStudiesDropdown() {
+    const list = document.getElementById('sd-studies-list');
+    const header = document.getElementById('sd-header');
+    const activeStudy = studiesGetActive(studiesState);
+    
+    header.innerHTML = `<span class="sd-header-name">${activeStudy.name} ›</span><span class="sd-header-sub">Estudio activo</span>`;
+    updateModeToggleText();
+
+    list.innerHTML = '';
+    studiesState.studies.forEach(study => {
+        const li = document.createElement('li');
+        li.textContent = study.name;
+        if (study.id === studiesState.activeStudyId) {
+            li.classList.add('sd-active');
+        }
+        li.addEventListener('click', () => {
+            openStudySheet(study.id);
+        });
+        list.appendChild(li);
+    });
+}
+
+function updateStudiesButton() {
+    const btn = document.getElementById('studies-btn');
+    if (studiesState.activeStudyId && studiesState.activeStudyId !== 'general') {
+        btn.classList.add('has-active');
+    } else {
+        btn.classList.remove('has-active');
+    }
+}
+
+function updateModeToggleText() {
+    const modeToggle = document.getElementById('sd-mode-toggle');
+    if (modeToggle) {
+        modeToggle.textContent = readingMode === 'paged' ? '📄 Modo: Páginas' : '📜 Modo: Continuo';
+    }
+}
+
+function openStudySheet(studyId, isStartup = false) {
+    const sheet = document.getElementById('study-sheet');
+    const title = document.getElementById('ss-title');
+    const actions = document.getElementById('ss-actions');
+
+    const study = studiesState.studies.find(s => s.id === studyId);
+    if (!study) return;
+
+    title.textContent = `📓 Estudios`;
+
+    const content = document.getElementById('ss-content');
+    if (isStartup) {
+        content.innerHTML = `
+            <div class="ss-explanation">
+                <p><strong>¿Qué son los estudios?</strong></p>
+                <p>Los estudios te permiten organizar tus citas bíblicas y notas en grupos temáticos. Por ejemplo: <em>Sermón del domingo</em>, <em>Estudio de Romanos</em> o <em>Devocional personal</em>.</p>
+                <p>El estudio <strong>General</strong> siempre está disponible como espacio por defecto. Puedes crear tantos estudios como necesites y cambiar entre ellos en cualquier momento desde el menú 📓.</p>
+                <p>Estudio activo actualmente: <strong>${study.name}</strong></p>
+            </div>
+        `;
+    } else {
+        renderStudyEntries(study);
+    }
+
+    if (isStartup) {
+        // Al iniciar: continuar, ir a General, o crear nuevo
+        const goGeneralBtn = studyId !== 'general'
+            ? `<button id="ss-go-general-btn" class="ss-secondary-btn">Ir a General</button>`
+            : '';
+        const otherStudies = studiesState.studies.filter(s => s.id !== studyId && s.id !== 'general');
+        const moreStudiesBtn = otherStudies.length > 0
+            ? `<button id="ss-more-studies-btn" class="ss-secondary-btn">Ver más estudios (${otherStudies.length})</button>`
+            : '';
+        actions.innerHTML = `
+            <button id="ss-continue-btn" class="primary-btn">Continuar en este estudio</button>
+            <button id="ss-view-entries-btn" class="ss-secondary-btn">Ver entradas del estudio</button>
+            ${goGeneralBtn}
+            ${moreStudiesBtn}
+            <button id="ss-new-study-btn" class="ss-secondary-btn">➕ Crear nuevo estudio</button>
+        `;
+        document.getElementById('ss-continue-btn').addEventListener('click', closeStudySheet);
+        document.getElementById('ss-view-entries-btn').addEventListener('click', () => {
+            document.getElementById('ss-content').innerHTML = '';
+            renderStudyEntries(study);
+            document.getElementById('ss-view-entries-btn').remove();
+        });
+        document.getElementById('ss-more-studies-btn')?.addEventListener('click', () => {
+            const content = document.getElementById('ss-content');
+            content.innerHTML = otherStudies.map(s => `
+                <div class="ss-study-option" data-id="${s.id}">
+                    <span class="ss-study-option-name">${s.name}</span>
+                    <span class="ss-study-option-count">${s.entries.length} entradas</span>
+                </div>
+            `).join('');
+            content.querySelectorAll('.ss-study-option').forEach(el => {
+                el.addEventListener('click', () => {
+                    studiesState = studiesSetActive(studiesState, el.dataset.id);
+                    studiesSave(studiesState);
+                    updateStudiesButton();
+                    renderStudiesDropdown();
+                    closeStudySheet();
+                    showSaveToast(`Estudio activo: ${el.querySelector('.ss-study-option-name').textContent}`);
+                });
+            });
+            document.getElementById('ss-more-studies-btn').remove();
+        });
+        document.getElementById('ss-go-general-btn')?.addEventListener('click', () => {
+            studiesState = studiesSetActive(studiesState, 'general');
+            studiesSave(studiesState);
+            updateStudiesButton();
+            renderStudiesDropdown();
+            closeStudySheet();
+            showSaveToast('Estudio activo: General');
+        });
+        document.getElementById('ss-new-study-btn').addEventListener('click', () => {
+            closeStudySheet();
+            const name = prompt('Nombre del nuevo estudio:');
+            if (name && name.trim()) {
+                studiesState = studiesCreate(studiesState, name.trim());
+                studiesState = studiesSetActive(studiesState, studiesState.studies[studiesState.studies.length - 1].id);
+                studiesSave(studiesState);
+                updateStudiesButton();
+                renderStudiesDropdown();
+                showSaveToast(`Estudio "${name.trim()}" creado y activo`);
+            }
+        });
+    } else {
+        const isActive = study.id === studiesState.activeStudyId;
+        if (isActive) {
+            actions.innerHTML = `<button id="ss-continue-btn" class="primary-btn">Continuar en este estudio</button>`;
+            document.getElementById('ss-continue-btn').addEventListener('click', closeStudySheet);
+        } else {
+            actions.innerHTML = `
+                <button id="ss-continue-btn" class="primary-btn">Continuar en este estudio</button>
+                <button id="ss-cancel-btn" class="ss-secondary-btn">Cancelar</button>
+            `;
+            document.getElementById('ss-continue-btn').addEventListener('click', () => {
+                studiesState = studiesSetActive(studiesState, study.id);
+                studiesSave(studiesState);
+                updateStudiesButton();
+                renderStudiesDropdown();
+                closeStudySheet();
+                showSaveToast(`Estudio activo: ${study.name}`);
+            });
+            document.getElementById('ss-cancel-btn').addEventListener('click', closeStudySheet);
+        }
+    }
+
+    sheet.classList.remove('ss-hidden');
+    closeStudiesDropdown();
+}
+
+function closeStudiesDropdown() {
+    document.getElementById('studies-drawer').classList.remove('sd-open');
+}
+
+function renderStudyEntries(study) {
+    const content = document.getElementById('ss-content');
+    
+    if (!study.entries.length) {
+        content.innerHTML = '<div class="ss-empty">Aún no hay entradas en este estudio</div>';
+        return;
+    }
+    
+    content.innerHTML = study.entries.map(entry => {
+        if (entry.type === 'verse') {
+            return `
+                <div class="ss-entry">
+                    <div class="ss-entry-ref" data-entry-id="${entry.id}">${entry.ref}</div>
+                    <div class="ss-entry-text">${entry.text}</div>
+                    ${entry.note ? `<div class="ss-entry-note">${entry.note}</div>` : ''}
+                    <div class="ss-entry-actions">
+                        <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="ss-entry">
+                    <div class="ss-entry-text">📝 ${entry.text}</div>
+                    ${entry.note ? `<div class="ss-entry-note">${entry.note}</div>` : ''}
+                    <div class="ss-entry-actions">
+                        <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            `;
+        }
+    }).join('');
+    
+    // Add click handlers for verse refs
+    content.querySelectorAll('.ss-entry-ref').forEach(refEl => {
+        refEl.addEventListener('click', () => {
+            const entryId = refEl.dataset.entryId;
+            const entry = study.entries.find(e => e.id === entryId);
+            if (entry && entry.bookId && entry.chapN && entry.verseN) {
+                const book = bibleData?.find(b => b.id === entry.bookId);
+                if (book) {
+                    const chapter = book.chapters.find(c => c.n === entry.chapN);
+                    if (chapter) {
+                        closeStudySheet();
+                        showChapters(book);
+                        pendingVerse = entry.verseN;
+                        showReader(book, chapter);
+                    }
+                }
+            }
+        });
+    });
+    
+    // Add delete handlers
+    content.querySelectorAll('.ss-delete-entry').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const entryId = btn.dataset.entryId;
+            if (confirm('¿Eliminar esta entrada?')) {
+                studiesState = studiesDeleteEntry(studiesState, study.id, entryId);
+                studiesSave(studiesState);
+                const updatedStudy = studiesState.studies.find(s => s.id === study.id);
+                renderStudyEntries(updatedStudy);
+            }
+        });
+    });
+}
+
+function closeStudySheet() {
+    document.getElementById('study-sheet').classList.add('ss-hidden');
+}
+
+function openNoteSheet(verseData = null) {
+    const sheet = document.getElementById('note-sheet');
+    const title = document.getElementById('ns-title');
+    const refEl = document.getElementById('ns-verse-ref');
+    const textEl = document.getElementById('ns-verse-text');
+    const noteInput = document.getElementById('ns-note-input');
+    
+    noteInput.value = '';
+    
+    if (verseData) {
+        title.textContent = 'Guardar versículo';
+        refEl.textContent = verseData.ref;
+        refEl.style.display = 'block';
+        textEl.textContent = verseData.text;
+        textEl.style.display = 'block';
+    } else {
+        title.textContent = 'Nueva nota';
+        refEl.style.display = 'none';
+        textEl.style.display = 'none';
+    }
+    
+    sheet.classList.remove('ns-hidden');
+    closeStudiesDropdown();
+    setTimeout(() => noteInput.focus(), 100);
+    
+    // Store verse data for save
+    sheet.dataset.verseData = verseData ? JSON.stringify(verseData) : '';
+}
+
+function closeNoteSheet() {
+    document.getElementById('note-sheet').classList.add('ns-hidden');
+}
+
+function handleSaveNote() {
+    const sheet = document.getElementById('note-sheet');
+    const noteInput = document.getElementById('ns-note-input');
+    const note = noteInput.value.trim();
+    const verseDataStr = sheet.dataset.verseData;
+    
+    const activeStudy = studiesGetActive(studiesState);
+    
+    if (verseDataStr) {
+        const verseData = JSON.parse(verseDataStr);
+        const entry = {
+            type: 'verse',
+            ref: verseData.ref,
+            bookId: verseData.bookId,
+            chapN: verseData.chapN,
+            verseN: verseData.verseN,
+            text: verseData.text,
+            translationId: elements.translationSelect.value,
+            note: note
+        };
+        studiesState = studiesAddEntry(studiesState, activeStudy.id, entry);
+    } else if (note) {
+        const entry = {
+            type: 'note',
+            text: note,
+            note: ''
+        };
+        studiesState = studiesAddEntry(studiesState, activeStudy.id, entry);
+    } else {
+        showSaveToast('Escribe algo para guardar');
+        return;
+    }
+    
+    studiesSave(studiesState);
+    closeNoteSheet();
+    showSaveToast('Guardado ✓');
+}
+
+function handleSaveVerse() {
+    if (!selectedVerseEl) return;
+    
+    const verseN = parseInt(selectedVerseEl.querySelector('.v-num')?.textContent);
+    const chapN = parseInt(selectedVerseEl.getAttribute('data-chap')) || currentChapter.n;
+    const ref = `${currentBook.name} ${chapN}:${verseN}`;
+    const text = selectedVerseEl.textContent.replace(/^\d+\s*/, '').trim();
+    
+    const verseData = {
+        ref,
+        bookId: currentBook.id,
+        chapN,
+        verseN,
+        text
+    };
+    
+    openNoteSheet(verseData);
+}
+
+function showSaveToast(msg) {
+    const toast = document.getElementById('save-toast');
+    toast.textContent = msg;
+    toast.classList.remove('st-hidden');
+    toast.classList.add('st-visible');
+    
+    setTimeout(() => {
+        toast.classList.remove('st-visible');
+        toast.classList.add('st-hidden');
+    }, 2000);
+}
+
+function showActiveStudyAlert(studyId) {
+    const study = studiesState.studies.find(s => s.id === studyId);
+    if (!study) return;
+    openStudySheet(studyId, true);
+}

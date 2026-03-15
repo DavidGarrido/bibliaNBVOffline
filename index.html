@@ -13,17 +13,23 @@
         <img src="logo_iglesia.svg" alt="Iglesia Cristiana Reflexiones Bíblicas I.D.S.D.">
     </div>
     <div id="app">
-        <header>
-            <div style="display:flex;align-items:center;justify-content:center;gap:8px">
-                <h1 id="app-title" style="margin:0">Biblia</h1>
-                <span id="app-version" style="font-size:11px;opacity:0.35"></span>
-                <button id="qs-open-btn" class="icon-btn" title="Búsqueda rápida (/)">🔍</button>
+        <!-- Barra superior universal -->
+        <nav id="top-bar">
+            <div class="tb-row">
+                <div class="tb-left">
+                    <button id="studies-btn" class="icon-btn" title="Estudios">☰</button>
+                    <button id="tb-back" class="icon-btn tb-hidden">⬅</button>
+                </div>
+                <div class="tb-center">
+                    <span id="tb-title">Biblia</span>
+                    <span id="app-version" style="font-size:11px;opacity:0.35"></span>
+                </div>
+                <div class="tb-right">
+                    <select id="translation-select" class="reader-version-select"></select>
+                    <button id="qs-open-btn" class="icon-btn" title="Búsqueda rápida (/)">🔍</button>
+                </div>
             </div>
-            <select id="translation-select"></select>
-            <div class="search-container">
-                <input type="text" id="search-input" placeholder="Buscar libro o pasaje (ej: Juan 3:16)">
-            </div>
-        </header>
+        </nav>
 
         <main id="content">
             <div id="loader">Cargando Biblia...</div>
@@ -31,25 +37,9 @@
                 <ul id="books-list"></ul>
             </div>
             <div id="view-chapters" class="view" style="display:none">
-                <div class="view-header">
-                    <button class="back-btn">⬅ Libros</button>
-                    <h2 id="current-book-name"></h2>
-                </div>
                 <div id="chapters-grid"></div>
             </div>
             <div id="view-reader" class="view" style="display:none">
-                <div class="reader-nav">
-                    <div class="reader-nav-row">
-                        <button class="back-btn" title="Volver a Capítulos">⬅ Cap.</button>
-                        <select id="reader-translation-select" class="reader-version-select"></select>
-                        <button id="mode-btn" class="icon-btn" title="Cambiar modo de lectura"></button>
-                        <button id="home-btn" class="icon-btn">📚</button>
-                        <button id="qs-reader-btn" class="icon-btn" title="Búsqueda rápida (/)">🔍</button>
-                    </div>
-                    <div class="reader-nav-row reader-title-row">
-                        <h2 id="reader-title"></h2>
-                    </div>
-                </div>
                 <div id="verses-content"></div>
                 <div class="chapter-navigation">
                     <button id="prev-chap" class="nav-btn">⬅ Anterior</button>
@@ -58,6 +48,7 @@
             </div>
         </main>
     </div>
+
     <!-- Modal búsqueda rápida -->
     <div id="quick-search" class="qs-hidden">
         <div id="qs-overlay"></div>
@@ -76,6 +67,7 @@
     <div id="verse-actions" class="va-hidden">
         <span id="va-ref"></span>
         <div class="va-buttons">
+            <button id="va-save" class="va-btn" title="Guardar en estudio">🔖 Guardar</button>
             <button id="va-compare" class="va-btn" title="Ver en todas las versiones">⚖️ Comparar</button>
         </div>
     </div>
@@ -92,25 +84,60 @@
         </div>
     </div>
 
-    <!-- Barra de acciones del versículo seleccionado -->
-    <div id="verse-actions">
-        <span id="va-ref"></span>
-        <div class="va-buttons">
-            <button id="va-compare" class="va-btn">⚖️ Comparar</button>
+    <!-- Drawer lateral de estudios -->
+    <div id="studies-drawer" class="sd-closed">
+        <div id="sd-overlay"></div>
+        <div id="sd-panel">
+            <div id="sd-header">
+                <span class="sd-header-name">General</span>
+                <span class="sd-header-sub">Estudio activo</span>
+            </div>
+            <div class="sd-divider"></div>
+            <button id="sd-new-note">📝 Nueva nota</button>
+            <button id="sd-new-study">➕ Nuevo estudio</button>
+            <div class="sd-divider"></div>
+            <div class="sd-section-label">Mis estudios</div>
+            <ul id="sd-studies-list"></ul>
+            <div class="sd-divider"></div>
+            <div class="sd-section-label">⚙️ Configuración</div>
+            <button id="sd-mode-toggle">📄 Modo: Páginas</button>
         </div>
     </div>
 
-    <!-- Modal comparación de versículo -->
-    <div id="verse-compare" class="vc-hidden">
-        <div id="vc-overlay"></div>
-        <div id="vc-box">
-            <div id="vc-header">
-                <span id="vc-title"></span>
-                <button id="vc-close" class="icon-btn">✕</button>
+    <!-- Bottom sheet de estudio (timeline) -->
+    <div id="study-sheet" class="ss-hidden">
+        <div id="ss-overlay"></div>
+        <div id="ss-box">
+            <div id="ss-header">
+                <span id="ss-title"></span>
+                <button id="ss-close" class="icon-btn">✕</button>
             </div>
-            <div id="vc-content"></div>
+            <div id="ss-content"></div>
+            <div id="ss-actions"></div>
         </div>
     </div>
+
+    <!-- Bottom sheet nueva nota / guardar versículo -->
+    <div id="note-sheet" class="ns-hidden">
+        <div id="ns-overlay"></div>
+        <div id="ns-box">
+            <div id="ns-header">
+                <span id="ns-title">Nueva nota</span>
+                <button id="ns-close" class="icon-btn">✕</button>
+            </div>
+            <div id="ns-content">
+                <div id="ns-verse-ref" class="ns-verse-ref"></div>
+                <div id="ns-verse-text" class="ns-verse-text"></div>
+                <textarea id="ns-note-input" placeholder="Escribe una nota (opcional)"></textarea>
+            </div>
+            <div id="ns-actions">
+                <button id="ns-save-btn" class="primary-btn">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast de confirmación -->
+    <div id="save-toast" class="st-hidden">Guardado ✓</div>
 
     <script src="app.js"></script>
     <script>
