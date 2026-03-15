@@ -582,6 +582,13 @@ function buildQsSuggestions(raw) {
                 title: `${book.name} ${parsed.chap}:${parsed.verseStart}-${parsed.verseEnd}`,
                 rangeText,
                 action: () => {
+                    const fv = verses[0];
+                    if (fv && studiesState) {
+                        const activeStudy = studiesGetActive(studiesState);
+                        studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref: `${book.name} ${parsed.chap}:${fv.n}`, bookId: book.id, chapN: parsed.chap, verseN: fv.n, text: fv.t, translationId: elements.translationSelect.value, note: '' });
+                        studiesSave(studiesState);
+                        showSaveToast('Guardado ✓');
+                    }
                     pendingVerse = parsed.verseStart;
                     closeQS();
                     showChapters(book);
@@ -591,9 +598,9 @@ function buildQsSuggestions(raw) {
         });
     } else if (parsed.type === 'verse') {
         parsed.books.forEach(book => {
-            const chapObj = book.chapters.find(c => c.n === parsed.chap);
+            const chapObj = book.chapters.find(c => c.n == parsed.chap);
             if (!chapObj) return;
-            const verseObj = chapObj.v.find(v => v.n === parsed.verse);
+            const verseObj = chapObj.v.find(v => v.n == parsed.verse);
             items.push({
                 type: 'verse',
                 icon: '📖',
@@ -601,6 +608,13 @@ function buildQsSuggestions(raw) {
                 title: `${book.name} ${parsed.chap}:${parsed.verse}`,
                 sub: verseObj ? verseObj.t.substring(0, 70) + '…' : 'Versículo no encontrado',
                 action: () => {
+                    if (studiesState) {
+                        const verseText = verseObj ? verseObj.t : (chapObj.v.find(v => v.n == parsed.verse) || {}).t || '';
+                        const activeStudy = studiesGetActive(studiesState);
+                        studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref: `${book.name} ${parsed.chap}:${parsed.verse}`, bookId: book.id, chapN: parsed.chap, verseN: parsed.verse, text: verseText, translationId: elements.translationSelect.value, note: '' });
+                        studiesSave(studiesState);
+                        showSaveToast('Guardado ✓');
+                    }
                     pendingVerse = parsed.verse;
                     closeQS();
                     showChapters(book);
