@@ -1741,3 +1741,146 @@ h2 {
     user-select: text;
     white-space: pre-wrap;
 }
+
+/* ── Layout pantalla grande (≥ 1024px) ── */
+@media (min-width: 1024px) {
+    /* El app ocupa todo el ancho disponible */
+    #app {
+        max-width: none;
+        padding-left: 280px;
+    }
+
+    /* Limitar el ancho del texto para buena legibilidad */
+    main#content {
+        max-width: 760px;
+        margin: 0 auto;
+    }
+
+    /* ── Drawer izquierdo permanente ── */
+    #studies-drawer {
+        width: 280px;
+        right: auto;
+        pointer-events: all;
+        z-index: 80;
+    }
+
+    #sd-overlay {
+        display: none !important;
+    }
+
+    #sd-panel {
+        position: absolute !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        transform: none !important;
+        box-shadow: none !important;
+        border-right: 1px solid var(--tg-secondary-bg-color, #eee);
+    }
+
+    /* Ocultar el botón hamburguesa (drawer siempre visible) */
+    #studies-btn {
+        display: none;
+    }
+
+    /* ── Study sheet → sidebar derecho permanente (sin overlay) ── */
+    body.study-sheet-open #study-sheet {
+        align-items: stretch;
+        justify-content: flex-end;
+        z-index: 70;
+    }
+
+    body.study-sheet-open #ss-overlay {
+        display: none;
+    }
+
+    body.study-sheet-open #ss-box {
+        border-radius: 0;
+        width: 380px;
+        max-width: 380px;
+        max-height: none;
+        height: 100vh;
+        border-left: 1px solid var(--tg-secondary-bg-color, #eee);
+        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
+    }
+
+    body.study-sheet-open #app {
+        padding-right: 380px;
+    }
+
+    body.study-sheet-open #verse-actions {
+        right: 380px;
+    }
+
+    /* ── Study nav modal → sidebar derecho con lista ── */
+    body.study-nav-open #study-nav-modal {
+        align-items: stretch;
+        justify-content: flex-end;
+        z-index: 75;
+    }
+
+    body.study-nav-open #snm-overlay {
+        display: none;
+    }
+
+    body.study-nav-open #snm-box {
+        border-radius: 0;
+        width: 380px;
+        max-width: 380px;
+        max-height: none;
+        height: 100vh;
+        border-left: 1px solid var(--tg-secondary-bg-color, #eee);
+        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Ocultar prev/next del modal (se navega desde la lista) */
+    body.study-nav-open .snm-arrow {
+        display: none;
+    }
+
+    /* Botón "ir al versículo" compacto en la lista */
+    .snm-list-goto {
+        width: auto;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 6px;
+        margin-top: 6px;
+    }
+
+    body.study-nav-open #app {
+        padding-right: 380px;
+    }
+
+    body.study-nav-open #verse-actions {
+        right: 380px;
+    }
+}
+
+/* ── Lista de entradas en el nav modal (pantalla grande) ── */
+.snm-list-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--tg-secondary-bg-color, #eee);
+}
+
+.snm-list-item:last-child {
+    border-bottom: none;
+}
+
+.snm-list-active {
+    border-left: 3px solid var(--tg-link-color, #2481cc);
+    padding-left: 10px;
+}
+
+.snm-list-note {
+    font-size: 13px;
+    font-style: italic;
+    opacity: 0.8;
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: var(--tg-secondary-bg-color, #f4f4f5);
+    border-radius: 6px;
+    white-space: pre-wrap;
+    -webkit-user-select: text;
+    user-select: text;
+}

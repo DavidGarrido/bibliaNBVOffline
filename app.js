@@ -1313,11 +1313,17 @@ function openStudySheet(studyId, isStartup = false) {
             ${moreStudiesBtn}
             <button id="ss-new-study-btn" class="ss-secondary-btn">➕ Crear nuevo estudio</button>
         `;
-        document.getElementById('ss-continue-btn').addEventListener('click', closeStudySheet);
+        document.getElementById('ss-continue-btn').addEventListener('click', () => {
+            if (window.innerWidth >= 1024) {
+                renderStudyEntries(study);
+                actions.innerHTML = '';
+            } else {
+                closeStudySheet();
+            }
+        });
         document.getElementById('ss-view-entries-btn').addEventListener('click', () => {
-            document.getElementById('ss-content').innerHTML = '';
             renderStudyEntries(study);
-            document.getElementById('ss-view-entries-btn').remove();
+            actions.innerHTML = '';
         });
         document.getElementById('ss-more-studies-btn')?.addEventListener('click', () => {
             const content = document.getElementById('ss-content');
@@ -1357,7 +1363,14 @@ function openStudySheet(studyId, isStartup = false) {
         const isActive = study.id === studiesState.activeStudyId;
         if (isActive) {
             actions.innerHTML = `<button id="ss-continue-btn" class="primary-btn">Continuar en este estudio</button>`;
-            document.getElementById('ss-continue-btn').addEventListener('click', closeStudySheet);
+            document.getElementById('ss-continue-btn').addEventListener('click', () => {
+                if (window.innerWidth >= 1024) {
+                    renderStudyEntries(study);
+                    actions.innerHTML = '';
+                } else {
+                    closeStudySheet();
+                }
+            });
         } else {
             actions.innerHTML = `
                 <button id="ss-continue-btn" class="primary-btn">Continuar en este estudio</button>
@@ -1368,15 +1381,22 @@ function openStudySheet(studyId, isStartup = false) {
                 studiesSave(studiesState);
                 updateStudiesButton();
                 renderStudiesDropdown();
-                closeStudySheet();
                 showSaveToast(`Estudio activo: ${study.name}`);
                 studyNavReset();
+                if (window.innerWidth >= 1024) {
+                    renderStudyEntries(study);
+                    actions.innerHTML = '';
+                } else {
+                    closeStudySheet();
+                }
             });
             document.getElementById('ss-cancel-btn').addEventListener('click', closeStudySheet);
         }
     }
 
     sheet.classList.remove('ss-hidden');
+    document.body.classList.add('study-sheet-open');
+    closeStudyNavModal();
     closeStudiesDropdown();
 }
 
@@ -1466,6 +1486,7 @@ function renderStudyEntries(study) {
 
 function closeStudySheet() {
     document.getElementById('study-sheet').classList.add('ss-hidden');
+    document.body.classList.remove('study-sheet-open');
 }
 
 function openNoteSheet(verseData = null, editEntry = null, editStudyId = null) {
@@ -1695,6 +1716,7 @@ function attachNoteRefListeners(container) {
             closeNoteBadgeModal();
             closeStudyNavModal();
             document.getElementById('study-sheet').classList.add('ss-hidden');
+            document.body.classList.remove('study-sheet-open');
             pendingVerse = verseN;
             cleanupPageMode();
             showChapters(book);
@@ -1828,11 +1850,13 @@ function studyNavUpdate() {
     const bar = document.getElementById('study-nav-bar');
     if (!studyNavIsEnabled() || elements.viewReader.style.display !== 'block') {
         bar.classList.add('snb-hidden');
+        if (window.innerWidth >= 1024) closeStudyNavModal();
         return;
     }
     const entries = studyNavEntries();
     if (!entries.length) {
         bar.classList.add('snb-hidden');
+        if (window.innerWidth >= 1024) closeStudyNavModal();
         return;
     }
     bar.classList.remove('snb-hidden');
@@ -1850,6 +1874,16 @@ function studyNavUpdate() {
 
     document.getElementById('snb-prev').disabled = studyNavIndex === 0;
     document.getElementById('snb-next').disabled = studyNavIndex === entries.length - 1;
+
+    // En pantalla grande: abrir el sidebar automáticamente o refrescar si ya está abierto
+    if (window.innerWidth >= 1024) {
+        const modal = document.getElementById('study-nav-modal');
+        if (modal.classList.contains('snm-hidden')) {
+            openStudyNavModal();
+        } else {
+            renderStudyNavList();
+        }
+    }
 }
 
 function studyNavGo(index) {
@@ -1883,12 +1917,64 @@ function studyNavNavigateToEntry(entry) {
 }
 
 function openStudyNavModal() {
-    renderStudyNavModal();
+    if (window.innerWidth >= 1024) {
+        closeStudySheet();
+        renderStudyNavList();
+        document.body.classList.add('study-nav-open');
+    } else {
+        renderStudyNavModal();
+    }
     document.getElementById('study-nav-modal').classList.remove('snm-hidden');
 }
 
 function closeStudyNavModal() {
     document.getElementById('study-nav-modal').classList.add('snm-hidden');
+    document.body.classList.remove('study-nav-open');
+}
+
+function renderStudyNavList() {
+    const entries = studyNavEntries();
+    const content = document.getElementById('snm-content');
+    document.getElementById('snm-pos').textContent = `${entries.length} referencias`;
+
+    if (!entries.length) {
+        content.innerHTML = '<div class="ss-empty">No hay entradas en este estudio.</div>';
+        return;
+    }
+
+    content.innerHTML = entries.map((entry, i) => {
+        const active = i === studyNavIndex ? 'snm-list-active' : '';
+        if (entry.type === 'verse') {
+            const versionTag = entry.translationId
+                ? `<span class="snm-version">${entry.translationId.toUpperCase()}</span>`
+                : '';
+            return `<div class="snm-list-item ${active}" data-index="${i}">
+                <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
+                ${entry.note ? `<div class="snm-list-note">${linkifyNoteText(entry.note)}</div>` : ''}
+                <button class="snm-goto-btn snm-list-goto" data-index="${i}">→ Ir al versículo</button>
+            </div>`;
+        } else {
+            return `<div class="snm-list-item snm-list-item-note ${active}" data-index="${i}">
+                <div class="snm-note-label">📝 Nota libre</div>
+                <div class="snm-list-note">${linkifyNoteText(entry.text)}</div>
+            </div>`;
+        }
+    }).join('');
+
+    content.querySelectorAll('.snm-list-goto').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.index);
+            const entry = entries[i];
+            studyNavIndex = i;
+            localStorage.setItem('bible-study-nav-index', studyNavIndex);
+            studyNavUpdate();
+            studyNavNavigateToEntry(entry);
+        });
+    });
+
+    content.querySelectorAll('.snm-list-note').forEach(el => {
+        attachNoteRefListeners(el);
+    });
 }
 
 function renderStudyNavModal() {
