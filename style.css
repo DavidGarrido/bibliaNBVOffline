@@ -920,6 +920,13 @@ h2 {
     pointer-events: none;
 }
 
+/* ── Verse range selection ── */
+.verse.verse-in-range {
+    color: var(--tg-link-color, #2481cc);
+    background: rgba(36, 129, 204, 0.07);
+    border-radius: 4px;
+}
+
 /* ── Verse selected indicator (already in base styles) ── */
 .verse.verse-selected {
     color: var(--tg-link-color, var(--tg-theme-link-color));
@@ -1134,6 +1141,16 @@ h2 {
     line-height: 15px;
     flex-shrink: 0;
     box-sizing: border-box;
+}
+
+/* ── Links de citas bíblicas en notas ── */
+.note-bible-ref {
+    color: var(--tg-link-color, #2481cc);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 /* ── Note Badge Modal ── */

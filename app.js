@@ -585,7 +585,7 @@ function buildQsSuggestions(raw) {
                 bookName: book.name,
                 title: `${book.name} ${parsed.chap}:${parsed.verseStart}-${parsed.verseEnd}`,
                 rangeText,
-                verseData: verses[0] ? { ref: `${book.name} ${parsed.chap}:${verses[0].n}`, bookId: book.id, chapN: parsed.chap, verseN: verses[0].n, text: verses[0].t } : null,
+                verseData: verses.length ? { ref: `${book.name} ${parsed.chap}:${parsed.verseStart}-${parsed.verseEnd}`, bookId: book.id, chapN: parsed.chap, verseN: parsed.verseStart, verseEnd: parsed.verseEnd, text: verses.map(v => `${v.n} ${v.t}`).join(' ') } : null,
                 action: () => {
                     const fv = verses[0];
                     if (fv && studiesState) {
@@ -720,7 +720,7 @@ function renderQS() {
                 e.stopPropagation();
                 if (studiesState && !isVerseAlreadySaved(item.verseData.ref, tid)) {
                     const activeStudy = studiesGetActive(studiesState);
-                    studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref: item.verseData.ref, bookId: item.verseData.bookId, chapN: item.verseData.chapN, verseN: item.verseData.verseN, text: item.verseData.text, translationId: tid, note: '' });
+                    studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref: item.verseData.ref, bookId: item.verseData.bookId, chapN: item.verseData.chapN, verseN: item.verseData.verseN, verseEnd: item.verseData.verseEnd || null, text: item.verseData.text, translationId: tid, note: '' });
                     studiesSave(studiesState);
                     showSaveToast('Guardado ✓');
                     saveBtn.textContent = '✓ Guardado';
@@ -787,39 +787,101 @@ document.addEventListener('keydown', e => {
 
 // ── Selección de versículo y acciones ─────────────────────────
 
-let selectedVerseEl = null;
+let selectedVerseEl    = null;
+let selectedVerseEndEl = null;
+
+function getVerseInfo(el) {
+    const verseN = parseInt(el.querySelector('.v-num')?.textContent);
+    const chapN  = parseInt(el.getAttribute('data-chap')) || currentChapter?.n;
+    return { verseN, chapN };
+}
 
 function clearVerseSelection() {
     if (selectedVerseEl) {
         selectedVerseEl.classList.remove('verse-selected');
         selectedVerseEl = null;
     }
+    selectedVerseEndEl = null;
+    elements.versesContent.querySelectorAll('.verse-in-range').forEach(el => {
+        el.classList.remove('verse-in-range');
+    });
     document.getElementById('verse-actions').classList.remove('va-active');
 }
 
+function highlightVerseRange() {
+    elements.versesContent.querySelectorAll('.verse-in-range').forEach(el => el.classList.remove('verse-in-range'));
+    if (!selectedVerseEl || !selectedVerseEndEl) return;
+    const { verseN: startN, chapN } = getVerseInfo(selectedVerseEl);
+    const { verseN: endN }          = getVerseInfo(selectedVerseEndEl);
+    const minN = Math.min(startN, endN);
+    const maxN = Math.max(startN, endN);
+    elements.versesContent.querySelectorAll('.verse').forEach(el => {
+        const { verseN, chapN: vChap } = getVerseInfo(el);
+        if (vChap === chapN && verseN >= minN && verseN <= maxN) {
+            el.classList.add('verse-in-range');
+        }
+    });
+}
+
+function updateVerseActionBar() {
+    if (!selectedVerseEl) return;
+    const { verseN: startN, chapN } = getVerseInfo(selectedVerseEl);
+    if (selectedVerseEndEl) {
+        const { verseN: endN } = getVerseInfo(selectedVerseEndEl);
+        const minN = Math.min(startN, endN);
+        const maxN = Math.max(startN, endN);
+        document.getElementById('va-ref').textContent = `${currentBook.name} ${chapN}:${minN}-${maxN}`;
+    } else {
+        document.getElementById('va-ref').textContent = `${currentBook.name} ${chapN}:${startN}`;
+    }
+}
+
 elements.versesContent.addEventListener('click', e => {
+    if (e.target.classList.contains('study-note-badge')) return;
     const verseEl = e.target.closest('.verse');
     if (!verseEl) { clearVerseSelection(); return; }
 
+    // Rango ya completo → limpiar y empezar desde el nuevo verso
+    if (selectedVerseEndEl) {
+        clearVerseSelection();
+        selectedVerseEl = verseEl;
+        verseEl.classList.add('verse-selected');
+        updateVerseActionBar();
+        document.getElementById('verse-actions').classList.add('va-active');
+        return;
+    }
+
+    // Mismo verso seleccionado → deseleccionar
     if (selectedVerseEl === verseEl) {
         clearVerseSelection();
         return;
     }
 
-    if (selectedVerseEl) selectedVerseEl.classList.remove('verse-selected');
-    selectedVerseEl = verseEl;
-    verseEl.classList.add('verse-selected');
+    // Hay un verso inicial → extender rango si mismo capítulo
+    if (selectedVerseEl) {
+        const { chapN: startChap } = getVerseInfo(selectedVerseEl);
+        const { chapN: endChap }   = getVerseInfo(verseEl);
+        if (startChap === endChap) {
+            selectedVerseEndEl = verseEl;
+            highlightVerseRange();
+        } else {
+            // Distinto capítulo (modo continuo) → empezar de nuevo
+            clearVerseSelection();
+            selectedVerseEl = verseEl;
+            verseEl.classList.add('verse-selected');
+        }
+    } else {
+        selectedVerseEl = verseEl;
+        verseEl.classList.add('verse-selected');
+    }
 
-    const verseN = parseInt(verseEl.querySelector('.v-num')?.textContent);
-    const chapN = parseInt(verseEl.getAttribute('data-chap')) || currentChapter.n;
-    document.getElementById('va-ref').textContent = `${currentBook.name} ${chapN}:${verseN}`;
+    updateVerseActionBar();
     document.getElementById('verse-actions').classList.add('va-active');
 });
 
 document.getElementById('va-compare').addEventListener('click', () => {
     if (!selectedVerseEl) return;
-    const verseN = parseInt(selectedVerseEl.querySelector('.v-num')?.textContent);
-    const chapN = parseInt(selectedVerseEl.getAttribute('data-chap')) || currentChapter.n;
+    const { verseN, chapN } = getVerseInfo(selectedVerseEl);
     openVerseCompare(currentBook.id, chapN, verseN);
 });
 
@@ -1206,6 +1268,7 @@ function openStudySheet(studyId, isStartup = false) {
                     renderStudiesDropdown();
                     closeStudySheet();
                     showSaveToast(`Estudio activo: ${el.querySelector('.ss-study-option-name').textContent}`);
+                    studyNavReset();
                 });
             });
             document.getElementById('ss-more-studies-btn').remove();
@@ -1217,6 +1280,7 @@ function openStudySheet(studyId, isStartup = false) {
             renderStudiesDropdown();
             closeStudySheet();
             showSaveToast('Estudio activo: General');
+            studyNavReset();
         });
         document.getElementById('ss-new-study-btn').addEventListener('click', () => {
             closeStudySheet();
@@ -1228,6 +1292,7 @@ function openStudySheet(studyId, isStartup = false) {
                 updateStudiesButton();
                 renderStudiesDropdown();
                 showSaveToast(`Estudio "${name.trim()}" creado y activo`);
+                studyNavReset();
             }
         });
     } else {
@@ -1247,6 +1312,7 @@ function openStudySheet(studyId, isStartup = false) {
                 renderStudiesDropdown();
                 closeStudySheet();
                 showSaveToast(`Estudio activo: ${study.name}`);
+                studyNavReset();
             });
             document.getElementById('ss-cancel-btn').addEventListener('click', closeStudySheet);
         }
@@ -1274,7 +1340,7 @@ function renderStudyEntries(study) {
                 <div class="ss-entry">
                     <div class="ss-entry-ref" data-entry-id="${entry.id}">${entry.ref}${entry.translationId ? ` <span class="ss-entry-version">${entry.translationId.toUpperCase()}</span>` : ''}</div>
                     <div class="ss-entry-text">${entry.text}</div>
-                    ${entry.note ? `<div class="ss-entry-note">${entry.note}</div>` : ''}
+                    ${entry.note ? `<div class="ss-entry-note">${linkifyNoteText(entry.note)}</div>` : ''}
                     <div class="ss-entry-actions">
                         <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
                     </div>
@@ -1284,7 +1350,7 @@ function renderStudyEntries(study) {
             return `
                 <div class="ss-entry">
                     <div class="ss-entry-text">📝 ${entry.text}</div>
-                    ${entry.note ? `<div class="ss-entry-note">${entry.note}</div>` : ''}
+                    ${entry.note ? `<div class="ss-entry-note">${linkifyNoteText(entry.note)}</div>` : ''}
                     <div class="ss-entry-actions">
                         <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
                     </div>
@@ -1313,6 +1379,9 @@ function renderStudyEntries(study) {
         });
     });
     
+    // Links de citas en notas
+    attachNoteRefListeners(content);
+
     // Add delete handlers
     content.querySelectorAll('.ss-delete-entry').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1382,6 +1451,7 @@ function handleSaveNote() {
             bookId: verseData.bookId,
             chapN: verseData.chapN,
             verseN: verseData.verseN,
+            verseEnd: verseData.verseEnd || null,
             text: verseData.text,
             translationId: elements.translationSelect.value,
             note: note
@@ -1408,21 +1478,26 @@ function handleSaveNote() {
 
 function handleSaveVerse() {
     if (!selectedVerseEl) return;
-    
-    const verseN = parseInt(selectedVerseEl.querySelector('.v-num')?.textContent);
-    const chapN = parseInt(selectedVerseEl.getAttribute('data-chap')) || currentChapter.n;
-    const ref = `${currentBook.name} ${chapN}:${verseN}`;
-    const text = selectedVerseEl.textContent.replace(/^\d+\s*/, '').trim();
-    
-    const verseData = {
-        ref,
-        bookId: currentBook.id,
-        chapN,
-        verseN,
-        text
-    };
-    
-    openNoteSheet(verseData);
+    const { verseN: startN, chapN } = getVerseInfo(selectedVerseEl);
+
+    let ref, verseN, verseEnd, text;
+    if (selectedVerseEndEl) {
+        const { verseN: endN } = getVerseInfo(selectedVerseEndEl);
+        verseN   = Math.min(startN, endN);
+        verseEnd = Math.max(startN, endN);
+        ref      = `${currentBook.name} ${chapN}:${verseN}-${verseEnd}`;
+        const chapData = currentBook.chapters.find(c => c.n === chapN);
+        const verses   = (chapData?.v || []).filter(v => parseInt(v.n) >= verseN && parseInt(v.n) <= verseEnd);
+        text = verses.map(v => `${v.n} ${v.t}`).join(' ');
+    } else {
+        verseN   = startN;
+        verseEnd = null;
+        ref      = `${currentBook.name} ${chapN}:${verseN}`;
+        const vtEl = selectedVerseEl.querySelector('.v-text');
+        text = vtEl ? vtEl.textContent.trim() : selectedVerseEl.textContent.replace(/^\d+\s*/, '').trim();
+    }
+
+    openNoteSheet({ ref, bookId: currentBook.id, chapN, verseN, verseEnd, text });
 }
 
 function showSaveToast(msg) {
@@ -1441,6 +1516,80 @@ function showActiveStudyAlert(studyId) {
     const study = studiesState.studies.find(s => s.id === studyId);
     if (!study) return;
     openStudySheet(studyId, true);
+}
+
+// ── Detección de citas bíblicas en notas ──────────────────────
+
+function escapeHtml(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function linkifyNoteText(text) {
+    if (!bibleData || !text) return escapeHtml(text || '');
+
+    // Captura: prefijo numérico opcional ("1 ", "2 ") + nombre del libro (1-4 palabras)
+    // + capítulo + separador (:, espacio, "verso", "versículo", "vers") + versículo
+    // + rango opcional (- o "al")
+    const pattern = /(\d\s+)?([A-Za-záéíóúüñÁÉÍÓÚÜÑ]+(?:\s+[A-Za-záéíóúüñÁÉÍÓÚÜÑ]+){0,3})\s+(\d+)(?:[:\s]+(?:vers(?:o|ículo|s)?\s+)?(\d+)(?:\s*[-–]\s*(\d+)|\s+al\s+(\d+))?)/gi;
+
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = pattern.exec(text)) !== null) {
+        const fullMatch = match[0];
+        const numPrefix  = (match[1] || '').trim();
+        const bookRaw    = match[2];
+        const chapN      = parseInt(match[3]);
+        const verseN     = parseInt(match[4]);
+        const verseEnd   = match[5] ? parseInt(match[5]) : (match[6] ? parseInt(match[6]) : null);
+
+        const bookQuery = numPrefix ? `${numPrefix} ${bookRaw}` : bookRaw;
+        const books = findBooks(bookQuery);
+
+        if (books.length > 0) {
+            const book = books[0];
+            const chapter = book.chapters.find(c => c.n === chapN);
+            if (chapter && chapter.v.find(v => v.n == verseN)) {
+                // Texto antes del match
+                parts.push(escapeHtml(text.slice(lastIndex, match.index)));
+                // Span clicable
+                parts.push(
+                    `<span class="note-bible-ref" data-book-id="${book.id}" data-chap="${chapN}" data-verse="${verseN}" data-verse-end="${verseEnd || ''}">${escapeHtml(fullMatch)}</span>`
+                );
+                lastIndex = match.index + fullMatch.length;
+                continue;
+            }
+        }
+        // Candidato inválido: retroceder para reintentar desde el siguiente carácter
+        // (evita que "Lease Gen 2:1" bloquee la detección de "Gen 2:1")
+        pattern.lastIndex = match.index + 1;
+    }
+    parts.push(escapeHtml(text.slice(lastIndex)));
+    return parts.join('');
+}
+
+function attachNoteRefListeners(container) {
+    container.querySelectorAll('.note-bible-ref').forEach(el => {
+        el.addEventListener('click', e => {
+            e.stopPropagation();
+            const bookId  = parseInt(el.dataset.bookId);
+            const chapN   = parseInt(el.dataset.chap);
+            const verseN  = parseInt(el.dataset.verse);
+            const book    = bibleData?.find(b => b.id === bookId);
+            if (!book) return;
+            const chapter = book.chapters.find(c => c.n === chapN);
+            if (!chapter) return;
+            // Cerrar cualquier modal abierto
+            closeNoteBadgeModal();
+            closeStudyNavModal();
+            document.getElementById('study-sheet').classList.add('ss-hidden');
+            pendingVerse = verseN;
+            cleanupPageMode();
+            showChapters(book);
+            showReader(book, chapter);
+        });
+    });
 }
 
 // ── Marcadores de estudio en el lector ────────────────────────
@@ -1470,11 +1619,17 @@ function applyStudyMarkers(container, fixedChapN = null) {
     if (!verseEntries.length) return;
 
     // Map: `${chapN}_${verseN}` → entries[]
+    // Los rangos se expanden para marcar todos sus versos; el badge solo va en el primero
     const map = {};
     verseEntries.forEach(e => {
-        const key = `${e.chapN}_${e.verseN}`;
-        if (!map[key]) map[key] = [];
-        map[key].push(e);
+        const vStart = parseInt(e.verseN);
+        const vEnd   = e.verseEnd ? parseInt(e.verseEnd) : vStart;
+        for (let vn = vStart; vn <= vEnd; vn++) {
+            const key = `${e.chapN}_${vn}`;
+            if (!map[key]) map[key] = [];
+            // Solo el primer verso del rango lleva el badge de nota
+            map[key].push(vn === vStart ? e : { ...e, note: '' });
+        }
     });
 
     container.querySelectorAll('.verse').forEach(verseEl => {
@@ -1518,7 +1673,9 @@ function reapplyStudyMarkers() {
 
 function openNoteBadgeModal(note, ref) {
     document.getElementById('nbm-ref').textContent = ref || '';
-    document.getElementById('nbm-note-text').textContent = note;
+    const noteEl = document.getElementById('nbm-note-text');
+    noteEl.innerHTML = linkifyNoteText(note);
+    attachNoteRefListeners(noteEl);
     document.getElementById('note-badge-modal').classList.remove('nbm-hidden');
 }
 
@@ -1541,6 +1698,12 @@ function updateRefsToggleText() {
 // ── Navegación por estudio ─────────────────────────────────────
 
 let studyNavIndex = parseInt(localStorage.getItem('bible-study-nav-index') || '0');
+
+function studyNavReset() {
+    studyNavIndex = 0;
+    localStorage.setItem('bible-study-nav-index', 0);
+    studyNavUpdate();
+}
 
 function studyNavIsEnabled() {
     return localStorage.getItem('bible-study-nav') === 'on';
@@ -1636,11 +1799,12 @@ function renderStudyNavModal() {
             ? `<span class="snm-version">${entry.translationId.toUpperCase()}</span>`
             : '';
         content.innerHTML = `
-            <div class="snm-ref">${entry.ref}${versionTag}</div>
-            <div class="snm-text">${entry.text}</div>
-            ${entry.note ? `<div class="snm-note-label">Nota</div><div class="snm-note">${entry.note}</div>` : ''}
+            <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
+            <div class="snm-text">${escapeHtml(entry.text)}</div>
+            ${entry.note ? `<div class="snm-note-label">Nota</div><div class="snm-note">${linkifyNoteText(entry.note)}</div>` : ''}
             <button id="snm-goto" class="snm-goto-btn">→ Ir al versículo</button>
         `;
+        if (entry.note) attachNoteRefListeners(content.querySelector('.snm-note'));
         document.getElementById('snm-goto').addEventListener('click', () => {
             closeStudyNavModal();
             studyNavNavigateToEntry(entry);
@@ -1648,8 +1812,9 @@ function renderStudyNavModal() {
     } else {
         content.innerHTML = `
             <div class="snm-note-label">📝 Nota libre</div>
-            <div class="snm-free-note">${entry.text || ''}</div>
+            <div class="snm-free-note">${linkifyNoteText(entry.text)}</div>
         `;
+        attachNoteRefListeners(content.querySelector('.snm-free-note'));
     }
 }
 
