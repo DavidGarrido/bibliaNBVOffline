@@ -102,6 +102,7 @@
             <div class="sd-section-label">⚙️ Configuración</div>
             <button id="sd-mode-toggle">📄 Modo: Páginas</button>
             <button id="sd-study-alert-toggle">🔔 Advertir estudio al iniciar</button>
+            <button id="sd-refs-toggle">🔖 Referencias: Estudio activo</button>
         </div>
     </div>
 
@@ -139,6 +140,18 @@
 
     <!-- Toast de confirmación -->
     <div id="save-toast" class="st-hidden">Guardado ✓</div>
+
+    <!-- Modal nota de estudio (badge) -->
+    <div id="note-badge-modal" class="nbm-hidden">
+        <div id="nbm-overlay"></div>
+        <div id="nbm-box">
+            <div id="nbm-header">
+                <span id="nbm-ref"></span>
+                <button id="nbm-close" class="icon-btn">✕</button>
+            </div>
+            <div id="nbm-note-text"></div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
     <script>

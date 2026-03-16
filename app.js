@@ -165,7 +165,7 @@ function showReaderPaged(book, chapter) {
     chapter.v.forEach(v => {
         const p = document.createElement('div');
         p.className = 'verse';
-        p.innerHTML = `<span class="v-num">${v.n}</span> ${v.t}`;
+        p.innerHTML = `<span class="v-num">${v.n}</span><span class="v-text"> ${v.t}</span>`;
         measurer.appendChild(p);
     });
     elements.versesContent.appendChild(measurer);
@@ -211,7 +211,7 @@ function showReaderPaged(book, chapter) {
                 const v = chapter.v[i];
                 const el = document.createElement('div');
                 el.className = 'verse';
-                el.innerHTML = `<span class="v-num">${v.n}</span> ${v.t}`;
+                el.innerHTML = `<span class="v-num">${v.n}</span><span class="v-text"> ${v.t}</span>`;
                 pageDiv.appendChild(el);
             }
             strip.appendChild(pageDiv);
@@ -242,6 +242,7 @@ function showReaderPaged(book, chapter) {
         strip.style.transition = 'none';
         strip.style.transform = `translateX(-${currentPageNum * pageWidth}px)`;
         updatePageIndicator();
+        applyStudyMarkers(strip, chapter.n);
     });
 }
 
@@ -294,7 +295,7 @@ function showReaderContinuous(book, chapter) {
             const p = document.createElement('div');
             p.className = 'verse';
             p.setAttribute('data-chap', chap.n);
-            p.innerHTML = `<span class="v-num">${v.n}</span> ${v.t}`;
+            p.innerHTML = `<span class="v-num">${v.n}</span><span class="v-text"> ${v.t}</span>`;
             elements.versesContent.appendChild(p);
         });
     });
@@ -315,6 +316,7 @@ function showReaderContinuous(book, chapter) {
     }, { rootMargin: '-10% 0px -80% 0px' });
 
     elements.versesContent.querySelectorAll('.chap-header').forEach(h => chapterObserver.observe(h));
+    applyStudyMarkers(elements.versesContent);
 
     switchView('reader');
 
@@ -987,6 +989,7 @@ function studiesInit() {
     updateStudiesButton();
     renderStudiesDropdown();
     updateModeToggleText();
+    updateRefsToggleText();
     
     // Alerta de estudio activo al iniciar (si está habilitada)
     updateStudyAlertToggleText();
@@ -1021,6 +1024,14 @@ function setupStudiesListeners() {
         const current = localStorage.getItem('bible-study-alert');
         localStorage.setItem('bible-study-alert', current === 'off' ? 'on' : 'off');
         updateStudyAlertToggleText();
+    });
+
+    // Refs mode toggle
+    document.getElementById('sd-refs-toggle').addEventListener('click', () => {
+        const current = localStorage.getItem('bible-study-refs-mode') || 'active';
+        localStorage.setItem('bible-study-refs-mode', current === 'active' ? 'all' : 'active');
+        updateRefsToggleText();
+        reapplyStudyMarkers();
     });
 
     // Mode toggle in dropdown
@@ -1298,6 +1309,7 @@ function renderStudyEntries(study) {
                 studiesSave(studiesState);
                 const updatedStudy = studiesState.studies.find(s => s.id === study.id);
                 renderStudyEntries(updatedStudy);
+                reapplyStudyMarkers();
             }
         });
     });
@@ -1376,6 +1388,7 @@ function handleSaveNote() {
     studiesSave(studiesState);
     closeNoteSheet();
     showSaveToast('Guardado ✓');
+    reapplyStudyMarkers();
 }
 
 function handleSaveVerse() {
@@ -1413,4 +1426,99 @@ function showActiveStudyAlert(studyId) {
     const study = studiesState.studies.find(s => s.id === studyId);
     if (!study) return;
     openStudySheet(studyId, true);
+}
+
+// ── Marcadores de estudio en el lector ────────────────────────
+
+function applyStudyMarkers(container, fixedChapN = null) {
+    if (!studiesState || !currentBook) return;
+
+    const refsMode = localStorage.getItem('bible-study-refs-mode') || 'active';
+    let allEntries = [];
+    if (refsMode === 'all') {
+        studiesState.studies.forEach(s => s.entries.forEach(e => allEntries.push(e)));
+    } else {
+        allEntries = studiesGetActive(studiesState).entries;
+    }
+
+    // Pre-asignar números a las notas en el orden global del estudio
+    const noteNumberMap = {}; // entryId → número
+    let noteCounter = 0;
+    allEntries.forEach(e => {
+        if (e.type === 'verse' && e.note && e.note.trim()) {
+            noteCounter++;
+            noteNumberMap[e.id] = noteCounter;
+        }
+    });
+
+    const verseEntries = allEntries.filter(e => e.type === 'verse' && e.bookId === currentBook.id);
+    if (!verseEntries.length) return;
+
+    // Map: `${chapN}_${verseN}` → entries[]
+    const map = {};
+    verseEntries.forEach(e => {
+        const key = `${e.chapN}_${e.verseN}`;
+        if (!map[key]) map[key] = [];
+        map[key].push(e);
+    });
+
+    container.querySelectorAll('.verse').forEach(verseEl => {
+        const verseN = parseInt(verseEl.querySelector('.v-num')?.textContent);
+        const chapN = fixedChapN ?? parseInt(verseEl.getAttribute('data-chap'));
+        if (!chapN || !verseN) return;
+
+        const key = `${chapN}_${verseN}`;
+        if (!map[key]) return;
+
+        verseEl.classList.add('verse-in-study');
+
+        const withNotes = map[key].filter(e => e.note && e.note.trim());
+        withNotes.forEach(entry => {
+            const badge = document.createElement('span');
+            badge.className = 'study-note-badge';
+            badge.textContent = noteNumberMap[entry.id];
+            badge.addEventListener('click', ev => {
+                ev.stopPropagation();
+                openNoteBadgeModal(entry.note, entry.ref);
+            });
+            verseEl.appendChild(badge);
+        });
+    });
+}
+
+function reapplyStudyMarkers() {
+    if (!currentBook || elements.viewReader.style.display !== 'block') return;
+    // Limpiar marcadores existentes
+    elements.versesContent.querySelectorAll('.verse-in-study').forEach(el => {
+        el.classList.remove('verse-in-study');
+    });
+    elements.versesContent.querySelectorAll('.study-note-badge').forEach(el => el.remove());
+    // Reaplicar
+    const container = readingMode === 'paged'
+        ? document.getElementById('pages-strip')
+        : elements.versesContent;
+    if (!container) return;
+    applyStudyMarkers(container, readingMode === 'paged' ? currentChapter?.n : null);
+}
+
+function openNoteBadgeModal(note, ref) {
+    document.getElementById('nbm-ref').textContent = ref || '';
+    document.getElementById('nbm-note-text').textContent = note;
+    document.getElementById('note-badge-modal').classList.remove('nbm-hidden');
+}
+
+function closeNoteBadgeModal() {
+    document.getElementById('note-badge-modal').classList.add('nbm-hidden');
+}
+
+document.getElementById('nbm-overlay').addEventListener('click', closeNoteBadgeModal);
+document.getElementById('nbm-close').addEventListener('click', closeNoteBadgeModal);
+
+function updateRefsToggleText() {
+    const btn = document.getElementById('sd-refs-toggle');
+    if (!btn) return;
+    const mode = localStorage.getItem('bible-study-refs-mode') || 'active';
+    btn.textContent = mode === 'all'
+        ? '🔖 Referencias: Todos los estudios'
+        : '🔖 Referencias: Estudio activo';
 }

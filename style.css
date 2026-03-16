@@ -534,7 +534,7 @@ h2 {
     margin: 4px 0;
 }
 
-#sd-new-note, #sd-new-study, #sd-mode-toggle, #sd-study-alert-toggle {
+#sd-new-note, #sd-new-study, #sd-mode-toggle, #sd-study-alert-toggle, #sd-refs-toggle {
     width: 100%;
     padding: 12px 16px;
     border: none;
@@ -545,7 +545,7 @@ h2 {
     color: var(--tg-text-color, #000);
 }
 
-#sd-new-note:hover, #sd-new-study:hover, #sd-mode-toggle:hover, #sd-study-alert-toggle:hover {
+#sd-new-note:hover, #sd-new-study:hover, #sd-mode-toggle:hover, #sd-study-alert-toggle:hover, #sd-refs-toggle:hover {
     background: var(--tg-secondary-bg-color, #f4f4f5);
 }
 
@@ -927,4 +927,87 @@ h2 {
     padding: 2px 4px;
     margin: -2px -4px;
     border-radius: 4px;
+}
+
+/* ── Study markers in reader ── */
+.verse.verse-in-study .v-text {
+    text-decoration: underline;
+    text-decoration-color: var(--tg-link-color, var(--tg-theme-link-color));
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.study-note-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    font-size: 9px;
+    font-weight: bold;
+    background: var(--tg-link-color, #2481cc);
+    color: #fff;
+    border-radius: 3px;
+    margin-left: 3px;
+    vertical-align: super;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    line-height: 15px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+/* ── Note Badge Modal ── */
+#note-badge-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+#note-badge-modal.nbm-hidden { display: none; }
+
+#nbm-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+}
+
+#nbm-box {
+    position: relative;
+    z-index: 1;
+    background: var(--tg-bg-color, #fff);
+    border-radius: 16px 16px 0 0;
+    width: 100%;
+    max-width: 600px;
+    max-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#nbm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    font-weight: bold;
+    font-size: 14px;
+    color: var(--tg-link-color, #2481cc);
+    border-bottom: 1px solid var(--tg-secondary-bg-color, #eee);
+    flex-shrink: 0;
+}
+
+#nbm-note-text {
+    padding: 16px;
+    font-size: 15px;
+    line-height: 1.6;
+    overflow-y: auto;
+    -webkit-user-select: text;
+    user-select: text;
+    white-space: pre-wrap;
 }
