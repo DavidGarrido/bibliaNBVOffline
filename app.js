@@ -453,6 +453,8 @@ function switchView(view) {
     elements.viewChapters.style.display = view === 'chapters' ? 'block' : 'none';
     elements.viewReader.style.display = view === 'reader' ? 'block' : 'none';
     if (view === 'books') { lastScrollY = 0; updateTopBar('books'); }
+    // Diferir para que el display ya esté aplicado
+    setTimeout(studyNavUpdate, 0);
 
     if (tg.isVersionAtLeast('6.1')) {
         view === 'books' ? tg.BackButton.hide() : tg.BackButton.show();
@@ -990,6 +992,8 @@ function studiesInit() {
     renderStudiesDropdown();
     updateModeToggleText();
     updateRefsToggleText();
+    updateNavToggleText();
+    studyNavInit();
     
     // Alerta de estudio activo al iniciar (si está habilitada)
     updateStudyAlertToggleText();
@@ -1024,6 +1028,15 @@ function setupStudiesListeners() {
         const current = localStorage.getItem('bible-study-alert');
         localStorage.setItem('bible-study-alert', current === 'off' ? 'on' : 'off');
         updateStudyAlertToggleText();
+    });
+
+    // Nav toggle
+    document.getElementById('sd-nav-toggle').addEventListener('click', () => {
+        const enabled = studyNavIsEnabled();
+        localStorage.setItem('bible-study-nav', enabled ? 'off' : 'on');
+        updateNavToggleText();
+        studyNavUpdate();
+        closeStudiesDropdown();
     });
 
     // Refs mode toggle
@@ -1310,6 +1323,7 @@ function renderStudyEntries(study) {
                 const updatedStudy = studiesState.studies.find(s => s.id === study.id);
                 renderStudyEntries(updatedStudy);
                 reapplyStudyMarkers();
+                studyNavUpdate();
             }
         });
     });
@@ -1389,6 +1403,7 @@ function handleSaveNote() {
     closeNoteSheet();
     showSaveToast('Guardado ✓');
     reapplyStudyMarkers();
+    studyNavUpdate();
 }
 
 function handleSaveVerse() {
@@ -1521,4 +1536,153 @@ function updateRefsToggleText() {
     btn.textContent = mode === 'all'
         ? '🔖 Referencias: Todos los estudios'
         : '🔖 Referencias: Estudio activo';
+}
+
+// ── Navegación por estudio ─────────────────────────────────────
+
+let studyNavIndex = parseInt(localStorage.getItem('bible-study-nav-index') || '0');
+
+function studyNavIsEnabled() {
+    return localStorage.getItem('bible-study-nav') === 'on';
+}
+
+function studyNavEntries() {
+    return studiesGetActive(studiesState).entries;
+}
+
+function studyNavUpdate() {
+    const bar = document.getElementById('study-nav-bar');
+    if (!studyNavIsEnabled() || elements.viewReader.style.display !== 'block') {
+        bar.classList.add('snb-hidden');
+        return;
+    }
+    const entries = studyNavEntries();
+    if (!entries.length) {
+        bar.classList.add('snb-hidden');
+        return;
+    }
+    bar.classList.remove('snb-hidden');
+
+    // Clamp index
+    if (studyNavIndex >= entries.length) studyNavIndex = entries.length - 1;
+    if (studyNavIndex < 0) studyNavIndex = 0;
+
+    const entry = entries[studyNavIndex];
+    const refEl = document.getElementById('snb-ref');
+    const posEl = document.getElementById('snb-pos');
+
+    refEl.textContent = entry.type === 'verse' ? entry.ref : '📝 Nota';
+    posEl.textContent = `${studyNavIndex + 1}/${entries.length}`;
+
+    document.getElementById('snb-prev').disabled = studyNavIndex === 0;
+    document.getElementById('snb-next').disabled = studyNavIndex === entries.length - 1;
+}
+
+function studyNavGo(index) {
+    const entries = studyNavEntries();
+    if (!entries.length) return;
+    studyNavIndex = Math.max(0, Math.min(index, entries.length - 1));
+    localStorage.setItem('bible-study-nav-index', studyNavIndex);
+    studyNavUpdate();
+
+    const entry = entries[studyNavIndex];
+    if (entry.type === 'verse') {
+        studyNavNavigateToEntry(entry);
+        if (entry.note && entry.note.trim()) {
+            openStudyNavModal();
+        }
+    } else {
+        openStudyNavModal();
+    }
+}
+
+function studyNavNavigateToEntry(entry) {
+    if (entry.type !== 'verse' || !bibleData) return;
+    const book = bibleData.find(b => b.id === entry.bookId);
+    if (!book) return;
+    const chapter = book.chapters.find(c => c.n === entry.chapN);
+    if (!chapter) return;
+    pendingVerse = entry.verseN;
+    cleanupPageMode();
+    showChapters(book);
+    showReader(book, chapter);
+}
+
+function openStudyNavModal() {
+    renderStudyNavModal();
+    document.getElementById('study-nav-modal').classList.remove('snm-hidden');
+}
+
+function closeStudyNavModal() {
+    document.getElementById('study-nav-modal').classList.add('snm-hidden');
+}
+
+function renderStudyNavModal() {
+    const entries = studyNavEntries();
+    if (!entries.length) return;
+
+    // Clamp
+    if (studyNavIndex >= entries.length) studyNavIndex = entries.length - 1;
+    if (studyNavIndex < 0) studyNavIndex = 0;
+
+    const entry = entries[studyNavIndex];
+    document.getElementById('snm-pos').textContent = `${studyNavIndex + 1} de ${entries.length}`;
+    document.getElementById('snm-prev').disabled = studyNavIndex === 0;
+    document.getElementById('snm-next').disabled = studyNavIndex === entries.length - 1;
+
+    const content = document.getElementById('snm-content');
+    if (entry.type === 'verse') {
+        const versionTag = entry.translationId
+            ? `<span class="snm-version">${entry.translationId.toUpperCase()}</span>`
+            : '';
+        content.innerHTML = `
+            <div class="snm-ref">${entry.ref}${versionTag}</div>
+            <div class="snm-text">${entry.text}</div>
+            ${entry.note ? `<div class="snm-note-label">Nota</div><div class="snm-note">${entry.note}</div>` : ''}
+            <button id="snm-goto" class="snm-goto-btn">→ Ir al versículo</button>
+        `;
+        document.getElementById('snm-goto').addEventListener('click', () => {
+            closeStudyNavModal();
+            studyNavNavigateToEntry(entry);
+        });
+    } else {
+        content.innerHTML = `
+            <div class="snm-note-label">📝 Nota libre</div>
+            <div class="snm-free-note">${entry.text || ''}</div>
+        `;
+    }
+}
+
+function studyNavInit() {
+    document.getElementById('snb-prev').addEventListener('click', () => {
+        studyNavGo(studyNavIndex - 1);
+    });
+    document.getElementById('snb-next').addEventListener('click', () => {
+        studyNavGo(studyNavIndex + 1);
+    });
+    document.getElementById('snb-center').addEventListener('click', openStudyNavModal);
+
+    document.getElementById('snm-overlay').addEventListener('click', closeStudyNavModal);
+    document.getElementById('snm-close').addEventListener('click', closeStudyNavModal);
+    document.getElementById('snm-prev').addEventListener('click', () => {
+        studyNavIndex = Math.max(0, studyNavIndex - 1);
+        localStorage.setItem('bible-study-nav-index', studyNavIndex);
+        studyNavUpdate();
+        renderStudyNavModal();
+    });
+    document.getElementById('snm-next').addEventListener('click', () => {
+        const entries = studyNavEntries();
+        studyNavIndex = Math.min(entries.length - 1, studyNavIndex + 1);
+        localStorage.setItem('bible-study-nav-index', studyNavIndex);
+        studyNavUpdate();
+        renderStudyNavModal();
+    });
+}
+
+function updateNavToggleText() {
+    const btn = document.getElementById('sd-nav-toggle');
+    if (!btn) return;
+    btn.textContent = studyNavIsEnabled()
+        ? '🧭 Navegación por estudio: Activa'
+        : '🧭 Navegación por estudio: Inactiva';
 }

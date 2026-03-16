@@ -29,6 +29,14 @@
                     <button id="qs-open-btn" class="icon-btn" title="Búsqueda rápida (/)">🔍</button>
                 </div>
             </div>
+            <div id="study-nav-bar" class="snb-hidden">
+                <button id="snb-prev" class="snb-arrow">‹</button>
+                <div id="snb-center">
+                    <span id="snb-ref"></span>
+                    <span id="snb-pos"></span>
+                </div>
+                <button id="snb-next" class="snb-arrow">›</button>
+            </div>
         </nav>
 
         <main id="content">
@@ -103,6 +111,7 @@
             <button id="sd-mode-toggle">📄 Modo: Páginas</button>
             <button id="sd-study-alert-toggle">🔔 Advertir estudio al iniciar</button>
             <button id="sd-refs-toggle">🔖 Referencias: Estudio activo</button>
+            <button id="sd-nav-toggle">🧭 Navegación por estudio: Inactiva</button>
         </div>
     </div>
 
@@ -140,6 +149,20 @@
 
     <!-- Toast de confirmación -->
     <div id="save-toast" class="st-hidden">Guardado ✓</div>
+
+    <!-- Modal expandido de navegación por estudio -->
+    <div id="study-nav-modal" class="snm-hidden">
+        <div id="snm-overlay"></div>
+        <div id="snm-box">
+            <div id="snm-header">
+                <button id="snm-prev" class="snm-arrow icon-btn">‹</button>
+                <span id="snm-pos"></span>
+                <button id="snm-next" class="snm-arrow icon-btn">›</button>
+                <button id="snm-close" class="icon-btn">✕</button>
+            </div>
+            <div id="snm-content"></div>
+        </div>
+    </div>
 
     <!-- Modal nota de estudio (badge) -->
     <div id="note-badge-modal" class="nbm-hidden">
