@@ -133,6 +133,7 @@
                 <span id="ss-title"></span>
                 <button id="ss-close" class="icon-btn">✕</button>
             </div>
+            <div id="ss-study-id"></div>
             <div id="ss-content"></div>
             <div id="ss-actions"></div>
         </div>
@@ -183,28 +184,17 @@
                 <button id="shs-close" class="icon-btn">✕</button>
             </div>
             <div id="shs-content">
-                <div id="shs-file-list"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sheet estudios de un archivo compartido -->
-    <div id="shared-studies-sheet" class="sss-hidden">
-        <div id="sss-overlay"></div>
-        <div id="sss-box">
-            <div id="sss-header">
-                <button id="sss-back" class="icon-btn">⬅</button>
-                <span id="sss-title"></span>
-                <button id="sss-close" class="icon-btn">✕</button>
-            </div>
-            <div id="sss-content">
-                <label class="io-select-all">
-                    <input type="checkbox" id="sss-select-all"> Seleccionar todos
+                <div id="shs-search-wrap">
+                    <input id="shs-id-input" type="text" placeholder="Buscar por ID del estudio..." autocomplete="off">
+                    <button id="shs-id-search-btn">Buscar</button>
+                </div>
+                <label class="io-select-all" id="shs-select-all-wrap" style="display:none">
+                    <input type="checkbox" id="shs-select-all"> Seleccionar todos
                 </label>
-                <div id="sss-list"></div>
+                <div id="shs-list"></div>
             </div>
-            <div id="sss-actions">
-                <button id="sss-import-btn" class="primary-btn">📥 Importar seleccionados</button>
+            <div id="shs-actions" style="display:none">
+                <button id="shs-import-btn" class="primary-btn">📥 Importar seleccionados</button>
             </div>
         </div>
     </div>

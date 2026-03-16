@@ -1267,6 +1267,22 @@ function openStudySheet(studyId, isStartup = false) {
         openStudyEditSheet(studyId);
     });
 
+    // Mostrar ID del estudio
+    const idEl = document.getElementById('ss-study-id');
+    idEl.innerHTML = `ID: <span class="ss-study-id-value">${studyId}</span><button class="ss-copy-id-btn" title="Copiar ID">📋</button>`;
+    idEl.querySelector('.ss-copy-id-btn').addEventListener('click', () => {
+        navigator.clipboard.writeText(studyId).then(() => showSaveToast('ID copiado ✓')).catch(() => {
+            // fallback manual
+            const ta = document.createElement('textarea');
+            ta.value = studyId;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            showSaveToast('ID copiado ✓');
+        });
+    });
+
     const content = document.getElementById('ss-content');
     if (isStartup) {
         content.innerHTML = `
@@ -2329,7 +2345,7 @@ async function doShareWhatsApp() {
 // ── Estudios compartidos ──────────────────────────────────────
 
 const SHARED_API = 'https://api.github.com/repos/DavidGarrido/bibliaNBVOffline/contents/shared';
-let sharedCurrentFile = null; // { name, studies[] }
+let sharedAllStudies = []; // lista plana de todos los estudios de todos los archivos
 
 function setupSharedStudies() {
     document.getElementById('sd-shared-btn').addEventListener('click', () => {
@@ -2338,103 +2354,101 @@ function setupSharedStudies() {
     });
     document.getElementById('shs-overlay').addEventListener('click', closeSharedSheet);
     document.getElementById('shs-close').addEventListener('click', closeSharedSheet);
+    document.getElementById('shs-select-all').addEventListener('change', e => {
+        document.querySelectorAll('.shs-check').forEach(cb => cb.checked = e.target.checked);
+    });
+    document.getElementById('shs-import-btn').addEventListener('click', doImportFromShared);
 
-    document.getElementById('sss-overlay').addEventListener('click', closeSharedStudiesSheet);
-    document.getElementById('sss-close').addEventListener('click', closeSharedStudiesSheet);
-    document.getElementById('sss-back').addEventListener('click', () => {
-        closeSharedStudiesSheet();
-        document.getElementById('shared-sheet').classList.remove('shs-hidden');
-    });
-    document.getElementById('sss-select-all').addEventListener('change', e => {
-        document.querySelectorAll('.sss-check').forEach(cb => cb.checked = e.target.checked);
-    });
-    document.getElementById('sss-import-btn').addEventListener('click', doImportFromShared);
+    const searchById = () => {
+        const query = document.getElementById('shs-id-input').value.trim();
+        if (!query) { renderSharedStudiesList(); return; }
+        const match = sharedAllStudies.findIndex(s => s.id === query);
+        if (match === -1) {
+            document.getElementById('shs-list').innerHTML = '<div class="shs-error">No se encontró ningún estudio con ese ID.</div>';
+            document.getElementById('shs-select-all-wrap').style.display = 'none';
+            document.getElementById('shs-actions').style.display = 'none';
+        } else {
+            // Muestra solo el que coincide, pre-seleccionado
+            const s = sharedAllStudies[match];
+            const tags = (s.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('');
+            const existingIds = new Set(studiesState.studies.map(st => st.id));
+            const conflict = existingIds.has(s.id) ? '<div class="io-study-conflict">⚠️ Ya tienes este estudio</div>' : '';
+            document.getElementById('shs-list').innerHTML = `
+                <label class="io-study-item">
+                    <input type="checkbox" class="shs-check" data-idx="${match}" checked>
+                    <div class="io-study-info">
+                        <div class="io-study-name">${s.name}</div>
+                        <div class="io-study-meta">${(s.entries || []).length} entradas${s._exportedAt ? ' · ' + s._exportedAt : ''}</div>
+                        ${tags ? `<div class="io-study-tags">${tags}</div>` : ''}
+                        ${conflict}
+                    </div>
+                </label>`;
+            document.getElementById('shs-select-all-wrap').style.display = 'none';
+            document.getElementById('shs-actions').style.display = 'block';
+        }
+    };
+    document.getElementById('shs-id-search-btn').addEventListener('click', searchById);
+    document.getElementById('shs-id-input').addEventListener('keydown', e => { if (e.key === 'Enter') searchById(); });
 }
 
 function openSharedSheet() {
-    const sheet = document.getElementById('shared-sheet');
-    sheet.classList.remove('shs-hidden');
-    loadSharedFiles();
+    document.getElementById('shared-sheet').classList.remove('shs-hidden');
+    document.getElementById('shs-select-all-wrap').style.display = 'none';
+    document.getElementById('shs-actions').style.display = 'none';
+    document.getElementById('shs-list').innerHTML = '<div class="shs-loading">Cargando estudios...</div>';
+    loadAllSharedStudies();
 }
 
 function closeSharedSheet() {
     document.getElementById('shared-sheet').classList.add('shs-hidden');
 }
 
-function closeSharedStudiesSheet() {
-    document.getElementById('shared-studies-sheet').classList.add('sss-hidden');
-}
-
-async function loadSharedFiles() {
-    const list = document.getElementById('shs-file-list');
-    list.innerHTML = '<div class="shs-loading">Cargando...</div>';
-
+async function loadAllSharedStudies() {
+    const list = document.getElementById('shs-list');
     try {
         const res = await fetch(SHARED_API, { headers: { Accept: 'application/vnd.github.v3+json' } });
         if (!res.ok) throw new Error();
-        const files = await res.json();
+        const files = (await res.json()).filter(f => f.type === 'file' && f.name.endsWith('.json'));
 
-        const jsonFiles = files.filter(f => f.type === 'file' && f.name.endsWith('.json'));
-        if (!jsonFiles.length) {
+        if (!files.length) {
             list.innerHTML = '<div class="shs-empty">No hay estudios compartidos aún.</div>';
             return;
         }
 
-        list.innerHTML = jsonFiles.map(f => {
-            const label = f.name.replace('.json', '').replace(/-/g, ' ');
-            const sizeKb = (f.size / 1024).toFixed(1);
-            return `
-                <div class="shs-file-item" data-url="${f.download_url}" data-name="${f.name}">
-                    <span class="shs-file-name">${label}</span>
-                    <span class="shs-file-meta">${sizeKb} KB · toca para ver estudios</span>
-                </div>
-            `;
-        }).join('');
-
-        list.querySelectorAll('.shs-file-item').forEach(item => {
-            item.addEventListener('click', () => openSharedFile(item.dataset.url, item.dataset.name));
+        // Fetch all files in parallel and flatten studies
+        const results = await Promise.all(files.map(f => fetch(f.download_url).then(r => r.json()).catch(() => null)));
+        sharedAllStudies = [];
+        results.forEach(data => {
+            if (data && Array.isArray(data.studies)) {
+                const date = data.exportedAt ? new Date(data.exportedAt).toLocaleDateString('es') : '';
+                data.studies.forEach(s => sharedAllStudies.push({ ...s, _exportedAt: date }));
+            }
         });
+
+        if (!sharedAllStudies.length) {
+            list.innerHTML = '<div class="shs-empty">No hay estudios compartidos aún.</div>';
+            return;
+        }
+
+        renderSharedStudiesList();
     } catch {
         list.innerHTML = '<div class="shs-error">Error al cargar. Verifica tu conexión.</div>';
     }
 }
 
-async function openSharedFile(url, filename) {
-    const list = document.getElementById('shs-file-list');
-    list.innerHTML = '<div class="shs-loading">Cargando archivo...</div>';
-
-    try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        if (!data.studies || !Array.isArray(data.studies)) throw new Error();
-
-        sharedCurrentFile = { name: filename, studies: data.studies };
-        closeSharedSheet();
-        openSharedStudiesSheet(filename, data);
-    } catch {
-        list.innerHTML = '<div class="shs-error">Error al leer el archivo.</div>';
-    }
-}
-
-function openSharedStudiesSheet(filename, data) {
-    const label = filename.replace('.json', '').replace(/-/g, ' ');
-    const exportedAt = data.exportedAt ? new Date(data.exportedAt).toLocaleDateString('es') : '';
-    document.getElementById('sss-title').textContent = label;
-    document.getElementById('sss-select-all').checked = true;
-
+function renderSharedStudiesList() {
+    const list = document.getElementById('shs-list');
     const existingIds = new Set(studiesState.studies.map(s => s.id));
-    const list = document.getElementById('sss-list');
 
-    list.innerHTML = data.studies.map((s, i) => {
+    list.innerHTML = sharedAllStudies.map((s, i) => {
         const tags = (s.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('');
-        const conflict = existingIds.has(s.id) ? '<div class="io-study-conflict">⚠️ Ya tienes este estudio (mismo ID)</div>' : '';
+        const conflict = existingIds.has(s.id) ? '<div class="io-study-conflict">⚠️ Ya tienes este estudio</div>' : '';
         return `
             <label class="io-study-item">
-                <input type="checkbox" class="sss-check" data-idx="${i}" checked>
+                <input type="checkbox" class="shs-check" data-idx="${i}" ${conflict ? '' : 'checked'}>
                 <div class="io-study-info">
                     <div class="io-study-name">${s.name}</div>
-                    <div class="io-study-meta">${(s.entries || []).length} entradas${exportedAt ? ' · ' + exportedAt : ''}</div>
+                    <div class="io-study-meta">${(s.entries || []).length} entradas${s._exportedAt ? ' · ' + s._exportedAt : ''}</div>
                     ${tags ? `<div class="io-study-tags">${tags}</div>` : ''}
                     ${conflict}
                 </div>
@@ -2442,29 +2456,29 @@ function openSharedStudiesSheet(filename, data) {
         `;
     }).join('');
 
-    document.getElementById('shared-studies-sheet').classList.remove('sss-hidden');
+    document.getElementById('shs-select-all').checked = true;
+    document.getElementById('shs-select-all-wrap').style.display = 'flex';
+    document.getElementById('shs-actions').style.display = 'block';
 }
 
 function doImportFromShared() {
-    if (!sharedCurrentFile) return;
-    const selectedIdxs = [...document.querySelectorAll('.sss-check:checked')].map(cb => parseInt(cb.dataset.idx));
+    const selectedIdxs = [...document.querySelectorAll('.shs-check:checked')].map(cb => parseInt(cb.dataset.idx));
     if (!selectedIdxs.length) { showSaveToast('Selecciona al menos un estudio'); return; }
 
-    const selected = selectedIdxs.map(i => sharedCurrentFile.studies[i]);
     const existingIds = new Set(studiesState.studies.map(s => s.id));
     let added = 0;
 
-    selected.forEach(s => {
-        if (existingIds.has(s.id)) return; // skip duplicates
-        const study = { ...s, tags: s.tags || [], entries: s.entries || [] };
-        studiesState = { ...studiesState, studies: [...studiesState.studies, study] };
+    selectedIdxs.forEach(i => {
+        const s = sharedAllStudies[i];
+        if (!s || existingIds.has(s.id)) return;
+        const { _exportedAt, ...study } = s;
+        studiesState = { ...studiesState, studies: [...studiesState.studies, { ...study, tags: study.tags || [], entries: study.entries || [] }] };
         existingIds.add(s.id);
         added++;
     });
 
     studiesSave(studiesState);
     renderStudiesDropdown();
-    closeSharedStudiesSheet();
     closeSharedSheet();
     showSaveToast(added ? `${added} estudio(s) importado(s)` : 'Sin cambios (ya los tienes)');
 }

@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "exportedAt": "2026-03-16T15:34:24.731Z",
+  "studies": [
+    {
+      "id": "study_1773607488773",
+      "name": "Cartas de pablo",
+      "createdAt": "2026-03-15T20:44:48.774Z",
+      "entries": [
+        {
+          "type": "verse",
+          "ref": "Romanos 12:10",
+          "bookId": 45,
+          "chapN": 12,
+          "verseN": 10,
+          "text": "Ámense con cariño de hermanos y deléitense en el respeto mutuo.",
+          "translationId": "nbv",
+          "note": "El amor entre hermanos a veces se interpreta de mala manera",
+          "id": "entry_1773607557181",
+          "savedAt": "2026-03-15T20:45:57.181Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Números 8:6",
+          "bookId": 4,
+          "chapN": 8,
+          "verseN": 6,
+          "text": "Toma a los levitas de entre los hijos de Israel, y haz expiación por ellos.",
+          "translationId": "rvr1960",
+          "note": "",
+          "id": "entry_1773619409391",
+          "savedAt": "2026-03-16T00:03:29.392Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Colosenses 2:12",
+          "bookId": 51,
+          "chapN": 2,
+          "verseN": 12,
+          "text": "sepultados con él en el bautismo, en el cual fuisteis también resucitados con él, mediante la fe en el poder de Dios que le levantó de los muertos.",
+          "translationId": "rvr1960",
+          "note": "",
+          "id": "entry_1773619445464",
+          "savedAt": "2026-03-16T00:04:05.464Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Miqueas 4:3",
+          "bookId": 33,
+          "chapN": 4,
+          "verseN": 3,
+          "text": "Y él juzgará entre muchos pueblos, y corregirá a naciones poderosas hasta muy lejos; y martillarán sus espadas para azadones, y sus lanzas para hoces; no alzará espada nación contra nación, ni se ensayarán más para la guerra.",
+          "translationId": "rvr1960",
+          "note": "",
+          "id": "entry_1773619710872",
+          "savedAt": "2026-03-16T00:08:30.872Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Miqueas 5:3",
+          "bookId": 33,
+          "chapN": 5,
+          "verseN": 3,
+          "text": "Pero los dejará hasta el tiempo que dé a luz la que ha de dar a luz; y el resto de sus hermanos se volverá con los hijos de Israel.",
+          "translationId": "rvr1960",
+          "note": "",
+          "id": "entry_1773619728224",
+          "savedAt": "2026-03-16T00:08:48.224Z"
+        }
+      ],
+      "tags": [
+        "estudio personal"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "exportedAt": "2026-03-16T15:39:24.967Z",
+  "studies": [
+    {
+      "id": "study_1773655745040",
+      "name": "Hijos",
+      "createdAt": "2026-03-16T10:09:05.040Z",
+      "entries": [
+        {
+          "type": "verse",
+          "ref": "Proverbios 3:11",
+          "bookId": 20,
+          "chapN": 3,
+          "verseN": 11,
+          "text": "Hijo mío, no desprecies la corrección del Señor, ni te enojes cuando te reprenda;",
+          "translationId": "nbv",
+          "note": "",
+          "id": "entry_1773655773141",
+          "savedAt": "2026-03-16T10:09:33.141Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Proverbios 3:12",
+          "bookId": 20,
+          "chapN": 3,
+          "verseN": 12,
+          "text": "pues el Señor corrige al que ama, así como el padre corrige al hijo que es su alegría.",
+          "translationId": "nbv",
+          "note": "",
+          "id": "entry_1773655778161",
+          "savedAt": "2026-03-16T10:09:38.161Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Proverbios 3:34",
+          "bookId": 20,
+          "chapN": 3,
+          "verseN": 34,
+          "text": "El Señor se burla de los burladores, pero ayuda a los humildes.",
+          "translationId": "nbv",
+          "note": "aunque fue escrito A.C. (como parte de la sabiduría de Salomón para la vida práctica), su mayor peso y claridad aparecen D.C., cuando los apóstoles lo citan para definir la relación con Cristo. \n\nAquí te detallo ese cambio de contexto:\nEn el Antiguo Testamento (Contexto A.C.): Se presenta como una máxima de sabiduría social y moral. El \"burlador\" es quien desprecia el orden de Dios y a los demás; la \"burla\" de Dios es permitir que su propia arrogancia los destruya.\nEn el Nuevo Testamento (Contexto D.C.): Santiago (4:6) y Pedro (1 Pedro 5:5) usan este versículo para hablar de la gracia salvadora. Aquí, \"dar gracia a los humildes\" ya no es solo tener una buena vida, sino recibir el auxilio divino que permite al hombre someterse a Dios y resistir al mal. \n\nEn el Nuevo Testamento, el texto cambia ligeramente de \"se burla de los burladores\" a \"Dios resiste a los soberbios\". Es una postura de oposición activa: Dios se pone \"en pie de guerra\" contra el orgullo porque este impide que la persona reconozca su necesidad de Él",
+          "id": "entry_1773656362866",
+          "savedAt": "2026-03-16T10:19:22.866Z"
+        }
+      ],
+      "tags": []
+    }
+  ]
+}
