@@ -113,6 +113,11 @@
             <button id="sd-study-alert-toggle">🔔 Advertir estudio al iniciar</button>
             <button id="sd-refs-toggle">🔖 Referencias: Estudio activo</button>
             <button id="sd-nav-toggle">🧭 Navegación por estudio: Inactiva</button>
+            <div class="sd-divider"></div>
+            <div class="sd-section-label">💾 Datos</div>
+            <button id="sd-export-btn">📤 Exportar estudios</button>
+            <button id="sd-import-btn">📥 Importar estudios</button>
+            <input type="file" id="sd-import-file" accept=".json" style="display:none">
         </div>
     </div>
 
@@ -162,6 +167,52 @@
                 <button id="snm-close" class="icon-btn">✕</button>
             </div>
             <div id="snm-content"></div>
+        </div>
+    </div>
+
+    <!-- Sheet exportar estudios -->
+    <div id="export-sheet" class="exs-hidden">
+        <div id="exs-overlay"></div>
+        <div id="exs-box">
+            <div id="exs-header">
+                <span>Exportar estudios</span>
+                <button id="exs-close" class="icon-btn">✕</button>
+            </div>
+            <div id="exs-content">
+                <label class="io-select-all">
+                    <input type="checkbox" id="exs-select-all"> Seleccionar todos
+                </label>
+                <div id="exs-list"></div>
+            </div>
+            <div id="exs-actions">
+                <button id="exs-download-btn" class="primary-btn">📤 Exportar seleccionados</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sheet importar estudios -->
+    <div id="import-sheet" class="ims-hidden">
+        <div id="ims-overlay"></div>
+        <div id="ims-box">
+            <div id="ims-header">
+                <span>Importar estudios</span>
+                <button id="ims-close" class="icon-btn">✕</button>
+            </div>
+            <div id="ims-content">
+                <label class="io-select-all">
+                    <input type="checkbox" id="ims-select-all"> Seleccionar todos
+                </label>
+                <div id="ims-list"></div>
+                <div class="ims-mode-label">Modo de importación</div>
+                <div id="ims-mode-toggle" class="ims-mode-row">
+                    <button class="ims-mode-btn ims-mode-active" data-mode="merge">Fusionar</button>
+                    <button class="ims-mode-btn" data-mode="replace">Reemplazar</button>
+                </div>
+                <div id="ims-mode-hint" class="ims-hint">Fusionar: agrega los estudios sin borrar los existentes.</div>
+            </div>
+            <div id="ims-actions">
+                <button id="ims-confirm-btn" class="primary-btn">📥 Importar seleccionados</button>
+            </div>
         </div>
     </div>
 

@@ -1061,6 +1061,7 @@ let studiesState = studiesLoad();
 function studiesInit() {
     setupStudiesListeners();
     setupStudyEditListeners();
+    setupExportImport();
     updateStudiesButton();
     renderStudiesDropdown();
     updateModeToggleText();
@@ -2058,4 +2059,187 @@ function setupStudyEditListeners() {
             showSaveToast(`Estudio "${name}" creado${autoActivate ? ' y activo' : ''}`);
         }
     });
+}
+
+// ── Exportar / Importar estudios ──────────────────────────────
+
+function setupExportImport() {
+    document.getElementById('sd-export-btn').addEventListener('click', () => {
+        closeStudiesDropdown();
+        openExportSheet();
+    });
+
+    document.getElementById('sd-import-btn').addEventListener('click', () => {
+        closeStudiesDropdown();
+        document.getElementById('sd-import-file').click();
+    });
+
+    document.getElementById('sd-import-file').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                if (!data.studies || !Array.isArray(data.studies)) throw new Error();
+                openImportSheet(data.studies);
+            } catch {
+                showSaveToast('Archivo inválido');
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    });
+
+    // Export sheet listeners
+    document.getElementById('exs-overlay').addEventListener('click', closeExportSheet);
+    document.getElementById('exs-close').addEventListener('click', closeExportSheet);
+    document.getElementById('exs-select-all').addEventListener('change', e => {
+        document.querySelectorAll('.exs-check').forEach(cb => cb.checked = e.target.checked);
+    });
+    document.getElementById('exs-download-btn').addEventListener('click', doExport);
+
+    // Import sheet listeners
+    document.getElementById('ims-overlay').addEventListener('click', closeImportSheet);
+    document.getElementById('ims-close').addEventListener('click', closeImportSheet);
+    document.getElementById('ims-select-all').addEventListener('change', e => {
+        document.querySelectorAll('.ims-check').forEach(cb => cb.checked = e.target.checked);
+    });
+    document.getElementById('ims-mode-toggle').addEventListener('click', e => {
+        const btn = e.target.closest('.ims-mode-btn');
+        if (!btn) return;
+        document.querySelectorAll('.ims-mode-btn').forEach(b => b.classList.remove('ims-mode-active'));
+        btn.classList.add('ims-mode-active');
+        const hints = {
+            merge: 'Fusionar: agrega los estudios sin borrar los existentes. Si hay conflicto de ID, se omite el importado.',
+            replace: 'Reemplazar: si ya existe un estudio con el mismo ID, se sobreescribe con el del archivo.'
+        };
+        document.getElementById('ims-hint').textContent = hints[btn.dataset.mode];
+        // Refresh conflict badges
+        const mode = btn.dataset.mode;
+        document.querySelectorAll('.io-study-conflict').forEach(el => {
+            const studyId = el.dataset.studyId;
+            el.style.display = (mode === 'merge' && studyId) ? '' : 'none';
+        });
+    });
+    document.getElementById('ims-confirm-btn').addEventListener('click', doImport);
+}
+
+// ── Export ────────────────────────────────────────────────────
+
+function openExportSheet() {
+    const list = document.getElementById('exs-list');
+    document.getElementById('exs-select-all').checked = true;
+
+    list.innerHTML = studiesState.studies.map(s => {
+        const tags = (s.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('');
+        return `
+            <label class="io-study-item">
+                <input type="checkbox" class="exs-check" data-study-id="${s.id}" checked>
+                <div class="io-study-info">
+                    <div class="io-study-name">${s.name}</div>
+                    <div class="io-study-meta">${s.entries.length} entradas</div>
+                    ${tags ? `<div class="io-study-tags">${tags}</div>` : ''}
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    document.getElementById('export-sheet').classList.remove('exs-hidden');
+}
+
+function closeExportSheet() {
+    document.getElementById('export-sheet').classList.add('exs-hidden');
+}
+
+function doExport() {
+    const selected = [...document.querySelectorAll('.exs-check:checked')].map(cb => cb.dataset.studyId);
+    if (!selected.length) { showSaveToast('Selecciona al menos un estudio'); return; }
+
+    const studies = studiesState.studies.filter(s => selected.includes(s.id));
+    const payload = { version: 1, exportedAt: new Date().toISOString(), studies };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `estudios-biblia-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    closeExportSheet();
+    showSaveToast(`${studies.length} estudio(s) exportado(s)`);
+}
+
+// ── Import ────────────────────────────────────────────────────
+
+let importStudiesBuffer = [];
+
+function openImportSheet(studies) {
+    importStudiesBuffer = studies;
+    const list = document.getElementById('ims-list');
+    const existingIds = new Set(studiesState.studies.map(s => s.id));
+    const existingNames = new Set(studiesState.studies.map(s => s.name));
+
+    document.getElementById('ims-select-all').checked = true;
+    // Reset mode to merge
+    document.querySelectorAll('.ims-mode-btn').forEach(b => b.classList.remove('ims-mode-active'));
+    document.querySelector('.ims-mode-btn[data-mode="merge"]').classList.add('ims-mode-active');
+    document.getElementById('ims-hint').textContent = 'Fusionar: agrega los estudios sin borrar los existentes. Si hay conflicto de ID, se omite el importado.';
+
+    list.innerHTML = studies.map((s, i) => {
+        const tags = (s.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('');
+        const hasIdConflict = existingIds.has(s.id);
+        const hasNameConflict = !hasIdConflict && existingNames.has(s.name);
+        const conflictMsg = hasIdConflict
+            ? '⚠️ Ya existe un estudio con este ID (se omitirá al fusionar)'
+            : hasNameConflict ? '⚠️ Ya existe un estudio con este nombre' : '';
+        return `
+            <label class="io-study-item">
+                <input type="checkbox" class="ims-check" data-idx="${i}" checked>
+                <div class="io-study-info">
+                    <div class="io-study-name">${s.name}</div>
+                    <div class="io-study-meta">${(s.entries || []).length} entradas</div>
+                    ${tags ? `<div class="io-study-tags">${tags}</div>` : ''}
+                    ${conflictMsg ? `<div class="io-study-conflict" data-study-id="${hasIdConflict ? s.id : ''}">${conflictMsg}</div>` : ''}
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    document.getElementById('import-sheet').classList.remove('ims-hidden');
+}
+
+function closeImportSheet() {
+    document.getElementById('import-sheet').classList.add('ims-hidden');
+    importStudiesBuffer = [];
+}
+
+function doImport() {
+    const selectedIdxs = [...document.querySelectorAll('.ims-check:checked')].map(cb => parseInt(cb.dataset.idx));
+    if (!selectedIdxs.length) { showSaveToast('Selecciona al menos un estudio'); return; }
+
+    const mode = document.querySelector('.ims-mode-btn.ims-mode-active').dataset.mode;
+    const selected = selectedIdxs.map(i => importStudiesBuffer[i]);
+    const existingIds = new Set(studiesState.studies.map(s => s.id));
+    let added = 0, replaced = 0;
+
+    selected.forEach(s => {
+        const study = { ...s, tags: s.tags || [], entries: s.entries || [] };
+        if (existingIds.has(s.id)) {
+            if (mode === 'replace') {
+                studiesState = { ...studiesState, studies: studiesState.studies.map(ex => ex.id === s.id ? study : ex) };
+                replaced++;
+            }
+            // merge: skip
+        } else {
+            studiesState = { ...studiesState, studies: [...studiesState.studies, study] };
+            existingIds.add(s.id);
+            added++;
+        }
+    });
+
+    studiesSave(studiesState);
+    renderStudiesDropdown();
+    closeImportSheet();
+    const msg = [added && `${added} añadido(s)`, replaced && `${replaced} reemplazado(s)`].filter(Boolean).join(', ');
+    showSaveToast(msg || 'Sin cambios');
 }
