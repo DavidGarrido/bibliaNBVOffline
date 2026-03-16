@@ -105,6 +105,7 @@
             <button id="sd-new-study">➕ Nuevo estudio</button>
             <div class="sd-divider"></div>
             <div class="sd-section-label">Mis estudios</div>
+            <div id="sd-tag-filter"></div>
             <ul id="sd-studies-list"></ul>
             <div class="sd-divider"></div>
             <div class="sd-section-label">⚙️ Configuración</div>
@@ -161,6 +162,41 @@
                 <button id="snm-close" class="icon-btn">✕</button>
             </div>
             <div id="snm-content"></div>
+        </div>
+    </div>
+
+    <!-- Modal confirmación eliminar entrada -->
+    <div id="confirm-modal" class="cm-hidden">
+        <div id="cm-overlay"></div>
+        <div id="cm-box">
+            <div id="cm-message">¿Eliminar esta entrada?</div>
+            <div id="cm-actions">
+                <button id="cm-cancel">Cancelar</button>
+                <button id="cm-confirm">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom sheet editar/crear estudio -->
+    <div id="study-edit-sheet" class="ses-hidden">
+        <div id="ses-overlay"></div>
+        <div id="ses-box">
+            <div id="ses-header">
+                <span id="ses-title">Nuevo estudio</span>
+                <button id="ses-close" class="icon-btn">✕</button>
+            </div>
+            <div id="ses-content">
+                <input id="ses-name" type="text" placeholder="Nombre del estudio" autocomplete="off">
+                <div class="ses-tags-label">Etiquetas</div>
+                <div id="ses-tags-existing"></div>
+                <div id="ses-new-tag-wrap">
+                    <input id="ses-new-tag" type="text" placeholder="Nueva etiqueta..." autocomplete="off">
+                    <button id="ses-add-tag">+</button>
+                </div>
+            </div>
+            <div id="ses-actions">
+                <button id="ses-save-btn" class="primary-btn">Guardar</button>
+            </div>
         </div>
     </div>
 

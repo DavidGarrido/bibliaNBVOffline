@@ -980,6 +980,8 @@ function studiesLoad() {
                 entries: []
             });
         }
+        // Ensure all studies have tags array
+        parsed.studies.forEach(s => { if (!s.tags) s.tags = []; });
         return parsed;
     } catch {
         return { ...DEFAULT_STATE };
@@ -994,18 +996,18 @@ function studiesGetActive(state) {
     return state.studies.find(s => s.id === (state.activeStudyId || 'general')) || state.studies[0];
 }
 
-function studiesCreate(state, name) {
+function studiesCreate(state, name, tags = []) {
     const id = 'study_' + Date.now();
-    const newStudy = {
-        id,
-        name,
-        createdAt: new Date().toISOString(),
-        entries: []
-    };
-    return {
-        ...state,
-        studies: [...state.studies, newStudy]
-    };
+    const newStudy = { id, name, tags, createdAt: new Date().toISOString(), entries: [] };
+    return { ...state, studies: [...state.studies, newStudy] };
+}
+
+function studiesUpdateStudy(state, studyId, { name, tags }) {
+    const studies = state.studies.map(s => {
+        if (s.id !== studyId) return s;
+        return { ...s, name: name || s.name, tags: tags || [] };
+    });
+    return { ...state, studies };
 }
 
 function studiesSetActive(state, id) {
@@ -1022,6 +1024,14 @@ function studiesAddEntry(state, studyId, entry) {
             ...s,
             entries: [...s.entries, { ...entry, id: 'entry_' + Date.now(), savedAt: new Date().toISOString() }]
         };
+    });
+    return { ...state, studies };
+}
+
+function studiesUpdateEntry(state, studyId, entryId, updates) {
+    const studies = state.studies.map(s => {
+        if (s.id !== studyId) return s;
+        return { ...s, entries: s.entries.map(e => e.id === entryId ? { ...e, ...updates } : e) };
     });
     return { ...state, studies };
 }
@@ -1050,6 +1060,7 @@ let studiesState = studiesLoad();
 // UI Functions
 function studiesInit() {
     setupStudiesListeners();
+    setupStudyEditListeners();
     updateStudiesButton();
     renderStudiesDropdown();
     updateModeToggleText();
@@ -1127,13 +1138,8 @@ function setupStudiesListeners() {
     
     // New study
     newStudy.addEventListener('click', () => {
-        const name = prompt('Nombre del nuevo estudio:');
-        if (name && name.trim()) {
-            studiesState = studiesCreate(studiesState, name.trim());
-            studiesSave(studiesState);
-            renderStudiesDropdown();
-            showSaveToast(`Estudio "${name.trim()}" creado`);
-        }
+        closeStudiesDropdown();
+        openStudyEditSheet(null);
     });
     
     // Sheet overlays
@@ -1161,26 +1167,54 @@ function toggleStudiesDropdown() {
     }
 }
 
+let activeTagFilter = null;
+
+function getAllTags() {
+    const set = new Set();
+    studiesState.studies.forEach(s => (s.tags || []).forEach(t => set.add(t)));
+    return [...set].sort();
+}
+
+function renderTagFilter() {
+    const filterEl = document.getElementById('sd-tag-filter');
+    if (!filterEl) return;
+    const allTags = getAllTags();
+    if (!allTags.length) { filterEl.innerHTML = ''; return; }
+    filterEl.innerHTML = `
+        <span class="sd-filter-chip ${!activeTagFilter ? 'sd-filter-active' : ''}" data-tag="">Todas</span>
+        ${allTags.map(t => `<span class="sd-filter-chip ${activeTagFilter === t ? 'sd-filter-active' : ''}" data-tag="${t}">${t}</span>`).join('')}
+    `;
+    filterEl.querySelectorAll('.sd-filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            activeTagFilter = chip.dataset.tag || null;
+            renderStudiesDropdown();
+        });
+    });
+}
+
 function renderStudiesDropdown() {
     const list = document.getElementById('sd-studies-list');
     const header = document.getElementById('sd-header');
     const activeStudy = studiesGetActive(studiesState);
-    
+
     header.innerHTML = `<span class="sd-header-name">${activeStudy.name} ›</span><span class="sd-header-sub">Estudio activo</span>`;
     updateModeToggleText();
+    renderTagFilter();
 
     list.innerHTML = '';
-    studiesState.studies.forEach(study => {
-        const li = document.createElement('li');
-        li.textContent = study.name;
-        if (study.id === studiesState.activeStudyId) {
-            li.classList.add('sd-active');
-        }
-        li.addEventListener('click', () => {
-            openStudySheet(study.id);
+    studiesState.studies
+        .filter(s => !activeTagFilter || (s.tags || []).includes(activeTagFilter))
+        .forEach(study => {
+            const li = document.createElement('li');
+            const tagsHtml = (study.tags || []).length
+                ? `<div class="sd-study-tags">${(study.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('')}</div>`
+                : '';
+            li.innerHTML = `<span class="sd-study-name">${study.name}</span>${tagsHtml}`;
+            const isActive = study.id === (studiesState.activeStudyId || 'general');
+            if (isActive) li.classList.add('sd-active');
+            li.addEventListener('click', () => openStudySheet(study.id));
+            list.appendChild(li);
         });
-        list.appendChild(li);
-    });
 }
 
 function updateStudiesButton() {
@@ -1214,7 +1248,22 @@ function openStudySheet(studyId, isStartup = false) {
     const study = studiesState.studies.find(s => s.id === studyId);
     if (!study) return;
 
-    title.textContent = `📓 ${study.name}`;
+    const tagsHtml = (study.tags || []).length
+        ? `<div class="ss-study-tags">${(study.tags || []).map(t => `<span class="ss-tag-chip">${t}</span>`).join('')}</div>`
+        : '';
+    title.innerHTML = `📓 ${study.name} <button id="ss-edit-study-btn" class="icon-btn ss-edit-btn" title="Editar">✏️</button>`;
+    // Insert tags row between header and content
+    const ssBox = document.getElementById('ss-box');
+    const existingTagsRow = ssBox.querySelector('.ss-study-tags');
+    if (existingTagsRow) existingTagsRow.remove();
+    if (tagsHtml) {
+        const ssHeader = document.getElementById('ss-header');
+        ssHeader.insertAdjacentHTML('afterend', tagsHtml);
+    }
+    document.getElementById('ss-edit-study-btn').addEventListener('click', () => {
+        closeStudySheet();
+        openStudyEditSheet(studyId);
+    });
 
     const content = document.getElementById('ss-content');
     if (isStartup) {
@@ -1284,16 +1333,7 @@ function openStudySheet(studyId, isStartup = false) {
         });
         document.getElementById('ss-new-study-btn').addEventListener('click', () => {
             closeStudySheet();
-            const name = prompt('Nombre del nuevo estudio:');
-            if (name && name.trim()) {
-                studiesState = studiesCreate(studiesState, name.trim());
-                studiesState = studiesSetActive(studiesState, studiesState.studies[studiesState.studies.length - 1].id);
-                studiesSave(studiesState);
-                updateStudiesButton();
-                renderStudiesDropdown();
-                showSaveToast(`Estudio "${name.trim()}" creado y activo`);
-                studyNavReset();
-            }
+            openStudyEditSheet(null, { autoActivate: true });
         });
     } else {
         const isActive = study.id === studiesState.activeStudyId;
@@ -1342,6 +1382,7 @@ function renderStudyEntries(study) {
                     <div class="ss-entry-text">${entry.text}</div>
                     ${entry.note ? `<div class="ss-entry-note">${linkifyNoteText(entry.note)}</div>` : ''}
                     <div class="ss-entry-actions">
+                        <button class="ss-edit-entry" data-entry-id="${entry.id}">✏️ Editar nota</button>
                         <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
                     </div>
                 </div>
@@ -1350,8 +1391,8 @@ function renderStudyEntries(study) {
             return `
                 <div class="ss-entry">
                     <div class="ss-entry-text">📝 ${entry.text}</div>
-                    ${entry.note ? `<div class="ss-entry-note">${linkifyNoteText(entry.note)}</div>` : ''}
                     <div class="ss-entry-actions">
+                        <button class="ss-edit-entry" data-entry-id="${entry.id}">✏️ Editar</button>
                         <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
                     </div>
                 </div>
@@ -1382,18 +1423,25 @@ function renderStudyEntries(study) {
     // Links de citas en notas
     attachNoteRefListeners(content);
 
-    // Add delete handlers
+    // Edit handlers
+    content.querySelectorAll('.ss-edit-entry').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const entry = study.entries.find(e => e.id === btn.dataset.entryId);
+            if (entry) openNoteSheet(null, entry, study.id);
+        });
+    });
+
+    // Delete handlers
     content.querySelectorAll('.ss-delete-entry').forEach(btn => {
         btn.addEventListener('click', () => {
-            const entryId = btn.dataset.entryId;
-            if (confirm('¿Eliminar esta entrada?')) {
-                studiesState = studiesDeleteEntry(studiesState, study.id, entryId);
+            showConfirmModal('¿Eliminar esta entrada?', () => {
+                studiesState = studiesDeleteEntry(studiesState, study.id, btn.dataset.entryId);
                 studiesSave(studiesState);
                 const updatedStudy = studiesState.studies.find(s => s.id === study.id);
                 renderStudyEntries(updatedStudy);
                 reapplyStudyMarkers();
                 studyNavUpdate();
-            }
+            });
         });
     });
 }
@@ -1402,31 +1450,52 @@ function closeStudySheet() {
     document.getElementById('study-sheet').classList.add('ss-hidden');
 }
 
-function openNoteSheet(verseData = null) {
+function openNoteSheet(verseData = null, editEntry = null, editStudyId = null) {
     const sheet = document.getElementById('note-sheet');
     const title = document.getElementById('ns-title');
     const refEl = document.getElementById('ns-verse-ref');
     const textEl = document.getElementById('ns-verse-text');
     const noteInput = document.getElementById('ns-note-input');
-    
+
     noteInput.value = '';
-    
-    if (verseData) {
+    sheet.dataset.editEntry = '';
+    sheet.dataset.editStudyId = '';
+
+    if (editEntry) {
+        title.textContent = 'Editar entrada';
+        sheet.dataset.editEntry = JSON.stringify(editEntry);
+        sheet.dataset.editStudyId = editStudyId || '';
+        if (editEntry.type === 'verse') {
+            refEl.textContent = editEntry.ref;
+            refEl.style.display = 'block';
+            textEl.textContent = editEntry.text;
+            textEl.style.display = 'block';
+            noteInput.value = editEntry.note || '';
+            noteInput.placeholder = 'Nota del versículo (opcional)';
+        } else {
+            refEl.style.display = 'none';
+            textEl.style.display = 'none';
+            noteInput.value = editEntry.text || '';
+            noteInput.placeholder = 'Texto de la nota';
+        }
+    } else if (verseData) {
         title.textContent = 'Guardar versículo';
         refEl.textContent = verseData.ref;
         refEl.style.display = 'block';
         textEl.textContent = verseData.text;
         textEl.style.display = 'block';
+        noteInput.placeholder = 'Escribe una nota (opcional)';
     } else {
         title.textContent = 'Nueva nota';
         refEl.style.display = 'none';
         textEl.style.display = 'none';
+        noteInput.placeholder = 'Escribe una nota (opcional)';
     }
-    
+
     sheet.classList.remove('ns-hidden');
     closeStudiesDropdown();
     setTimeout(() => noteInput.focus(), 100);
-    
+
     // Store verse data for save
     sheet.dataset.verseData = verseData ? JSON.stringify(verseData) : '';
 }
@@ -1440,9 +1509,33 @@ function handleSaveNote() {
     const noteInput = document.getElementById('ns-note-input');
     const note = noteInput.value.trim();
     const verseDataStr = sheet.dataset.verseData;
-    
+    const editEntryStr = sheet.dataset.editEntry;
+
+    // ── Modo edición ──────────────────────────────────────────
+    if (editEntryStr) {
+        const editEntry = JSON.parse(editEntryStr);
+        const studyId = sheet.dataset.editStudyId;
+        if (editEntry.type === 'verse') {
+            studiesState = studiesUpdateEntry(studiesState, studyId, editEntry.id, { note });
+        } else {
+            if (!note) { showSaveToast('Escribe algo para guardar'); return; }
+            studiesState = studiesUpdateEntry(studiesState, studyId, editEntry.id, { text: note });
+        }
+        studiesSave(studiesState);
+        closeNoteSheet();
+        showSaveToast('Actualizado ✓');
+        // Refresca el study sheet si está abierto
+        const ssSheet = document.getElementById('study-sheet');
+        if (!ssSheet.classList.contains('ss-hidden')) {
+            const updatedStudy = studiesState.studies.find(s => s.id === studyId);
+            if (updatedStudy) renderStudyEntries(updatedStudy);
+        }
+        reapplyStudyMarkers();
+        return;
+    }
+
     const activeStudy = studiesGetActive(studiesState);
-    
+
     if (verseDataStr) {
         const verseData = JSON.parse(verseDataStr);
         const entry = {
@@ -1850,4 +1943,119 @@ function updateNavToggleText() {
     btn.textContent = studyNavIsEnabled()
         ? '🧭 Navegación por estudio: Activa'
         : '🧭 Navegación por estudio: Inactiva';
+}
+
+// ── Modal de confirmación ─────────────────────────────────────
+
+function showConfirmModal(message, onConfirm) {
+    const modal = document.getElementById('confirm-modal');
+    document.getElementById('cm-message').textContent = message;
+    modal.classList.remove('cm-hidden');
+
+    const confirmBtn = document.getElementById('cm-confirm');
+    const cancelBtn = document.getElementById('cm-cancel');
+
+    const close = () => modal.classList.add('cm-hidden');
+    const onOk = () => { close(); onConfirm(); };
+
+    confirmBtn.onclick = onOk;
+    cancelBtn.onclick = close;
+    document.getElementById('cm-overlay').onclick = close;
+}
+
+// ── Modal de edición/creación de estudio ─────────────────────
+
+function openStudyEditSheet(studyId = null, options = {}) {
+    const sheet = document.getElementById('study-edit-sheet');
+    const study = studyId ? studiesState.studies.find(s => s.id === studyId) : null;
+
+    document.getElementById('ses-title').textContent = study ? 'Editar estudio' : 'Nuevo estudio';
+    document.getElementById('ses-name').value = study ? study.name : '';
+    sheet.dataset.studyId = studyId || '';
+    sheet.dataset.autoActivate = options.autoActivate ? 'true' : '';
+
+    renderSesTagChips(study ? (study.tags || []) : []);
+    sheet.classList.remove('ses-hidden');
+    setTimeout(() => document.getElementById('ses-name').focus(), 100);
+}
+
+function closeStudyEditSheet() {
+    document.getElementById('study-edit-sheet').classList.add('ses-hidden');
+}
+
+const DEFAULT_TAGS = ['devocional', 'predica', 'escuela', 'mensaje', 'oración', 'evangelismo', 'profecía', 'grupos pequeños', 'estudio personal', 'apologética'];
+
+function renderSesTagChips(selectedTags) {
+    const container = document.getElementById('ses-tags-existing');
+    const allTags = getAllTags();
+    // Merge default suggestions
+    DEFAULT_TAGS.forEach(t => { if (!allTags.includes(t)) allTags.push(t); });
+    // Include any selected tags not yet in allTags (e.g. just added)
+    selectedTags.forEach(t => { if (!allTags.includes(t)) allTags.push(t); });
+
+    container.innerHTML = allTags.map(tag =>
+        `<span class="ses-tag-chip ${selectedTags.includes(tag) ? 'ses-tag-selected' : ''}" data-tag="${tag}">${tag}</span>`
+    ).join('');
+    container.querySelectorAll('.ses-tag-chip').forEach(chip =>
+        chip.addEventListener('click', () => chip.classList.toggle('ses-tag-selected'))
+    );
+}
+
+function addSesNewTag() {
+    const input = document.getElementById('ses-new-tag');
+    const tag = input.value.trim().toLowerCase();
+    if (!tag) return;
+    input.value = '';
+    const existing = document.querySelector(`.ses-tag-chip[data-tag="${tag}"]`);
+    if (existing) { existing.classList.add('ses-tag-selected'); return; }
+    const container = document.getElementById('ses-tags-existing');
+    const chip = document.createElement('span');
+    chip.className = 'ses-tag-chip ses-tag-selected';
+    chip.dataset.tag = tag;
+    chip.textContent = tag;
+    chip.addEventListener('click', () => chip.classList.toggle('ses-tag-selected'));
+    container.appendChild(chip);
+}
+
+function getSesSelectedTags() {
+    return [...document.querySelectorAll('.ses-tag-chip.ses-tag-selected')].map(c => c.dataset.tag);
+}
+
+function setupStudyEditListeners() {
+    document.getElementById('ses-overlay').addEventListener('click', closeStudyEditSheet);
+    document.getElementById('ses-close').addEventListener('click', closeStudyEditSheet);
+
+    document.getElementById('ses-add-tag').addEventListener('click', addSesNewTag);
+    document.getElementById('ses-new-tag').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); addSesNewTag(); }
+    });
+
+    document.getElementById('ses-save-btn').addEventListener('click', () => {
+        const sheet = document.getElementById('study-edit-sheet');
+        const name = document.getElementById('ses-name').value.trim();
+        if (!name) { showSaveToast('Escribe un nombre'); return; }
+        const tags = getSesSelectedTags();
+        const studyId = sheet.dataset.studyId;
+        const autoActivate = sheet.dataset.autoActivate === 'true';
+
+        if (studyId) {
+            studiesState = studiesUpdateStudy(studiesState, studyId, { name, tags });
+            studiesSave(studiesState);
+            renderStudiesDropdown();
+            closeStudyEditSheet();
+            showSaveToast('Estudio actualizado');
+        } else {
+            studiesState = studiesCreate(studiesState, name, tags);
+            const newId = studiesState.studies[studiesState.studies.length - 1].id;
+            if (autoActivate) {
+                studiesState = studiesSetActive(studiesState, newId);
+                studyNavReset();
+            }
+            studiesSave(studiesState);
+            updateStudiesButton();
+            renderStudiesDropdown();
+            closeStudyEditSheet();
+            showSaveToast(`Estudio "${name}" creado${autoActivate ? ' y activo' : ''}`);
+        }
+    });
 }
