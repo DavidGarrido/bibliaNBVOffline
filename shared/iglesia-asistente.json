@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "exportedAt": "2026-03-16T20:30:00.000Z",
+  "studies": [
+    {
+      "id": "iglesia-asistente",
+      "name": "Iglesia: Iglesia Asistente",
+      "tags": ["temas", "escuela", "grupos pequeños", "predica"],
+      "createdAt": "2026-03-16T20:30:00.000Z",
+      "entries": [
+        {
+          "id": "ia-e01",
+          "type": "note",
+          "ref": null,
+          "bookId": null,
+          "chapN": null,
+          "verseN": null,
+          "text": "IGLESIA ASISTENTE\n\nEste estudio aborda el rol del creyente como miembro activo de la iglesia local. No se trata solo de asistir a un servicio sino de participar genuinamente en la vida comunitaria del cuerpo de Cristo: la doctrina, la comunión, la adoración, el ministerio y la misión. La iglesia no es una opción para el cristiano sino el contexto dado por Dios para el crecimiento y el servicio.",
+          "translationId": null,
+          "note": "",
+          "savedAt": "2026-03-16T20:30:00.000Z"
+        },
+        {
+          "id": "ia-e02",
+          "type": "verse",
+          "ref": "Mateo 16:18",
+          "bookId": 40,
+          "chapN": 16,
+          "verseN": 18,
+          "verseEnd": null,
+          "text": "Mas yo también te digo, que tú eres Pedro, y sobre esta piedra edificaré mi iglesia; y las puertas del infierno no prevalecerán contra ella.",
+          "translationId": "rvr1960",
+          "note": "JESÚS EDIFICA SU IGLESIA (Mt 16:18)\n\nLa iglesia no es invención humana ni institución religiosa más: es la obra personal de Cristo. «Edificaré mi iglesia» — posesivo y futuro activo. Las puertas del infierno no prevalecerán — la iglesia no solo sobrevive sino que avanza. Ser parte de la iglesia es estar del lado de lo que Cristo construye y lo que el infierno no puede detener.",
+          "savedAt": "2026-03-16T20:31:00.000Z"
+        },
+        {
+          "id": "ia-e03",
+          "type": "verse",
+          "ref": "Hechos 2:42",
+          "bookId": 44,
+          "chapN": 2,
+          "verseN": 42,
+          "verseEnd": null,
+          "text": "Y perseveraban en la doctrina de los apóstoles, y en la comunión, y en el partimiento del pan, y en las oraciones.",
+          "translationId": "rvr1960",
+          "note": "LOS CUATRO PILARES DE LA IGLESIA PRIMITIVA (Hch 2:42)\n\nEl modelo de la iglesia de Pentecostés: doctrina (enseñanza), comunión (koinonía — vida compartida), partimiento del pan (cena del Señor y comida en común), oraciones. Estos cuatro elementos describen una comunidad que aprende, comparte, conmemora y ora juntos. «Perseveraban» — no era asistencia ocasional sino compromiso constante.",
+          "savedAt": "2026-03-16T20:32:00.000Z"
+        },
+        {
+          "id": "ia-e04",
+          "type": "verse",
+          "ref": "Hechos 9:31",
+          "bookId": 44,
+          "chapN": 9,
+          "verseN": 31,
+          "verseEnd": null,
+          "text": "Las iglesias entonces tenían paz por toda Judea y Galilea y Samaria, y eran edificadas, andando en el temor del Señor; y con consuelo del Espíritu Santo eran multiplicadas.",
+          "translationId": "rvr1960",
+          "note": "EDIFICADAS Y MULTIPLICADAS (Hch 9:31)\n\nDos dinámicas simultáneas: edificación (crecimiento en profundidad) y multiplicación (crecimiento en número). Ambas son obra del Espíritu Santo y se dan en el contexto de andar en el temor del Señor. La iglesia saludable crece por dentro y por fuera al mismo tiempo.",
+          "savedAt": "2026-03-16T20:33:00.000Z"
+        },
+        {
+          "id": "ia-e05",
+          "type": "verse",
+          "ref": "Mateo 18:20",
+          "bookId": 40,
+          "chapN": 18,
+          "verseN": 20,
+          "verseEnd": null,
+          "text": "Porque donde están dos o tres congregados en mi nombre, allí estoy en medio de ellos.",
+          "translationId": "rvr1960",
+          "note": "LA PRESENCIA DE CRISTO EN LA CONGREGACIÓN (Mt 18:20)\n\nLa iglesia no necesita grandeza numérica para tener la presencia de Cristo. «Congregados en mi nombre» — no en cualquier nombre ni con cualquier propósito, sino centrados en Cristo. Su presencia en medio de la asamblea es la razón más profunda para no abandonar la congregación: donde la iglesia se reúne genuinamente en su nombre, Él está.",
+          "savedAt": "2026-03-16T20:34:00.000Z"
+        },
+        {
+          "id": "ia-e06",
+          "type": "verse",
+          "ref": "Hebreos 10:24",
+          "bookId": 58,
+          "chapN": 10,
+          "verseN": 24,
+          "verseEnd": 25,
+          "text": "Y considerémonos los unos a los otros para provocarnos al amor y a las buenas obras; no dejando nuestra congregación, como algunos tienen por costumbre, mas exhortándonos; y tanto más, cuanto veis que aquel día se acerca.",
+          "translationId": "rvr1960",
+          "note": "NO DEJES LA CONGREGACIÓN (Heb 10:24-25)\n\nUno de los mandatos más directos sobre la asistencia a la iglesia. «No dejando nuestra congregación» — el abandono de la comunidad era ya un problema en el siglo I. La razón para congregarse no es la costumbre sino el amor mutuo y la exhortación recíproca. La urgencia aumenta: «tanto más cuanto veis que aquel día se acerca» — la proximidad del regreso de Cristo es motivación para mayor compromiso, no para menor.",
+          "savedAt": "2026-03-16T20:35:00.000Z"
+        },
+        {
+          "id": "ia-e07",
+          "type": "verse",
+          "ref": "Efesios 4:11",
+          "bookId": 49,
+          "chapN": 4,
+          "verseN": 11,
+          "verseEnd": 13,
+          "text": "Y él mismo dio unos, ciertamente apóstoles; y otros, profetas; y otros, evangelistas; y otros, pastores y doctores; para perfección de los santos, para la obra del ministerio, para edificación del cuerpo de Cristo.",
+          "translationId": "rvr1960",
+          "note": "DONES PARA LA EDIFICACIÓN DEL CUERPO (Ef 4:11-13)\n\nDios mismo dotó a la iglesia con ministerios de liderazgo: no para hacer el trabajo por los santos sino para «perfeccionar a los santos para la obra del ministerio». El objetivo final es la unidad de la fe y la madurez en Cristo. Todo miembro de la iglesia tiene un rol en la edificación del cuerpo — el liderazgo equipa, los santos sirven.",
+          "savedAt": "2026-03-16T20:36:00.000Z"
+        },
+        {
+          "id": "ia-e08",
+          "type": "verse",
+          "ref": "Colosenses 3:16",
+          "bookId": 51,
+          "chapN": 3,
+          "verseN": 16,
+          "verseEnd": null,
+          "text": "La palabra de Cristo habite en vosotros en abundancia en toda sabiduría, enseñándoos y exhortándoos los unos a los otros con salmos e himnos y canciones espirituales, con gracia cantando en vuestros corazones al Señor.",
+          "translationId": "rvr1960",
+          "note": "LA PALABRA Y LA ADORACIÓN COMUNITARIA (Col 3:16)\n\nLa vida de la iglesia se nutre de dos fuentes entrelazadas: la Palabra de Cristo habitando en abundancia y la adoración comunitaria. La enseñanza mutua («enseñándoos y exhortándoos los unos a los otros») no es exclusiva del pastor sino responsabilidad de toda la congregación. La adoración con «salmos, himnos y canciones espirituales» es tanto expresión de la Palabra como respuesta a ella.",
+          "savedAt": "2026-03-16T20:37:00.000Z"
+        },
+        {
+          "id": "ia-e09",
+          "type": "verse",
+          "ref": "Romanos 10:17",
+          "bookId": 45,
+          "chapN": 10,
+          "verseN": 17,
+          "verseEnd": null,
+          "text": "Luego la fe es por el oír; y el oír por la palabra de Dios.",
+          "translationId": "rvr1960",
+          "note": "LA FE VIENE POR EL OÍR (Ro 10:17)\n\nLa predicación y la enseñanza de la Palabra no son una opción litúrgica sino el mecanismo que Dios usa para producir y sostener la fe. Asistir a la iglesia donde la Palabra se predica fielmente es exponerse al medio por el cual Dios alimenta la fe. Quien deja la congregación se priva de este canal fundamental.",
+          "savedAt": "2026-03-16T20:38:00.000Z"
+        },
+        {
+          "id": "ia-e10",
+          "type": "verse",
+          "ref": "Santiago 1:22",
+          "bookId": 59,
+          "chapN": 1,
+          "verseN": 22,
+          "verseEnd": null,
+          "text": "Mas sed hacedores de la palabra, y no tan solamente oidores, engañándoos a vosotros mismos.",
+          "translationId": "rvr1960",
+          "note": "HACEDORES, NO SOLO OIDORES (Stg 1:22)\n\nLa asistencia a la iglesia puede convertirse en un engaño si se limita a escuchar sin obedecer. Santiago advierte contra el autoengaño del que oye pero no hace. La iglesia asistente genuina no es la que simplemente está presente en el servicio sino la que lleva la Palabra a la vida cotidiana durante la semana.",
+          "savedAt": "2026-03-16T20:39:00.000Z"
+        },
+        {
+          "id": "ia-e11",
+          "type": "verse",
+          "ref": "2 Timoteo 4:2",
+          "bookId": 55,
+          "chapN": 4,
+          "verseN": 2,
+          "verseEnd": null,
+          "text": "Que prediques la palabra; que instes a tiempo y fuera de tiempo; redarguye, reprende; exhorta con toda paciencia y doctrina.",
+          "translationId": "rvr1960",
+          "note": "LA PREDICACIÓN FIEL (2Ti 4:2)\n\nEl mandato al predicador: «instes a tiempo y fuera de tiempo» — no solo cuando es conveniente o bien recibido. Reprender, exhortar, con paciencia y doctrina. La iglesia asistente necesita predicación que no solo agrade sino que confronte y forme. Pablo agrega en el contexto (v.3-4) que habrá quienes preferirán maestros que digan lo que quieren oír — la fidelidad a la Palabra distingue la iglesia verdadera.",
+          "savedAt": "2026-03-16T20:40:00.000Z"
+        },
+        {
+          "id": "ia-e12",
+          "type": "verse",
+          "ref": "Mateo 6:33",
+          "bookId": 40,
+          "chapN": 6,
+          "verseN": 33,
+          "verseEnd": null,
+          "text": "Mas buscad primeramente el reino de Dios y su justicia, y todas estas cosas os serán añadidas.",
+          "translationId": "rvr1960",
+          "note": "PRIORIDADES DEL REINO (Mt 6:33)\n\nLa participación en la iglesia es expresión práctica de buscar primero el reino. Las excusas para no congregarse casi siempre tienen que ver con «estas cosas» — el trabajo, el tiempo, las responsabilidades. Pero la promesa es que quien prioriza el reino recibe lo demás por añadidura. La iglesia asistente vive con las prioridades correctas.",
+          "savedAt": "2026-03-16T20:41:00.000Z"
+        },
+        {
+          "id": "ia-e13",
+          "type": "verse",
+          "ref": "Mateo 28:19",
+          "bookId": 40,
+          "chapN": 28,
+          "verseN": 19,
+          "verseEnd": 20,
+          "text": "Por tanto, id, y doctrinad a todos los Gentiles, bautizándolos en el nombre del Padre, y del Hijo, y del Espíritu Santo: enseñándoles que guarden todas las cosas que os he mandado: y he aquí, yo estoy con vosotros todos los días, hasta el fin del mundo.",
+          "translationId": "rvr1960",
+          "note": "LA MISIÓN DE LA IGLESIA (Mt 28:19-20)\n\nLa Gran Comisión define el propósito de la iglesia en el mundo: ir, hacer discípulos, bautizar, enseñar. La iglesia asistente no es un club privado de beneficiarios sino una comunidad enviada. La promesa que cierra: «yo estoy con vosotros todos los días» — la presencia de Cristo acompaña la misión hasta el fin.",
+          "savedAt": "2026-03-16T20:42:00.000Z"
+        }
+      ]
+    }
+  ]
+}
