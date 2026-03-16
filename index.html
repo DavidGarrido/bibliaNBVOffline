@@ -119,6 +119,9 @@
             <button id="sd-import-btn">📥 Importar estudios</button>
             <input type="file" id="sd-import-file" accept=".json" style="display:none">
             <button id="sd-shared-btn">📚 Estudios compartidos</button>
+            <div class="sd-divider"></div>
+            <div class="sd-section-label">📬 Contacto</div>
+            <button id="sd-whatsapp-btn">💬 Enviar estudio por WhatsApp</button>
         </div>
     </div>
 
@@ -202,6 +205,26 @@
             </div>
             <div id="sss-actions">
                 <button id="sss-import-btn" class="primary-btn">📥 Importar seleccionados</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sheet compartir por WhatsApp -->
+    <div id="wa-sheet" class="was-hidden">
+        <div id="was-overlay"></div>
+        <div id="was-box">
+            <div id="was-header">
+                <span>Compartir por WhatsApp</span>
+                <button id="was-close" class="icon-btn">✕</button>
+            </div>
+            <div id="was-content">
+                <label class="io-select-all">
+                    <input type="checkbox" id="was-select-all"> Seleccionar todos
+                </label>
+                <div id="was-list"></div>
+            </div>
+            <div id="was-actions">
+                <button id="was-send-btn" class="primary-btn">💬 Compartir</button>
             </div>
         </div>
     </div>

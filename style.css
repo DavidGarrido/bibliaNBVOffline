@@ -712,6 +712,21 @@ h2 {
     background: var(--tg-secondary-bg-color, #f4f4f5);
 }
 
+#sd-whatsapp-btn {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #25D366;
+    font-weight: 500;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+#sd-whatsapp-btn:hover {
+    background: var(--tg-secondary-bg-color, #f4f4f5);
+}
+
 /* ── Sheets estudios compartidos ── */
 #shared-sheet, #shared-studies-sheet {
     position: fixed;
@@ -795,7 +810,7 @@ h2 {
 .shs-error { color: #e53935; }
 
 /* ── Sheets exportar / importar (estructura compartida) ── */
-#export-sheet, #import-sheet {
+#export-sheet, #import-sheet, #wa-sheet {
     position: fixed;
     inset: 0;
     z-index: 300;
@@ -803,14 +818,14 @@ h2 {
     align-items: flex-end;
     pointer-events: all;
 }
-#export-sheet.exs-hidden, #import-sheet.ims-hidden { display: none; }
+#export-sheet.exs-hidden, #import-sheet.ims-hidden, #wa-sheet.was-hidden { display: none; }
 
-#exs-overlay, #ims-overlay {
+#exs-overlay, #ims-overlay, #was-overlay {
     position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.4);
 }
-#exs-box, #ims-box {
+#exs-box, #ims-box, #was-box {
     position: relative;
     width: 100%;
     max-height: 80vh;
@@ -820,7 +835,7 @@ h2 {
     flex-direction: column;
     overflow: hidden;
 }
-#exs-header, #ims-header {
+#exs-header, #ims-header, #was-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -830,7 +845,7 @@ h2 {
     border-bottom: 1px solid var(--tg-secondary-bg-color, #f0f0f0);
     flex-shrink: 0;
 }
-#exs-content, #ims-content {
+#exs-content, #ims-content, #was-content {
     flex: 1;
     overflow-y: auto;
     padding: 12px 16px;
@@ -838,7 +853,7 @@ h2 {
     flex-direction: column;
     gap: 4px;
 }
-#exs-actions, #ims-actions {
+#exs-actions, #ims-actions, #was-actions {
     padding: 10px 16px 16px;
     flex-shrink: 0;
     border-top: 1px solid var(--tg-secondary-bg-color, #f0f0f0);

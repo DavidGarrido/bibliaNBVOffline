@@ -2070,6 +2070,11 @@ function setupExportImport() {
         openExportSheet();
     });
 
+    document.getElementById('sd-whatsapp-btn').addEventListener('click', () => {
+        closeStudiesDropdown();
+        openWaSheet();
+    });
+
     document.getElementById('sd-import-btn').addEventListener('click', () => {
         closeStudiesDropdown();
         document.getElementById('sd-import-file').click();
@@ -2243,6 +2248,82 @@ function doImport() {
     closeImportSheet();
     const msg = [added && `${added} añadido(s)`, replaced && `${replaced} reemplazado(s)`].filter(Boolean).join(', ');
     showSaveToast(msg || 'Sin cambios');
+}
+
+// ── Compartir por WhatsApp ────────────────────────────────────
+
+const WA_NUMBER = '573205731318';
+
+function openWaSheet() {
+    const list = document.getElementById('was-list');
+    document.getElementById('was-select-all').checked = true;
+
+    list.innerHTML = studiesState.studies.map(s => {
+        const tags = (s.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('');
+        return `
+            <label class="io-study-item">
+                <input type="checkbox" class="was-check" data-study-id="${s.id}" checked>
+                <div class="io-study-info">
+                    <div class="io-study-name">${s.name}</div>
+                    <div class="io-study-meta">${s.entries.length} entradas</div>
+                    ${tags ? `<div class="io-study-tags">${tags}</div>` : ''}
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    document.getElementById('was-overlay').addEventListener('click', closeWaSheet);
+    document.getElementById('was-close').addEventListener('click', closeWaSheet);
+    document.getElementById('was-select-all').addEventListener('change', e => {
+        document.querySelectorAll('.was-check').forEach(cb => cb.checked = e.target.checked);
+    });
+    document.getElementById('was-send-btn').onclick = doShareWhatsApp;
+
+    document.getElementById('wa-sheet').classList.remove('was-hidden');
+}
+
+function closeWaSheet() {
+    document.getElementById('wa-sheet').classList.add('was-hidden');
+}
+
+async function doShareWhatsApp() {
+    const selected = [...document.querySelectorAll('.was-check:checked')].map(cb => cb.dataset.studyId);
+    if (!selected.length) { showSaveToast('Selecciona al menos un estudio'); return; }
+
+    const studies = studiesState.studies.filter(s => selected.includes(s.id));
+    const payload = { version: 1, exportedAt: new Date().toISOString(), studies };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const filename = `estudios-biblia-${new Date().toISOString().slice(0,10)}.json`;
+    const file = new File([blob], filename, { type: 'application/json' });
+
+    closeWaSheet();
+
+    // Web Share API con archivo (móvil)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                files: [file],
+                text: '📖 Te comparto mis estudios bíblicos. Impórtalos en la app Biblia NBV.'
+            });
+            return;
+        } catch (e) {
+            if (e.name === 'AbortError') return; // usuario canceló
+        }
+    }
+
+    // Fallback: descarga el archivo y abre WhatsApp con texto
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    setTimeout(() => {
+        const msg = encodeURIComponent('📖 Te comparto mis estudios bíblicos. Importa el archivo que acabo de enviar en la app Biblia NBV.');
+        window.open(`https://wa.me/${WA_NUMBER}?text=${msg}`, '_blank');
+    }, 800);
 }
 
 // ── Estudios compartidos ──────────────────────────────────────
