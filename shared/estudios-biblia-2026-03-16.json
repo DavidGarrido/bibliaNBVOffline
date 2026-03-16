@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "exportedAt": "2026-03-16T15:01:54.484Z",
+  "studies": [
+    {
+      "id": "study_1773653110522",
+      "name": "La sabiduría",
+      "createdAt": "2026-03-16T09:25:10.525Z",
+      "entries": [
+        {
+          "type": "verse",
+          "ref": "Proverbios 1:23",
+          "bookId": 20,
+          "chapN": 1,
+          "verseN": 23,
+          "text": "Escuchen mis correcciones y yo les abriré mi corazón, para que conozcan mis pensamientos.",
+          "translationId": "nbv",
+          "note": "",
+          "id": "entry_1773653527045",
+          "savedAt": "2026-03-16T09:32:07.046Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Proverbios 1:24",
+          "bookId": 20,
+          "chapN": 1,
+          "verseN": 24,
+          "text": "Repetidamente los he llamado y no quieren venir; les he tendido mi mano pero no me hacen caso.",
+          "translationId": "nbv",
+          "note": "",
+          "id": "entry_1773653533986",
+          "savedAt": "2026-03-16T09:32:13.991Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Proverbios 1:26",
+          "bookId": 20,
+          "chapN": 1,
+          "verseN": 26,
+          "text": "algún día van a estar en desgracia, y yo me reiré. Me burlaré de ustedes cuando estén llenos de miedo,",
+          "translationId": "nbv",
+          "note": "Específicamente, en Proverbios 1:26-27, la sabiduría personificada habla de cómo se reirá de la calamidad de aquellos que ignoraron sus consejos y correcciones [2, 3]. Es un recordatorio sobre las consecuencias naturales de rechazar el buen juicio o la prudencia en favor del descuido [3].",
+          "id": "entry_1773653632389",
+          "savedAt": "2026-03-16T09:33:52.389Z"
+        },
+        {
+          "type": "note",
+          "text": "En el contexto bíblico, quien habla es la Sabiduría, personificada como una mujer que clama en lugares públicos.\nNo es Dios hablando directamente en primera persona, sino una personificación literaria de los principios sabios que advierten a los inexpertos sobre las consecuencias de ignorar el buen juicio. Al aceptar su corrección, ella promete derramar su espíritu y revelar sus palabras.",
+          "note": "",
+          "id": "entry_1773653856376",
+          "savedAt": "2026-03-16T09:37:36.376Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Proverbios 2:1",
+          "bookId": 20,
+          "chapN": 2,
+          "verseN": 1,
+          "text": "Hijo mío, si haces tuyas mis palabras y atesoras mis mandamientos;",
+          "translationId": "nbv",
+          "note": "se enfatiza que la sabiduría es un regalo divino que requiere una búsqueda activa y un corazón dispuesto.",
+          "id": "entry_1773654362945",
+          "savedAt": "2026-03-16T09:46:02.945Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Proverbios 2:17",
+          "bookId": 20,
+          "chapN": 2,
+          "verseN": 17,
+          "text": "Esa mujer que ha abandonado al compañero de su juventud y se ha olvidado del compromiso que hizo con Dios.",
+          "translationId": "nbv",
+          "note": "Esta distinción no es porque el pecado de abandonar un compromiso sea exclusivo de las mujeres, sino por el propósito educativo y el estilo literario del libro de Proverbios. \nYouTube\nYouTube\nAquí te explico las razones principales:\nDestinatario específico: Gran parte de Proverbios está escrito como una serie de lecciones de un padre (Salomón) a su hijo varón. Por ello, las advertencias se enfocan en los peligros que ese joven podría enfrentar, como la seducción de una mujer que ha traicionado sus propios valores.\nContraste simbólico: En el libro de Proverbios, la Sabiduría personificada es una mujer que llama a la vida, mientras que la \"mujer extraña\" personifica la insensatez y la tentación que lleva a la muerte. Este uso de figuras femeninas contrapuestas es un recurso literario central en todo el libro.\nAplicación universal: Aunque el texto usa la figura de la mujer para ilustrar este peligro, la enseñanza moral es unisex. Teológicamente, se entiende que tanto hombres como mujeres son capaces de caer en la infidelidad o de romper su pacto con Dios; el principio de mantenerse fiel a los compromisos de juventud y a los mandatos divinos aplica a todo ser humano por igual. \nYouTube\nYouTube\n +4\nEn resumen, se especifica \"la mujer\" porque el autor le está hablando a un hombre sobre un riesgo específico para él, pero el mensaje de fondo sobre la integridad y el respeto a Dios es para todos",
+          "id": "entry_1773655251544",
+          "savedAt": "2026-03-16T10:00:51.544Z"
+        },
+        {
+          "type": "note",
+          "text": "Nótese que la figura de la mujer es en general el el libro en el lado positivo cómo lo es la sabiduría",
+          "note": "",
+          "id": "entry_1773655425033",
+          "savedAt": "2026-03-16T10:03:45.034Z"
+        },
+        {
+          "type": "verse",
+          "ref": "Proverbios 3:7",
+          "bookId": 20,
+          "chapN": 3,
+          "verseN": 7,
+          "text": "No creas que eres tan sabio como para no tenerle miedo al mal. Honra al Señor y huye del mal,",
+          "translationId": "nbv",
+          "note": "",
+          "id": "entry_1773655639833",
+          "savedAt": "2026-03-16T10:07:19.833Z"
+        }
+      ],
+      "tags": [
+        "devocional"
+      ]
+    }
+  ]
+}
