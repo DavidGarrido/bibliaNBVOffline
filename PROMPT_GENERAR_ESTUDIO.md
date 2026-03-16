@@ -194,3 +194,15 @@ Usa una o varias de estas etiquetas según el tipo de estudio:
   ]
 }
 ```
+
+---
+
+## Cómo entregar el archivo generado
+
+1. Guarda el JSON con un nombre descriptivo en minúsculas y sin espacios, por ejemplo:
+   `romanos-8-vida-en-el-espiritu.json`
+
+2. Envíaselo al administrador del proyecto para que lo suba a la carpeta `shared/` del repositorio:
+   `https://github.com/DavidGarrido/bibliaNBVOffline/tree/master/shared`
+
+3. Una vez subido, aparecerá automáticamente en la sección **📚 Estudios compartidos** de la app y cualquier usuario podrá importarlo buscando por su `id`.
