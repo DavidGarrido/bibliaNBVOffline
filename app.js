@@ -1062,6 +1062,7 @@ function studiesInit() {
     setupStudiesListeners();
     setupStudyEditListeners();
     setupExportImport();
+    setupSharedStudies();
     updateStudiesButton();
     renderStudiesDropdown();
     updateModeToggleText();
@@ -2242,4 +2243,147 @@ function doImport() {
     closeImportSheet();
     const msg = [added && `${added} añadido(s)`, replaced && `${replaced} reemplazado(s)`].filter(Boolean).join(', ');
     showSaveToast(msg || 'Sin cambios');
+}
+
+// ── Estudios compartidos ──────────────────────────────────────
+
+const SHARED_API = 'https://api.github.com/repos/DavidGarrido/bibliaNBVOffline/contents/shared';
+let sharedCurrentFile = null; // { name, studies[] }
+
+function setupSharedStudies() {
+    document.getElementById('sd-shared-btn').addEventListener('click', () => {
+        closeStudiesDropdown();
+        openSharedSheet();
+    });
+    document.getElementById('shs-overlay').addEventListener('click', closeSharedSheet);
+    document.getElementById('shs-close').addEventListener('click', closeSharedSheet);
+
+    document.getElementById('sss-overlay').addEventListener('click', closeSharedStudiesSheet);
+    document.getElementById('sss-close').addEventListener('click', closeSharedStudiesSheet);
+    document.getElementById('sss-back').addEventListener('click', () => {
+        closeSharedStudiesSheet();
+        document.getElementById('shared-sheet').classList.remove('shs-hidden');
+    });
+    document.getElementById('sss-select-all').addEventListener('change', e => {
+        document.querySelectorAll('.sss-check').forEach(cb => cb.checked = e.target.checked);
+    });
+    document.getElementById('sss-import-btn').addEventListener('click', doImportFromShared);
+}
+
+function openSharedSheet() {
+    const sheet = document.getElementById('shared-sheet');
+    sheet.classList.remove('shs-hidden');
+    loadSharedFiles();
+}
+
+function closeSharedSheet() {
+    document.getElementById('shared-sheet').classList.add('shs-hidden');
+}
+
+function closeSharedStudiesSheet() {
+    document.getElementById('shared-studies-sheet').classList.add('sss-hidden');
+}
+
+async function loadSharedFiles() {
+    const list = document.getElementById('shs-file-list');
+    list.innerHTML = '<div class="shs-loading">Cargando...</div>';
+
+    try {
+        const res = await fetch(SHARED_API, { headers: { Accept: 'application/vnd.github.v3+json' } });
+        if (!res.ok) throw new Error();
+        const files = await res.json();
+
+        const jsonFiles = files.filter(f => f.type === 'file' && f.name.endsWith('.json'));
+        if (!jsonFiles.length) {
+            list.innerHTML = '<div class="shs-empty">No hay estudios compartidos aún.</div>';
+            return;
+        }
+
+        list.innerHTML = jsonFiles.map(f => {
+            const label = f.name.replace('.json', '').replace(/-/g, ' ');
+            const sizeKb = (f.size / 1024).toFixed(1);
+            return `
+                <div class="shs-file-item" data-url="${f.download_url}" data-name="${f.name}">
+                    <span class="shs-file-name">${label}</span>
+                    <span class="shs-file-meta">${sizeKb} KB · toca para ver estudios</span>
+                </div>
+            `;
+        }).join('');
+
+        list.querySelectorAll('.shs-file-item').forEach(item => {
+            item.addEventListener('click', () => openSharedFile(item.dataset.url, item.dataset.name));
+        });
+    } catch {
+        list.innerHTML = '<div class="shs-error">Error al cargar. Verifica tu conexión.</div>';
+    }
+}
+
+async function openSharedFile(url, filename) {
+    const list = document.getElementById('shs-file-list');
+    list.innerHTML = '<div class="shs-loading">Cargando archivo...</div>';
+
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (!data.studies || !Array.isArray(data.studies)) throw new Error();
+
+        sharedCurrentFile = { name: filename, studies: data.studies };
+        closeSharedSheet();
+        openSharedStudiesSheet(filename, data);
+    } catch {
+        list.innerHTML = '<div class="shs-error">Error al leer el archivo.</div>';
+    }
+}
+
+function openSharedStudiesSheet(filename, data) {
+    const label = filename.replace('.json', '').replace(/-/g, ' ');
+    const exportedAt = data.exportedAt ? new Date(data.exportedAt).toLocaleDateString('es') : '';
+    document.getElementById('sss-title').textContent = label;
+    document.getElementById('sss-select-all').checked = true;
+
+    const existingIds = new Set(studiesState.studies.map(s => s.id));
+    const list = document.getElementById('sss-list');
+
+    list.innerHTML = data.studies.map((s, i) => {
+        const tags = (s.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('');
+        const conflict = existingIds.has(s.id) ? '<div class="io-study-conflict">⚠️ Ya tienes este estudio (mismo ID)</div>' : '';
+        return `
+            <label class="io-study-item">
+                <input type="checkbox" class="sss-check" data-idx="${i}" checked>
+                <div class="io-study-info">
+                    <div class="io-study-name">${s.name}</div>
+                    <div class="io-study-meta">${(s.entries || []).length} entradas${exportedAt ? ' · ' + exportedAt : ''}</div>
+                    ${tags ? `<div class="io-study-tags">${tags}</div>` : ''}
+                    ${conflict}
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    document.getElementById('shared-studies-sheet').classList.remove('sss-hidden');
+}
+
+function doImportFromShared() {
+    if (!sharedCurrentFile) return;
+    const selectedIdxs = [...document.querySelectorAll('.sss-check:checked')].map(cb => parseInt(cb.dataset.idx));
+    if (!selectedIdxs.length) { showSaveToast('Selecciona al menos un estudio'); return; }
+
+    const selected = selectedIdxs.map(i => sharedCurrentFile.studies[i]);
+    const existingIds = new Set(studiesState.studies.map(s => s.id));
+    let added = 0;
+
+    selected.forEach(s => {
+        if (existingIds.has(s.id)) return; // skip duplicates
+        const study = { ...s, tags: s.tags || [], entries: s.entries || [] };
+        studiesState = { ...studiesState, studies: [...studiesState.studies, study] };
+        existingIds.add(s.id);
+        added++;
+    });
+
+    studiesSave(studiesState);
+    renderStudiesDropdown();
+    closeSharedStudiesSheet();
+    closeSharedSheet();
+    showSaveToast(added ? `${added} estudio(s) importado(s)` : 'Sin cambios (ya los tienes)');
 }

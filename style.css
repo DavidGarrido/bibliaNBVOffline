@@ -697,8 +697,8 @@ h2 {
     justify-content: flex-end;
 }
 
-/* ── Botones exportar/importar en drawer ── */
-#sd-export-btn, #sd-import-btn {
+/* ── Botones exportar/importar/compartidos en drawer ── */
+#sd-export-btn, #sd-import-btn, #sd-shared-btn {
     width: 100%;
     background: none;
     border: none;
@@ -708,9 +708,91 @@ h2 {
     cursor: pointer;
     color: var(--tg-text-color, #000);
 }
-#sd-export-btn:hover, #sd-import-btn:hover {
+#sd-export-btn:hover, #sd-import-btn:hover, #sd-shared-btn:hover {
     background: var(--tg-secondary-bg-color, #f4f4f5);
 }
+
+/* ── Sheets estudios compartidos ── */
+#shared-sheet, #shared-studies-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    display: flex;
+    align-items: flex-end;
+    pointer-events: all;
+}
+#shared-sheet.shs-hidden, #shared-studies-sheet.sss-hidden { display: none; }
+
+#shs-overlay, #sss-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+}
+#shs-box, #sss-box {
+    position: relative;
+    width: 100%;
+    max-height: 80vh;
+    background: var(--tg-bg-color, #fff);
+    border-radius: 16px 16px 0 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#shs-header, #sss-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    font-weight: 600;
+    font-size: 16px;
+    border-bottom: 1px solid var(--tg-secondary-bg-color, #f0f0f0);
+    flex-shrink: 0;
+}
+#shs-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+#sss-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+#sss-actions {
+    padding: 10px 16px 16px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--tg-secondary-bg-color, #f0f0f0);
+}
+
+/* Ítem de archivo compartido */
+.shs-file-item {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--tg-secondary-bg-color, #f0f0f0);
+    cursor: pointer;
+    gap: 2px;
+}
+.shs-file-item:hover { background: var(--tg-secondary-bg-color, #f4f4f5); }
+.shs-file-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--tg-text-color, #000);
+}
+.shs-file-meta {
+    font-size: 12px;
+    color: var(--tg-hint-color, #999);
+}
+.shs-loading, .shs-error, .shs-empty {
+    padding: 24px 16px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--tg-hint-color, #999);
+}
+.shs-error { color: #e53935; }
 
 /* ── Sheets exportar / importar (estructura compartida) ── */
 #export-sheet, #import-sheet {

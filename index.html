@@ -118,6 +118,7 @@
             <button id="sd-export-btn">📤 Exportar estudios</button>
             <button id="sd-import-btn">📥 Importar estudios</button>
             <input type="file" id="sd-import-file" accept=".json" style="display:none">
+            <button id="sd-shared-btn">📚 Estudios compartidos</button>
         </div>
     </div>
 
@@ -167,6 +168,41 @@
                 <button id="snm-close" class="icon-btn">✕</button>
             </div>
             <div id="snm-content"></div>
+        </div>
+    </div>
+
+    <!-- Sheet estudios compartidos -->
+    <div id="shared-sheet" class="shs-hidden">
+        <div id="shs-overlay"></div>
+        <div id="shs-box">
+            <div id="shs-header">
+                <span>📚 Estudios compartidos</span>
+                <button id="shs-close" class="icon-btn">✕</button>
+            </div>
+            <div id="shs-content">
+                <div id="shs-file-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sheet estudios de un archivo compartido -->
+    <div id="shared-studies-sheet" class="sss-hidden">
+        <div id="sss-overlay"></div>
+        <div id="sss-box">
+            <div id="sss-header">
+                <button id="sss-back" class="icon-btn">⬅</button>
+                <span id="sss-title"></span>
+                <button id="sss-close" class="icon-btn">✕</button>
+            </div>
+            <div id="sss-content">
+                <label class="io-select-all">
+                    <input type="checkbox" id="sss-select-all"> Seleccionar todos
+                </label>
+                <div id="sss-list"></div>
+            </div>
+            <div id="sss-actions">
+                <button id="sss-import-btn" class="primary-btn">📥 Importar seleccionados</button>
+            </div>
         </div>
     </div>
 
