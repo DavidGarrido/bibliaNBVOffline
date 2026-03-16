@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-v18';
+const CACHE_NAME = 'biblia-v19';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,9 @@ const CORE_ASSETS = [
   './logo_iglesia.svg',
   'https://telegram.org/js/telegram-web-app.js'
 ];
+
+// Archivos que siempre se sirven desde la red (nunca quedan obsoletos en cache)
+const NETWORK_FIRST = ['style.css', 'app.js', 'index.html'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -27,11 +30,26 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+  const filename = url.pathname.split('/').pop();
 
-  // version.json: siempre de red para detectar actualizaciones
+  // version.json: siempre de red
   if (url.pathname.endsWith('version.json')) {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // app.js, style.css, index.html: network-first (siempre frescos)
+  if (NETWORK_FIRST.some(f => filename === f)) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
@@ -52,7 +70,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Todo lo demás: cache first para offline, actualiza en segundo plano
+  // Todo lo demás: cache first, actualiza en segundo plano
   event.respondWith(
     caches.open(CACHE_NAME).then(cache =>
       cache.match(event.request).then(cached => {
