@@ -2734,6 +2734,36 @@ function doImportFromShared() {
     showSaveToast(added ? `${added} estudio(s) importado(s)` : 'Sin cambios (ya los tienes)');
 }
 
+// ── Instalación PWA ───────────────────────────────────────────
+
+(function () {
+    const btn = document.getElementById('pwa-install-btn');
+
+    // Si ya corre en standalone no mostrar nada
+    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
+
+    let deferredPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        deferredPrompt = e;
+        btn.classList.remove('tb-hidden');
+    });
+
+    btn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if (outcome === 'accepted') btn.classList.add('tb-hidden');
+    });
+
+    window.addEventListener('appinstalled', () => {
+        btn.classList.add('tb-hidden');
+        deferredPrompt = null;
+    });
+})();
+
 // ── Referencias cruzadas ──────────────────────────────────────
 
 let crossRefData = null;

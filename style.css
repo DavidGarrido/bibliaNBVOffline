@@ -79,6 +79,19 @@ body {
 
 .tb-hidden { display: none !important; }
 
+.pwa-install-btn {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 8px;
+    background: var(--tg-button-color, #2481cc);
+    color: var(--tg-button-text-color, #fff);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+.pwa-install-btn:active { opacity: 0.75; }
 
 #translation-select {
     padding: 5px 6px;
