@@ -274,7 +274,18 @@ function scrollToPage(pageNum) {
 
 function updatePageIndicator() {
     if (readingMode === 'paged') {
-        document.getElementById('tb-title').textContent = `${currentBook.name} ${currentChapter.n}`;
+        const strip = document.getElementById('pages-strip');
+        const page = strip ? strip.children[currentPageNum] : null;
+        let verseRange = '';
+        if (page) {
+            const vnums = [...page.querySelectorAll('.v-num')].map(el => parseInt(el.textContent)).filter(n => !isNaN(n));
+            if (vnums.length) {
+                const first = vnums[0];
+                const last = vnums[vnums.length - 1];
+                verseRange = first === last ? `  ·  ${currentChapter.n}:${first}` : `  ·  ${currentChapter.n}:${first}-${last}`;
+            }
+        }
+        document.getElementById('tb-title').textContent = `${currentBook.name}${verseRange}`;
     } else {
         document.getElementById('tb-title').textContent = `${currentBook.name} ${currentChapter.n}  ·  ${currentPageNum + 1}/${totalPageCount}`;
     }
@@ -390,11 +401,13 @@ document.querySelector('main#content').addEventListener('scroll', () => {
         for (const verse of verses) {
             if (verse.getBoundingClientRect().top >= mainTop) {
                 const verseN = verse.querySelector('.v-num')?.textContent;
-                if (verseN) {
+                const chapN = parseInt(verse.getAttribute('data-chap')) || currentChapter?.n;
+                if (verseN && currentBook) {
+                    document.getElementById('tb-title').textContent = `${currentBook.name} ${chapN}:${verseN}`;
                     const pos = JSON.parse(localStorage.getItem('bible-position'));
                     if (pos) {
                         pos.verseN = verseN;
-                        pos.chapterN = parseInt(verse.getAttribute('data-chap')) || pos.chapterN;
+                        pos.chapterN = chapN;
                         localStorage.setItem('bible-position', JSON.stringify(pos));
                     }
                 }
