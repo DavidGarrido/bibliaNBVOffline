@@ -96,32 +96,32 @@
     <div id="studies-drawer" class="sd-closed">
         <div id="sd-overlay"></div>
         <div id="sd-panel">
-            <div id="sd-header">
-                <span class="sd-header-name">General</span>
-                <span class="sd-header-sub">Estudio activo</span>
+            <div id="sd-scrollable">
+                <div id="sd-header">
+                    <span class="sd-header-name">General</span>
+                    <span class="sd-header-sub">Estudio activo</span>
+                </div>
+                <div class="sd-divider"></div>
+                <button id="sd-new-note">📝 Nueva nota</button>
+                <button id="sd-new-study">➕ Nuevo estudio</button>
+                <div class="sd-divider"></div>
+                <div class="sd-section-label">Mis estudios</div>
+                <div id="sd-tag-filter"></div>
+                <ul id="sd-studies-list"></ul>
+                <div class="sd-divider"></div>
+                <input type="file" id="sd-import-file" accept=".json" style="display:none">
+                <button id="sd-shared-btn">📚 Estudios compartidos</button>
+                <div class="sd-divider"></div>
+                <div class="sd-section-label">📬 Contacto</div>
+                <button id="sd-whatsapp-btn">💬 Enviar estudio por WhatsApp</button>
             </div>
-            <div class="sd-divider"></div>
-            <button id="sd-new-note">📝 Nueva nota</button>
-            <button id="sd-new-study">➕ Nuevo estudio</button>
-            <div class="sd-divider"></div>
-            <div class="sd-section-label">Mis estudios</div>
-            <div id="sd-tag-filter"></div>
-            <ul id="sd-studies-list"></ul>
-            <div class="sd-divider"></div>
-            <div class="sd-section-label">⚙️ Configuración</div>
-            <button id="sd-mode-toggle">📄 Modo: Páginas</button>
-            <button id="sd-study-alert-toggle">🔔 Advertir estudio al iniciar</button>
-            <button id="sd-refs-toggle">🔖 Referencias: Estudio activo</button>
-            <button id="sd-nav-toggle">🧭 Navegación por estudio: Inactiva</button>
-            <div class="sd-divider"></div>
-            <div class="sd-section-label">💾 Datos</div>
-            <button id="sd-export-btn">📤 Exportar estudios</button>
-            <button id="sd-import-btn">📥 Importar estudios</button>
-            <input type="file" id="sd-import-file" accept=".json" style="display:none">
-            <button id="sd-shared-btn">📚 Estudios compartidos</button>
-            <div class="sd-divider"></div>
-            <div class="sd-section-label">📬 Contacto</div>
-            <button id="sd-whatsapp-btn">💬 Enviar estudio por WhatsApp</button>
+            <div id="sd-bottom-bar">
+                <div id="sd-local-note">📦 Estás en modo local. Haz respaldo de tus estudios para no perder tu información.</div>
+                <div id="sd-bottom-actions">
+                    <button id="sd-profile-btn" class="sd-bottom-btn">👤 Perfil</button>
+                    <button id="sd-config-btn" class="sd-bottom-btn">⚙️ Ajustes</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -309,6 +309,68 @@
                 <button id="nbm-close" class="icon-btn">✕</button>
             </div>
             <div id="nbm-note-text"></div>
+        </div>
+    </div>
+
+    <!-- Modal de configuración -->
+    <div id="config-modal" class="cfg-hidden">
+        <div id="cfg-overlay"></div>
+        <div id="cfg-box">
+            <div id="cfg-header">
+                <span>⚙️ Configuración</span>
+                <button id="cfg-close" class="icon-btn">✕</button>
+            </div>
+            <div id="cfg-content">
+                <div class="cfg-item">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">Modo de lectura</div>
+                        <div class="cfg-item-desc">Elige cómo se muestran los versículos: en páginas (25 por bloque) o de forma continua con todo el capítulo.</div>
+                    </div>
+                    <button id="cfg-mode-toggle" class="cfg-toggle-btn"></button>
+                </div>
+                <div class="cfg-item">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">Advertencia al iniciar</div>
+                        <div class="cfg-item-desc">Muestra un recordatorio del estudio activo cada vez que abres la aplicación.</div>
+                    </div>
+                    <button id="cfg-alert-toggle" class="cfg-toggle-btn"></button>
+                </div>
+                <div class="cfg-item">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">Mostrar referencias de</div>
+                        <div class="cfg-item-desc">Controla qué versículos marcados se resaltan: solo los del estudio activo o los de todos los estudios.</div>
+                    </div>
+                    <button id="cfg-refs-toggle" class="cfg-toggle-btn"></button>
+                </div>
+                <div class="cfg-item">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">Navegación por estudio</div>
+                        <div class="cfg-item-desc">Activa una barra de navegación para saltar entre los versículos guardados del estudio activo.</div>
+                    </div>
+                    <button id="cfg-nav-toggle" class="cfg-toggle-btn"></button>
+                </div>
+                <div class="cfg-item">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">Continuar donde lo dejé</div>
+                        <div class="cfg-item-desc">Al abrir la app, vuelve automáticamente al último capítulo y versículo que estabas leyendo.</div>
+                    </div>
+                    <button id="cfg-restore-toggle" class="cfg-toggle-btn"></button>
+                </div>
+                <div class="cfg-item">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">Exportar estudios</div>
+                        <div class="cfg-item-desc">Descarga todos tus estudios y notas como un archivo JSON para hacer una copia de seguridad.</div>
+                    </div>
+                    <button id="cfg-export-btn" class="cfg-toggle-btn">📤 Exportar</button>
+                </div>
+                <div class="cfg-item">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">Importar estudios</div>
+                        <div class="cfg-item-desc">Carga estudios desde un archivo JSON exportado previamente. Puedes fusionarlos o reemplazar los existentes.</div>
+                    </div>
+                    <button id="cfg-import-btn" class="cfg-toggle-btn">📥 Importar</button>
+                </div>
+            </div>
         </div>
     </div>
 

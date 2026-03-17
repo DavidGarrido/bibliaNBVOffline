@@ -490,15 +490,64 @@ h2 {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 75%;
+    width: 90%;
     max-width: 300px;
     background: var(--tg-bg-color, #fff);
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+}
+
+#sd-scrollable {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#sd-bottom-bar {
+    flex-shrink: 0;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    background: var(--tg-bg-color, #fff);
+}
+
+#sd-local-note {
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--tg-hint-color, #888);
+    padding: 8px 14px 6px;
+    background: var(--tg-secondary-bg-color, #f4f4f5);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+#sd-bottom-actions {
+    display: flex;
+}
+
+.sd-bottom-btn {
+    flex: 1;
+    padding: 12px 8px;
+    background: none;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--tg-text-color, #000);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.sd-bottom-btn:hover {
+    background: var(--tg-secondary-bg-color, #f4f4f5);
+}
+
+#sd-bottom-actions .sd-bottom-btn:first-child {
+    border-right: 1px solid rgba(0,0,0,0.08);
 }
 
 #studies-drawer.sd-open #sd-panel {
@@ -553,11 +602,15 @@ h2 {
     list-style: none;
     padding: 0;
     margin: 0;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 #sd-studies-list li {
     padding: 12px 16px;
     cursor: pointer;
+    overflow: hidden;
     font-size: 14px;
     display: flex;
     align-items: center;
@@ -1498,14 +1551,42 @@ h2 {
 
 /* ── Etiquetas de estudios ── */
 
-/* Chips en la lista del drawer */
 #sd-tag-filter {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
     padding: 4px 16px 8px;
 }
 #sd-tag-filter:empty { display: none; }
+
+.sd-filter-btn {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--tg-secondary-bg-color, #f4f4f5);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    color: var(--tg-hint-color, #888);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+
+.sd-filter-btn.sd-filter-btn-active {
+    color: var(--tg-link-color, #2481cc);
+    border-color: var(--tg-link-color, #2481cc);
+}
+
+.sd-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 8px;
+}
+
+.sd-filter-chips-hidden {
+    display: none;
+}
 
 .sd-filter-chip {
     font-size: 11px;
@@ -1517,18 +1598,39 @@ h2 {
     border: 1px solid transparent;
     -webkit-user-select: none;
     user-select: none;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
+
 .sd-filter-chip.sd-filter-active {
     background: var(--tg-link-color, #2481cc);
     color: #fff;
 }
 
+.sd-study-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.sd-study-name {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Tags en cada ítem de estudio del drawer */
 .sd-study-tags {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 4px;
-    margin-top: 3px;
+    margin-top: 4px;
+    overflow: hidden;
 }
 .sd-tag-chip {
     font-size: 10px;
@@ -1536,6 +1638,10 @@ h2 {
     border-radius: 10px;
     background: var(--tg-secondary-bg-color, #f0f0f0);
     color: var(--tg-hint-color, #888);
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Tags en el study sheet */
@@ -1788,6 +1894,7 @@ h2 {
         align-items: stretch;
         justify-content: flex-end;
         z-index: 70;
+        pointer-events: none;
     }
 
     body.study-sheet-open #ss-overlay {
@@ -1795,6 +1902,7 @@ h2 {
     }
 
     body.study-sheet-open #ss-box {
+        pointer-events: all;
         border-radius: 0;
         width: 380px;
         max-width: 380px;
@@ -1817,6 +1925,7 @@ h2 {
         align-items: stretch;
         justify-content: flex-end;
         z-index: 75;
+        pointer-events: none;
     }
 
     body.study-nav-open #snm-overlay {
@@ -1824,6 +1933,7 @@ h2 {
     }
 
     body.study-nav-open #snm-box {
+        pointer-events: all;
         border-radius: 0;
         width: 380px;
         max-width: 380px;
@@ -1883,4 +1993,92 @@ h2 {
     white-space: pre-wrap;
     -webkit-user-select: text;
     user-select: text;
+}
+
+/* ── Modal de configuración ── */
+#config-modal.cfg-hidden { display: none; }
+
+#config-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#cfg-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+}
+
+#cfg-box {
+    position: relative;
+    background: var(--tg-bg-color, var(--tg-theme-bg-color));
+    border-radius: 14px;
+    width: min(92vw, 400px);
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+
+#cfg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 12px;
+    font-size: 16px;
+    font-weight: 700;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+#cfg-content {
+    padding: 8px 0;
+}
+
+.cfg-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.cfg-item:last-child {
+    border-bottom: none;
+}
+
+.cfg-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.cfg-item-label {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
+.cfg-item-desc {
+    font-size: 12px;
+    opacity: 0.6;
+    line-height: 1.4;
+}
+
+.cfg-toggle-btn {
+    flex-shrink: 0;
+    background: var(--tg-secondary-bg-color, var(--tg-theme-secondary-bg-color));
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--tg-text-color, var(--tg-theme-text-color));
+    transition: background 0.15s;
+}
+
+.cfg-toggle-btn:active {
+    opacity: 0.7;
 }

@@ -94,7 +94,7 @@ async function loadBible(translationId, restorePosition = true) {
     elements.loader.style.display = 'none';
     renderBooks();
 
-    if (restorePosition) {
+    if (restorePosition && localStorage.getItem('bible-restore-position') !== 'off') {
         const saved = JSON.parse(localStorage.getItem('bible-position'));
         if (saved && saved.bookId && saved.chapterN) {
             const book = bibleData.find(b => b.id === saved.bookId);
@@ -1098,41 +1098,51 @@ function setupStudiesListeners() {
         openStudySheet(activeStudy.id);
     });
     
-    // Study alert toggle
-    document.getElementById('sd-study-alert-toggle').addEventListener('click', () => {
+    // Botón de configuración en el drawer
+    document.getElementById('sd-config-btn').addEventListener('click', () => {
+        closeStudiesDropdown();
+        openConfigModal();
+    });
+
+    // Modal de configuración — cerrar
+    document.getElementById('cfg-close').addEventListener('click', closeConfigModal);
+    document.getElementById('cfg-overlay').addEventListener('click', closeConfigModal);
+
+    // Modal de configuración — toggles
+    document.getElementById('cfg-mode-toggle').addEventListener('click', () => {
+        cleanupPageMode();
+        readingMode = readingMode === 'paged' ? 'continuous' : 'paged';
+        localStorage.setItem('bible-reading-mode', readingMode);
+        updateModeToggleText();
+        if (currentBook && currentChapter) showReader(currentBook, currentChapter);
+    });
+
+    document.getElementById('cfg-alert-toggle').addEventListener('click', () => {
         const current = localStorage.getItem('bible-study-alert');
         localStorage.setItem('bible-study-alert', current === 'off' ? 'on' : 'off');
         updateStudyAlertToggleText();
     });
 
-    // Nav toggle
-    document.getElementById('sd-nav-toggle').addEventListener('click', () => {
-        const enabled = studyNavIsEnabled();
-        localStorage.setItem('bible-study-nav', enabled ? 'off' : 'on');
-        updateNavToggleText();
-        studyNavUpdate();
-        closeStudiesDropdown();
-    });
-
-    // Refs mode toggle
-    document.getElementById('sd-refs-toggle').addEventListener('click', () => {
+    document.getElementById('cfg-refs-toggle').addEventListener('click', () => {
         const current = localStorage.getItem('bible-study-refs-mode') || 'active';
         localStorage.setItem('bible-study-refs-mode', current === 'active' ? 'all' : 'active');
         updateRefsToggleText();
         reapplyStudyMarkers();
     });
 
-    // Mode toggle in dropdown
-    const modeToggle = document.getElementById('sd-mode-toggle');
-    modeToggle.addEventListener('click', () => {
-        cleanupPageMode();
-        readingMode = readingMode === 'paged' ? 'continuous' : 'paged';
-        localStorage.setItem('bible-reading-mode', readingMode);
-        updateModeToggleText();
-        toggleStudiesDropdown();
-        if (currentBook && currentChapter) showReader(currentBook, currentChapter);
+    document.getElementById('cfg-nav-toggle').addEventListener('click', () => {
+        const enabled = studyNavIsEnabled();
+        localStorage.setItem('bible-study-nav', enabled ? 'off' : 'on');
+        updateNavToggleText();
+        studyNavUpdate();
     });
-    
+
+    document.getElementById('cfg-restore-toggle').addEventListener('click', () => {
+        const current = localStorage.getItem('bible-restore-position');
+        localStorage.setItem('bible-restore-position', current === 'off' ? 'on' : 'off');
+        updateRestorePositionToggleText();
+    });
+
     // New note
     newNote.addEventListener('click', () => {
         openNoteSheet();
@@ -1182,10 +1192,18 @@ function renderTagFilter() {
     if (!filterEl) return;
     const allTags = getAllTags();
     if (!allTags.length) { filterEl.innerHTML = ''; return; }
+
+    const label = activeTagFilter ? `🏷️ ${activeTagFilter}` : '🏷️ Filtrar por etiqueta';
     filterEl.innerHTML = `
-        <span class="sd-filter-chip ${!activeTagFilter ? 'sd-filter-active' : ''}" data-tag="">Todas</span>
-        ${allTags.map(t => `<span class="sd-filter-chip ${activeTagFilter === t ? 'sd-filter-active' : ''}" data-tag="${t}">${t}</span>`).join('')}
+        <button class="sd-filter-btn${activeTagFilter ? ' sd-filter-btn-active' : ''}" id="sd-filter-toggle">${label}</button>
+        <div class="sd-filter-chips sd-filter-chips-hidden" id="sd-filter-chips">
+            <span class="sd-filter-chip ${!activeTagFilter ? 'sd-filter-active' : ''}" data-tag="">Todas</span>
+            ${allTags.map(t => `<span class="sd-filter-chip ${activeTagFilter === t ? 'sd-filter-active' : ''}" data-tag="${t}">${t}</span>`).join('')}
+        </div>
     `;
+    document.getElementById('sd-filter-toggle').addEventListener('click', () => {
+        document.getElementById('sd-filter-chips').classList.toggle('sd-filter-chips-hidden');
+    });
     filterEl.querySelectorAll('.sd-filter-chip').forEach(chip => {
         chip.addEventListener('click', () => {
             activeTagFilter = chip.dataset.tag || null;
@@ -1211,7 +1229,7 @@ function renderStudiesDropdown() {
             const tagsHtml = (study.tags || []).length
                 ? `<div class="sd-study-tags">${(study.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('')}</div>`
                 : '';
-            li.innerHTML = `<span class="sd-study-name">${study.name}</span>${tagsHtml}`;
+            li.innerHTML = `<div class="sd-study-info"><span class="sd-study-name">${study.name}</span>${tagsHtml}</div>`;
             const isActive = study.id === (studiesState.activeStudyId || 'general');
             if (isActive) li.classList.add('sd-active');
             li.addEventListener('click', () => openStudySheet(study.id));
@@ -1229,17 +1247,15 @@ function updateStudiesButton() {
 }
 
 function updateStudyAlertToggleText() {
-    const btn = document.getElementById('sd-study-alert-toggle');
+    const btn = document.getElementById('cfg-alert-toggle');
     if (!btn) return;
     const enabled = localStorage.getItem('bible-study-alert') !== 'off';
-    btn.textContent = enabled ? '🔔 Advertir estudio al iniciar' : '🔕 Advertir estudio al iniciar';
+    btn.textContent = enabled ? '🔔 Activada' : '🔕 Desactivada';
 }
 
 function updateModeToggleText() {
-    const modeToggle = document.getElementById('sd-mode-toggle');
-    if (modeToggle) {
-        modeToggle.textContent = readingMode === 'paged' ? '📄 Modo: Páginas' : '📜 Modo: Continuo';
-    }
+    const btn = document.getElementById('cfg-mode-toggle');
+    if (btn) btn.textContent = readingMode === 'paged' ? '📄 Páginas' : '📜 Continuo';
 }
 
 function openStudySheet(studyId, isStartup = false) {
@@ -1820,12 +1836,12 @@ document.getElementById('nbm-overlay').addEventListener('click', closeNoteBadgeM
 document.getElementById('nbm-close').addEventListener('click', closeNoteBadgeModal);
 
 function updateRefsToggleText() {
-    const btn = document.getElementById('sd-refs-toggle');
+    const btn = document.getElementById('cfg-refs-toggle');
     if (!btn) return;
     const mode = localStorage.getItem('bible-study-refs-mode') || 'active';
     btn.textContent = mode === 'all'
-        ? '🔖 Referencias: Todos los estudios'
-        : '🔖 Referencias: Estudio activo';
+        ? '🔖 Todos los estudios'
+        : '🔖 Estudio activo';
 }
 
 // ── Navegación por estudio ─────────────────────────────────────
@@ -2042,11 +2058,33 @@ function studyNavInit() {
 }
 
 function updateNavToggleText() {
-    const btn = document.getElementById('sd-nav-toggle');
+    const btn = document.getElementById('cfg-nav-toggle');
     if (!btn) return;
     btn.textContent = studyNavIsEnabled()
-        ? '🧭 Navegación por estudio: Activa'
-        : '🧭 Navegación por estudio: Inactiva';
+        ? '🧭 Activa'
+        : '🧭 Inactiva';
+}
+
+function updateRestorePositionToggleText() {
+    const btn = document.getElementById('cfg-restore-toggle');
+    if (!btn) return;
+    const enabled = localStorage.getItem('bible-restore-position') !== 'off';
+    btn.textContent = enabled ? '📍 Activado' : '📍 Desactivado';
+}
+
+// ── Modal de configuración ────────────────────────────────────
+
+function openConfigModal() {
+    updateModeToggleText();
+    updateStudyAlertToggleText();
+    updateRefsToggleText();
+    updateNavToggleText();
+    updateRestorePositionToggleText();
+    document.getElementById('config-modal').classList.remove('cfg-hidden');
+}
+
+function closeConfigModal() {
+    document.getElementById('config-modal').classList.add('cfg-hidden');
 }
 
 // ── Modal de confirmación ─────────────────────────────────────
@@ -2167,8 +2205,8 @@ function setupStudyEditListeners() {
 // ── Exportar / Importar estudios ──────────────────────────────
 
 function setupExportImport() {
-    document.getElementById('sd-export-btn').addEventListener('click', () => {
-        closeStudiesDropdown();
+    document.getElementById('cfg-export-btn').addEventListener('click', () => {
+        closeConfigModal();
         openExportSheet();
     });
 
@@ -2177,8 +2215,8 @@ function setupExportImport() {
         openWaSheet();
     });
 
-    document.getElementById('sd-import-btn').addEventListener('click', () => {
-        closeStudiesDropdown();
+    document.getElementById('cfg-import-btn').addEventListener('click', () => {
+        closeConfigModal();
         document.getElementById('sd-import-file').click();
     });
 
