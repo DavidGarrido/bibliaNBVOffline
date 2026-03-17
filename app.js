@@ -1222,6 +1222,16 @@ function setupStudiesListeners() {
     
     // Save verse button in verse-actions
     document.getElementById('va-save').addEventListener('click', handleSaveVerse);
+
+    // Image button in verse-actions
+    document.getElementById('va-image').addEventListener('click', handleVerseImage);
+
+    // Verse image modal
+    document.getElementById('vim-close').addEventListener('click', () =>
+        document.getElementById('verse-img-modal').classList.add('vim-hidden'));
+    document.getElementById('vim-overlay').addEventListener('click', () =>
+        document.getElementById('verse-img-modal').classList.add('vim-hidden'));
+    document.getElementById('vim-share').addEventListener('click', shareVerseImage);
 }
 
 function toggleStudiesDropdown() {
@@ -2715,4 +2725,187 @@ function doImportFromShared() {
     renderStudiesDropdown();
     closeSharedSheet();
     showSaveToast(added ? `${added} estudio(s) importado(s)` : 'Sin cambios (ya los tienes)');
+}
+
+// ── Generador de imagen de versículo ──────────────────────────
+
+function handleVerseImage() {
+    if (!selectedVerseEl) return;
+    const { verseN: startN, chapN } = getVerseInfo(selectedVerseEl);
+    const tid = elements.translationSelect.value.toUpperCase();
+
+    let ref, text;
+    if (selectedVerseEndEl) {
+        const { verseN: endN } = getVerseInfo(selectedVerseEndEl);
+        const minN = Math.min(startN, endN);
+        const maxN = Math.max(startN, endN);
+        ref  = `${currentBook.name} ${chapN}:${minN}-${maxN}`;
+        const chapData = currentBook.chapters.find(c => c.n === chapN);
+        const verses   = (chapData?.v || []).filter(v => parseInt(v.n) >= minN && parseInt(v.n) <= maxN);
+        text = verses.map(v => `${v.n} ${v.t}`).join(' ');
+    } else {
+        ref  = `${currentBook.name} ${chapN}:${startN}`;
+        const vtEl = selectedVerseEl.querySelector('.v-text');
+        text = vtEl ? vtEl.textContent.trim() : selectedVerseEl.textContent.replace(/^\d+\s*/, '').trim();
+    }
+
+    document.getElementById('vim-ref').textContent = ref;
+    document.getElementById('verse-img-modal').classList.remove('vim-hidden');
+    generateVerseImage(ref, text, tid);
+}
+
+function canvasWrapText(ctx, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (ctx.measureText(test).width > maxWidth && line) {
+            lines.push(line);
+            line = word;
+        } else {
+            line = test;
+        }
+    }
+    if (line) lines.push(line);
+    return lines;
+}
+
+async function generateVerseImage(ref, text, tid) {
+    const W = 1080, H = 1920;
+    const canvas = document.getElementById('vim-canvas');
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Fondo: blanco roto suave con toque cálido
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0,   '#faf9f7');
+    grad.addColorStop(1,   '#f2ede8');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Tarjeta interior con sombra suave
+    const CX = 80, CY = 80, CW = W - 160, CH = H - 160, CR = 60;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.08)';
+    ctx.shadowBlur  = 80;
+    ctx.shadowOffsetY = 20;
+    ctx.beginPath();
+    ctx.roundRect(CX, CY, CW, CH, CR);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.restore();
+
+    // Logo
+    await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            const maxS = 160;
+            const ratio = Math.min(maxS / img.width, maxS / img.height);
+            const lw = img.width * ratio, lh = img.height * ratio;
+            ctx.drawImage(img, (W - lw) / 2, 200, lw, lh);
+            resolve();
+        };
+        img.onerror = resolve;
+        img.src = './logo_iglesia.jpg';
+    });
+
+    // Separador fino bajo el logo
+    ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - 100, 410);
+    ctx.lineTo(W / 2 + 100, 410);
+    ctx.stroke();
+
+    // Comilla decorativa — tenue, elegante
+    ctx.font = '280px Georgia, serif';
+    ctx.fillStyle = 'rgba(180,150,100,0.12)';
+    ctx.textAlign = 'left';
+    ctx.fillText('\u201C', 100, 780);
+
+    // Texto del versículo — ajuste automático de tamaño
+    const PAD = 140;
+    const maxTextW = W - PAD * 2;
+    const maxTextH = 880;
+    let fontSize = 58;
+    let lines;
+    while (fontSize >= 28) {
+        ctx.font = `300 ${fontSize}px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif`;
+        lines = canvasWrapText(ctx, text, maxTextW);
+        if (lines.length * fontSize * 1.65 <= maxTextH) break;
+        fontSize -= 3;
+    }
+
+    const lineH  = fontSize * 1.72;
+    const totalH = lines.length * lineH;
+    let y = H / 2 - totalH / 2 + 80;
+
+    ctx.fillStyle = '#1c1c1e';
+    ctx.textAlign = 'center';
+    ctx.font = `300 ${fontSize}px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif`;
+    for (const line of lines) {
+        ctx.fillText(line, W / 2, y);
+        y += lineH;
+    }
+
+    // Comilla de cierre
+    ctx.font = '280px Georgia, serif';
+    ctx.fillStyle = 'rgba(180,150,100,0.12)';
+    ctx.textAlign = 'right';
+    ctx.fillText('\u201D', W - 100, y + 60);
+
+    // Punto decorativo centrado
+    ctx.beginPath();
+    ctx.arc(W / 2, H - 340, 5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(150,120,80,0.4)';
+    ctx.fill();
+
+    // Línea divisora — dos segmentos con punto central
+    ctx.strokeStyle = 'rgba(150,120,80,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - 200, H - 340);
+    ctx.lineTo(W / 2 - 22, H - 340);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(W / 2 + 22, H - 340);
+    ctx.lineTo(W / 2 + 200, H - 340);
+    ctx.stroke();
+
+    // Referencia
+    ctx.font = `600 50px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif`;
+    ctx.fillStyle = '#3a2e20';
+    ctx.textAlign = 'center';
+    ctx.fillText(ref, W / 2, H - 255);
+
+    // Traducción
+    ctx.font = `400 34px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif`;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillText(tid, W / 2, H - 195);
+
+    // Nombre de la iglesia
+    ctx.font = `400 26px -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif`;
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillText('Iglesia Cristiana Reflexiones Bíblicas I.D.S.D.', W / 2, H - 130);
+}
+
+async function shareVerseImage() {
+    const canvas = document.getElementById('vim-canvas');
+    canvas.toBlob(async blob => {
+        const ref = document.getElementById('vim-ref').textContent;
+        const file = new File([blob], 'versiculo.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file], title: ref });
+                return;
+            } catch (_) { /* cancelado por el usuario */ }
+        }
+        // Fallback: descarga directa
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${ref.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9 :]/g, '')}.png`;
+        a.click();
+    }, 'image/png');
 }

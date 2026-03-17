@@ -276,6 +276,103 @@ main#content.continuous {
     white-space: nowrap;
 }
 
+/* ── Modal imagen de versículo ── */
+#verse-img-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    animation: vimFadeIn 0.2s ease;
+}
+@keyframes vimFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+#verse-img-modal.vim-hidden { display: none; }
+#vim-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+#vim-box {
+    position: relative;
+    z-index: 1;
+    background: var(--tg-bg-color, #ffffff);
+    border-radius: 24px 24px 0 0;
+    padding: 0 0 32px;
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: 92dvh;
+    animation: vimSlideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes vimSlideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+}
+#vim-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+#vim-ref {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--tg-text-color, #1c1c1e);
+    letter-spacing: -0.2px;
+}
+#vim-preview {
+    overflow: hidden;
+    margin: 16px 16px 0;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f2ede8;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+}
+#vim-canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 16px;
+}
+#vim-footer {
+    display: flex;
+    padding: 16px 16px 0;
+    gap: 10px;
+}
+#vim-share {
+    flex: 1;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 14px;
+    background: var(--tg-button-color, #2481cc);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    letter-spacing: -0.2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 16px rgba(36,129,204,0.28);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+#vim-share:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(36,129,204,0.18);
+}
+
 /* ── Modal comparación ── */
 #verse-compare {
     position: fixed;
