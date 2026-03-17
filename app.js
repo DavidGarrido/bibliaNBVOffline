@@ -1232,6 +1232,13 @@ function setupStudiesListeners() {
     document.getElementById('vim-overlay').addEventListener('click', () =>
         document.getElementById('verse-img-modal').classList.add('vim-hidden'));
     document.getElementById('vim-share').addEventListener('click', shareVerseImage);
+
+    // Cross-references button
+    document.getElementById('va-crossref').addEventListener('click', handleCrossRef);
+    document.getElementById('crm-close').addEventListener('click', () =>
+        document.getElementById('crossref-modal').classList.add('crm-hidden'));
+    document.getElementById('crm-overlay').addEventListener('click', () =>
+        document.getElementById('crossref-modal').classList.add('crm-hidden'));
 }
 
 function toggleStudiesDropdown() {
@@ -2725,6 +2732,79 @@ function doImportFromShared() {
     renderStudiesDropdown();
     closeSharedSheet();
     showSaveToast(added ? `${added} estudio(s) importado(s)` : 'Sin cambios (ya los tienes)');
+}
+
+// ── Referencias cruzadas ──────────────────────────────────────
+
+let crossRefData = null;
+let crossRefLoading = false;
+
+async function loadCrossRefs() {
+    if (crossRefData) return crossRefData;
+    if (crossRefLoading) return null;
+    crossRefLoading = true;
+    try {
+        const resp = await fetch('./cross-references.json');
+        crossRefData = await resp.json();
+    } catch (e) {
+        crossRefData = null;
+    }
+    crossRefLoading = false;
+    return crossRefData;
+}
+
+async function handleCrossRef() {
+    if (!selectedVerseEl) return;
+    const { verseN, chapN } = getVerseInfo(selectedVerseEl);
+    const key = `${currentBook.id}_${chapN}_${verseN}`;
+    const ref = `${currentBook.name} ${chapN}:${verseN}`;
+
+    document.getElementById('crm-title').textContent = `Referencias · ${ref}`;
+    document.getElementById('crm-list').innerHTML = '<div class="crm-empty">Cargando...</div>';
+    document.getElementById('crossref-modal').classList.remove('crm-hidden');
+
+    const data = await loadCrossRefs();
+    const list = document.getElementById('crm-list');
+
+    if (!data || !data[key]) {
+        list.innerHTML = '<div class="crm-empty">No hay referencias cruzadas para este versículo.</div>';
+        return;
+    }
+
+    const refs = data[key];
+    const items = refs.map(([bid, chap, vers]) => {
+        const book = bibleData.find(b => b.id === bid);
+        if (!book) return null;
+        const chapData = book.chapters.find(c => c.n === chap);
+        const verseData = chapData?.v.find(v => v.n == vers);
+        if (!verseData) return null;
+        const refStr = `${book.name} ${chap}:${vers}`;
+        return { book, chap, vers, ref: refStr, text: verseData.t };
+    }).filter(Boolean);
+
+    if (!items.length) {
+        list.innerHTML = '<div class="crm-empty">No se pudieron cargar las referencias.</div>';
+        return;
+    }
+
+    list.innerHTML = items.map((item, i) => `
+        <div class="crm-item" data-idx="${i}">
+            <span class="crm-item-ref">${item.ref}</span>
+            <span class="crm-item-text">${item.text}</span>
+        </div>
+    `).join('');
+
+    list.querySelectorAll('.crm-item').forEach((el, i) => {
+        el.addEventListener('click', () => {
+            const item = items[i];
+            document.getElementById('crossref-modal').classList.add('crm-hidden');
+            clearVerseSelection();
+            pendingVerse = item.vers;
+            pendingChapterN = item.chap;
+            showChapters(item.book);
+            showReader(item.book, item.book.chapters.find(c => c.n === item.chap));
+        });
+    });
 }
 
 // ── Generador de imagen de versículo ──────────────────────────
