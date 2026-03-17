@@ -151,6 +151,12 @@ main#content.continuous {
     overflow-y: auto;
 }
 
+#view-books,
+#view-chapters {
+    height: 100%;
+    overflow-y: auto;
+}
+
 #chapters-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
