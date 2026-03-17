@@ -79,19 +79,60 @@ body {
 
 .tb-hidden { display: none !important; }
 
+#pwa-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 16px;
+    background: var(--tg-button-color, #2481cc);
+    color: #fff;
+    overflow: hidden;
+    max-height: 60px;
+    transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+    opacity: 1;
+}
+#pwa-banner.pwa-banner-hidden {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+.pwa-banner-text {
+    font-size: 13px;
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+}
+.pwa-banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
 .pwa-install-btn {
-    padding: 5px 10px;
+    padding: 5px 14px;
     border: none;
     border-radius: 8px;
-    background: var(--tg-button-color, #2481cc);
-    color: var(--tg-button-text-color, #fff);
-    font-size: 12px;
-    font-weight: 600;
+    background: #fff;
+    color: var(--tg-button-color, #2481cc);
+    font-size: 13px;
+    font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
     transition: opacity 0.15s;
 }
 .pwa-install-btn:active { opacity: 0.75; }
+.pwa-dismiss-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.8);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+}
 
 #translation-select {
     padding: 5px 6px;

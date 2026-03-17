@@ -2737,29 +2737,39 @@ function doImportFromShared() {
 // ── Instalación PWA ───────────────────────────────────────────
 
 (function () {
-    const btn = document.getElementById('pwa-install-btn');
+    const banner  = document.getElementById('pwa-banner');
+    const installBtn = document.getElementById('pwa-install-btn');
+    const dismissBtn = document.getElementById('pwa-dismiss-btn');
 
-    // Si ya corre en standalone no mostrar nada
+    // Si ya corre como PWA instalada, no mostrar nada
     if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
+
+    // Si el usuario ya lo descartó antes, no volver a mostrar
+    if (sessionStorage.getItem('pwa-banner-dismissed')) return;
 
     let deferredPrompt = null;
 
     window.addEventListener('beforeinstallprompt', e => {
         e.preventDefault();
         deferredPrompt = e;
-        btn.classList.remove('tb-hidden');
+        banner.classList.remove('pwa-banner-hidden');
     });
 
-    btn.addEventListener('click', async () => {
+    installBtn.addEventListener('click', async () => {
         if (!deferredPrompt) return;
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         deferredPrompt = null;
-        if (outcome === 'accepted') btn.classList.add('tb-hidden');
+        banner.classList.add('pwa-banner-hidden');
+    });
+
+    dismissBtn.addEventListener('click', () => {
+        banner.classList.add('pwa-banner-hidden');
+        sessionStorage.setItem('pwa-banner-dismissed', '1');
     });
 
     window.addEventListener('appinstalled', () => {
-        btn.classList.add('tb-hidden');
+        banner.classList.add('pwa-banner-hidden');
         deferredPrompt = null;
     });
 })();

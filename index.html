@@ -25,12 +25,19 @@
                     <span id="app-version" style="font-size:11px;opacity:0.35"></span>
                 </div>
                 <div class="tb-right">
-                    <button id="pwa-install-btn" class="pwa-install-btn tb-hidden" title="Instalar app">📲 Instalar</button>
                     <select id="translation-select" class="reader-version-select"></select>
                     <button id="qs-open-btn" class="icon-btn" title="Búsqueda rápida (/)">🔍</button>
                 </div>
             </div>
         </nav>
+
+        <div id="pwa-banner" class="pwa-banner-hidden">
+            <span class="pwa-banner-text">📲 Agrega esta app a tus aplicaciones</span>
+            <div class="pwa-banner-actions">
+                <button id="pwa-install-btn" class="pwa-install-btn">Instalar</button>
+                <button id="pwa-dismiss-btn" class="pwa-dismiss-btn">✕</button>
+            </div>
+        </div>
 
         <main id="content">
             <div id="loader">Cargando Biblia...</div>
