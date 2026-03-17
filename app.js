@@ -588,7 +588,7 @@ function buildQsSuggestions(raw) {
                 verseData: verses.length ? { ref: `${book.name} ${parsed.chap}:${parsed.verseStart}-${parsed.verseEnd}`, bookId: book.id, chapN: parsed.chap, verseN: parsed.verseStart, verseEnd: parsed.verseEnd, text: verses.map(v => `${v.n} ${v.t}`).join(' ') } : null,
                 action: () => {
                     const fv = verses[0];
-                    if (fv && studiesState) {
+                    if (fv && studiesState && localStorage.getItem('bible-autosave-verse') === 'on') {
                         const ref = `${book.name} ${parsed.chap}:${fv.n}`;
                         const tid = elements.translationSelect.value;
                         if (!isVerseAlreadySaved(ref, tid)) {
@@ -620,7 +620,7 @@ function buildQsSuggestions(raw) {
                 action: () => {
                     const ref = `${book.name} ${parsed.chap}:${parsed.verse}`;
                     const tid = elements.translationSelect.value;
-                    if (studiesState && !isVerseAlreadySaved(ref, tid)) {
+                    if (studiesState && localStorage.getItem('bible-autosave-verse') === 'on' && !isVerseAlreadySaved(ref, tid)) {
                         const verseText = verseObj ? verseObj.t : (chapObj.v.find(v => v.n == parsed.verse) || {}).t || '';
                         const activeStudy = studiesGetActive(studiesState);
                         studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref, bookId: book.id, chapN: parsed.chap, verseN: parsed.verse, text: verseText, translationId: tid, note: '' });
@@ -1135,6 +1135,12 @@ function setupStudiesListeners() {
         localStorage.setItem('bible-study-nav', enabled ? 'off' : 'on');
         updateNavToggleText();
         studyNavUpdate();
+    });
+
+    document.getElementById('cfg-autosave-toggle').addEventListener('click', () => {
+        const current = localStorage.getItem('bible-autosave-verse');
+        localStorage.setItem('bible-autosave-verse', current === 'on' ? 'off' : 'on');
+        updateAutosaveToggleText();
     });
 
     document.getElementById('cfg-restore-toggle').addEventListener('click', () => {
@@ -2071,6 +2077,13 @@ function updateNavToggleText() {
         : '🧭 Inactiva';
 }
 
+function updateAutosaveToggleText() {
+    const btn = document.getElementById('cfg-autosave-toggle');
+    if (!btn) return;
+    const enabled = localStorage.getItem('bible-autosave-verse') === 'on';
+    btn.textContent = enabled ? '💾 Activado' : '💾 Desactivado';
+}
+
 function updateRestorePositionToggleText() {
     const btn = document.getElementById('cfg-restore-toggle');
     if (!btn) return;
@@ -2086,6 +2099,7 @@ function openConfigModal() {
     updateRefsToggleText();
     updateNavToggleText();
     updateRestorePositionToggleText();
+    updateAutosaveToggleText();
     document.getElementById('config-modal').classList.remove('cfg-hidden');
 }
 
