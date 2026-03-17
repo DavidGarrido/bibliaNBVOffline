@@ -1151,7 +1151,7 @@ function setupStudiesListeners() {
     // New study
     newStudy.addEventListener('click', () => {
         closeStudiesDropdown();
-        openStudyEditSheet(null);
+        openStudyEditSheet(null, { autoActivate: true });
     });
     
     // Sheet overlays
@@ -1358,6 +1358,8 @@ function openStudySheet(studyId, isStartup = false) {
                     closeStudySheet();
                     showSaveToast(`Estudio activo: ${el.querySelector('.ss-study-option-name').textContent}`);
                     studyNavReset();
+                    reapplyStudyMarkers();
+                    studyNavUpdate();
                 });
             });
             document.getElementById('ss-more-studies-btn').remove();
@@ -1370,6 +1372,8 @@ function openStudySheet(studyId, isStartup = false) {
             closeStudySheet();
             showSaveToast('Estudio activo: General');
             studyNavReset();
+            reapplyStudyMarkers();
+            studyNavUpdate();
         });
         document.getElementById('ss-new-study-btn').addEventListener('click', () => {
             closeStudySheet();
@@ -1399,6 +1403,8 @@ function openStudySheet(studyId, isStartup = false) {
                 renderStudiesDropdown();
                 showSaveToast(`Estudio activo: ${study.name}`);
                 studyNavReset();
+                reapplyStudyMarkers();
+                studyNavUpdate();
                 if (window.innerWidth >= 1024) {
                     renderStudyEntries(study);
                     actions.innerHTML = '';
@@ -2192,6 +2198,8 @@ function setupStudyEditListeners() {
             if (autoActivate) {
                 studiesState = studiesSetActive(studiesState, newId);
                 studyNavReset();
+                reapplyStudyMarkers();
+                studyNavUpdate();
             }
             studiesSave(studiesState);
             updateStudiesButton();
