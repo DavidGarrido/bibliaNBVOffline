@@ -135,8 +135,20 @@ ul#books-list li {
 #app {
     max-width: 600px;
     margin: 0 auto;
-    min-height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
     background-color: var(--tg-bg-color, var(--tg-theme-bg-color));
+}
+
+main#content {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+main#content.continuous {
+    overflow-y: auto;
 }
 
 #chapters-grid {

@@ -174,10 +174,10 @@ function showReaderPaged(book, chapter) {
     switchView('reader');
 
     requestAnimationFrame(() => {
-        const navH = document.getElementById('top-bar').offsetHeight;
+        const mainEl = document.querySelector('main#content');
         const chapNavH = elements.chapNav ? elements.chapNav.offsetHeight : 0;
-        const mainPad = parseInt(getComputedStyle(document.querySelector('main')).paddingTop) * 2;
-        pageHeight = window.innerHeight - navH - chapNavH - mainPad;
+        const mainPad = parseInt(getComputedStyle(mainEl).paddingTop) * 2;
+        pageHeight = mainEl.clientHeight - chapNavH - mainPad;
         const pageWidth = elements.versesContent.offsetWidth;
 
         elements.versesContent.classList.add('page-mode');
@@ -272,12 +272,14 @@ function updatePageIndicator() {
 function cleanupPageMode() {
     elements.versesContent.classList.remove('page-mode');
     elements.versesContent.style.height = '';
+    document.querySelector('main#content').classList.remove('continuous');
 }
 
 // ── Modo continuo ─────────────────────────────────────────────
 
 function showReaderContinuous(book, chapter) {
     cleanupPageMode();
+    document.querySelector('main#content').classList.add('continuous');
     currentBook = book;
     currentChapter = chapter;
     document.getElementById('tb-title').textContent = `${book.name} ${chapter.n}`;
