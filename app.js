@@ -2737,30 +2737,52 @@ function doImportFromShared() {
 // ── Instalación PWA ───────────────────────────────────────────
 
 (function () {
-    const banner  = document.getElementById('pwa-banner');
+    const banner     = document.getElementById('pwa-banner');
+    const bannerText = banner.querySelector('.pwa-banner-text');
     const installBtn = document.getElementById('pwa-install-btn');
     const dismissBtn = document.getElementById('pwa-dismiss-btn');
 
-    // Si ya corre como PWA instalada, no mostrar nada
+    // Ya corre como PWA → no mostrar nada
     if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
 
-    // Si el usuario ya lo descartó antes, no volver a mostrar
+    // Usuario ya descartó el banner en esta sesión
     if (sessionStorage.getItem('pwa-banner-dismissed')) return;
 
     let deferredPrompt = null;
 
+    function showInstallBanner() {
+        bannerText.textContent = '📲 Agrega esta app a tus aplicaciones';
+        installBtn.textContent = 'Instalar';
+        installBtn.onclick = async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            banner.classList.add('pwa-banner-hidden');
+        };
+        banner.classList.remove('pwa-banner-hidden');
+    }
+
+    function showOpenBanner() {
+        bannerText.textContent = '✅ Ya tienes la app instalada';
+        installBtn.textContent = 'Abrir';
+        installBtn.onclick = () => { window.location.href = './'; };
+        banner.classList.remove('pwa-banner-hidden');
+    }
+
+    // Detectar si ya está instalada
+    if (navigator.getInstalledRelatedApps) {
+        navigator.getInstalledRelatedApps().then(apps => {
+            if (apps && apps.length > 0) {
+                showOpenBanner();
+            }
+        }).catch(() => {});
+    }
+
     window.addEventListener('beforeinstallprompt', e => {
         e.preventDefault();
         deferredPrompt = e;
-        banner.classList.remove('pwa-banner-hidden');
-    });
-
-    installBtn.addEventListener('click', async () => {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-        banner.classList.add('pwa-banner-hidden');
+        showInstallBanner();
     });
 
     dismissBtn.addEventListener('click', () => {
