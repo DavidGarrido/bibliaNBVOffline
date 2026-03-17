@@ -228,7 +228,11 @@ function showReaderPaged(book, chapter) {
         }
 
         // Si hay un verso pendiente de búsqueda, ir a su página
+        let flashVerseN = null;
+        let flashVerseEndN = null;
         if (pendingVerse) {
+            flashVerseN = pendingVerse;
+            flashVerseEndN = pendingVerseEnd;
             const pages = [...strip.children];
             for (let p = 0; p < pages.length; p++) {
                 if ([...pages[p].querySelectorAll('.v-num')].some(el => parseInt(el.textContent) === pendingVerse)) {
@@ -237,12 +241,19 @@ function showReaderPaged(book, chapter) {
                 }
             }
             pendingVerse = null;
+            pendingVerseEnd = null;
+            pendingChapterN = null;
         }
 
         strip.style.transition = 'none';
         strip.style.transform = `translateX(-${currentPageNum * pageWidth}px)`;
         updatePageIndicator();
         applyStudyMarkers(strip, chapter.n);
+
+        if (flashVerseN !== null) {
+            const page = strip.children[currentPageNum];
+            if (page) flashVerseRange(page, chapter.n, flashVerseN, flashVerseEndN);
+        }
     });
 }
 
@@ -267,6 +278,22 @@ function updatePageIndicator() {
     } else {
         document.getElementById('tb-title').textContent = `${currentBook.name} ${currentChapter.n}  ·  ${currentPageNum + 1}/${totalPageCount}`;
     }
+}
+
+function flashVerse(el) {
+    el.classList.remove('verse-flash');
+    void el.offsetWidth;
+    el.classList.add('verse-flash');
+    el.addEventListener('animationend', () => el.classList.remove('verse-flash'), { once: true });
+}
+
+function flashVerseRange(container, chapN, verseN, verseEnd) {
+    const end = verseEnd || verseN;
+    [...container.querySelectorAll('.verse')].forEach(el => {
+        if (el.getAttribute('data-chap') != null && el.getAttribute('data-chap') != String(chapN)) return;
+        const n = parseInt(el.querySelector('.v-num')?.textContent);
+        if (n >= verseN && n <= end) flashVerse(el);
+    });
 }
 
 function cleanupPageMode() {
@@ -324,17 +351,22 @@ function showReaderContinuous(book, chapter) {
 
     setTimeout(() => {
         const saved = JSON.parse(localStorage.getItem('bible-position'));
-        const resolvedVerse = pendingVerse ? String(pendingVerse) : (saved && saved.bookId === book.id && saved.chapterN === chapter.n ? saved.verseN : null);
+        const resolvedVerse = pendingVerse ? String(pendingVerse) : (saved && saved.bookId === book.id ? saved.verseN : null);
+        const resolvedChap = pendingChapterN || (saved && saved.chapterN) || chapter.n;
         pendingVerse = null;
+        pendingChapterN = null;
 
         const targetEl = resolvedVerse
             ? [...elements.versesContent.querySelectorAll('.verse')]
-                .find(el => el.querySelector('.v-num')?.textContent == savedVerseN)
+                .find(el => el.getAttribute('data-chap') == String(resolvedChap) && el.querySelector('.v-num')?.textContent == resolvedVerse)
             : document.getElementById(`chap-${chapter.n}`);
 
         if (targetEl) {
-            const y = targetEl.getBoundingClientRect().top + window.scrollY;
-            window.scrollTo({ top: y, behavior: 'instant' });
+            const mainEl = document.querySelector('main#content');
+            const y = targetEl.getBoundingClientRect().top - mainEl.getBoundingClientRect().top + mainEl.scrollTop;
+            mainEl.scrollTo({ top: y, behavior: 'instant' });
+            if (resolvedVerse) flashVerseRange(elements.versesContent, resolvedChap, parseInt(resolvedVerse), pendingVerseEnd);
+            pendingVerseEnd = null;
         }
     }, 80);
 }
@@ -344,20 +376,19 @@ function showReaderContinuous(book, chapter) {
 let lastScrollY = 0;
 
 let scrollDebounce = null;
-window.addEventListener('scroll', () => {
+document.querySelector('main#content').addEventListener('scroll', () => {
     if (elements.viewReader.style.display !== 'block' || readingMode !== 'continuous') return;
 
-    // Mostrar/ocultar nav según dirección de scroll
-    const currentY = window.scrollY;
-    if (currentY < lastScrollY - 5 || currentY > lastScrollY + 10) {
-        // top-bar siempre visible, solo actualizamos lastScrollY
-    }
+    const mainEl = document.querySelector('main#content');
+    const currentY = mainEl.scrollTop;
     lastScrollY = currentY;
     clearTimeout(scrollDebounce);
     scrollDebounce = setTimeout(() => {
+        const mainEl = document.querySelector('main#content');
+        const mainTop = mainEl.getBoundingClientRect().top;
         const verses = elements.versesContent.querySelectorAll('.verse');
         for (const verse of verses) {
-            if (verse.getBoundingClientRect().top >= 0) {
+            if (verse.getBoundingClientRect().top >= mainTop) {
                 const verseN = verse.querySelector('.v-num')?.textContent;
                 if (verseN) {
                     const pos = JSON.parse(localStorage.getItem('bible-position'));
@@ -516,6 +547,8 @@ async function checkVersion() {
 let qsActiveIdx = -1;
 let qsSuggestions = [];
 let pendingVerse = null;
+let pendingVerseEnd = null;
+let pendingChapterN = null;
 let pendingPage = null;  // -1 = última página, N = página específica
 let qsLastTappedTitle = null;
 
@@ -601,6 +634,7 @@ function buildQsSuggestions(raw) {
                         }
                     }
                     pendingVerse = parsed.verseStart;
+                    pendingChapterN = parsed.chap;
                     closeQS();
                     showChapters(book);
                     showReader(book, chapObj);
@@ -630,6 +664,7 @@ function buildQsSuggestions(raw) {
                         showSaveToast('Guardado ✓');
                     }
                     pendingVerse = parsed.verse;
+                    pendingChapterN = parsed.chap;
                     closeQS();
                     showChapters(book);
                     showReader(book, chapObj);
@@ -1448,7 +1483,7 @@ function renderStudyEntries(study) {
                 <div class="ss-entry">
                     <div class="ss-entry-ref" data-entry-id="${entry.id}">${entry.ref}${entry.translationId ? ` <span class="ss-entry-version">${entry.translationId.toUpperCase()}</span>` : ''}</div>
                     <div class="ss-entry-text">${entry.text}</div>
-                    ${entry.note ? `<div class="ss-entry-note">${linkifyNoteText(entry.note)}</div>` : ''}
+                    ${entry.note ? `<div class="ss-entry-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN })}</div>` : ''}
                     <div class="ss-entry-actions">
                         <button class="ss-edit-entry" data-entry-id="${entry.id}">✏️ Editar nota</button>
                         <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
@@ -1481,6 +1516,7 @@ function renderStudyEntries(study) {
                         closeStudySheet();
                         showChapters(book);
                         pendingVerse = entry.verseN;
+                        pendingChapterN = entry.chapN;
                         showReader(book, chapter);
                     }
                 }
@@ -1686,48 +1722,82 @@ function escapeHtml(str) {
     return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function linkifyNoteText(text) {
+function linkifyNoteText(text, context) {
     if (!bibleData || !text) return escapeHtml(text || '');
 
-    // Captura: prefijo numérico opcional ("1 ", "2 ") + nombre del libro (1-4 palabras)
-    // + capítulo + separador (:, espacio, "verso", "versículo", "vers") + versículo
-    // + rango opcional (- o "al")
-    const pattern = /(\d\s+)?([A-Za-záéíóúüñÁÉÍÓÚÜÑ]+(?:\s+[A-Za-záéíóúüñÁÉÍÓÚÜÑ]+){0,3})\s+(\d+)(?:[:\s]+(?:vers(?:o|ículo|s)?\s+)?(\d+)(?:\s*[-–]\s*(\d+)|\s+al\s+(\d+))?)/gi;
+    const allMatches = [];
 
-    const parts = [];
-    let lastIndex = 0;
+    // ── Patrón 1: referencia completa (Libro Cap:Vers) ──────────
+    const fullPattern = /(\d\s+)?([A-Za-záéíóúüñÁÉÍÓÚÜÑ]+(?:\s+[A-Za-záéíóúüñÁÉÍÓÚÜÑ]+){0,3})\s+(\d+)(?:[:\s]+(?:vers(?:o|ículo|s)?\s+)?(\d+)(?:\s*[-–]\s*(\d+)|\s+al\s+(\d+))?)/gi;
     let match;
-
-    while ((match = pattern.exec(text)) !== null) {
-        const fullMatch = match[0];
-        const numPrefix  = (match[1] || '').trim();
-        const bookRaw    = match[2];
-        const chapN      = parseInt(match[3]);
-        const verseN     = parseInt(match[4]);
-        const verseEnd   = match[5] ? parseInt(match[5]) : (match[6] ? parseInt(match[6]) : null);
-
+    while ((match = fullPattern.exec(text)) !== null) {
+        const numPrefix = (match[1] || '').trim();
+        const bookRaw   = match[2];
+        const chapN     = parseInt(match[3]);
+        const verseN    = parseInt(match[4]);
+        const verseEnd  = match[5] ? parseInt(match[5]) : (match[6] ? parseInt(match[6]) : null);
         const bookQuery = numPrefix ? `${numPrefix} ${bookRaw}` : bookRaw;
         const books = findBooks(bookQuery);
-
         if (books.length > 0) {
             const book = books[0];
             const chapter = book.chapters.find(c => c.n === chapN);
             if (chapter && chapter.v.find(v => v.n == verseN)) {
-                // Texto antes del match
-                parts.push(escapeHtml(text.slice(lastIndex, match.index)));
-                // Span clicable
-                parts.push(
-                    `<span class="note-bible-ref" data-book-id="${book.id}" data-chap="${chapN}" data-verse="${verseN}" data-verse-end="${verseEnd || ''}">${escapeHtml(fullMatch)}</span>`
-                );
-                lastIndex = match.index + fullMatch.length;
+                allMatches.push({ start: match.index, end: match.index + match[0].length,
+                    html: `<span class="note-bible-ref" data-book-id="${book.id}" data-chap="${chapN}" data-verse="${verseN}" data-verse-end="${verseEnd || ''}">${escapeHtml(match[0])}</span>` });
                 continue;
             }
         }
-        // Candidato inválido: retroceder para reintentar desde el siguiente carácter
-        // (evita que "Lease Gen 2:1" bloquee la detección de "Gen 2:1")
-        pattern.lastIndex = match.index + 1;
+        fullPattern.lastIndex = match.index + 1;
     }
-    parts.push(escapeHtml(text.slice(lastIndex)));
+
+    if (context && context.bookId) {
+        const ctxBook = bibleData.find(b => b.id === context.bookId);
+        if (ctxBook) {
+            // ── Patrón 2: (v.N) o (v.N-M) — verso relativo al capítulo actual ──
+            if (context.chapN) {
+                const relVerse = /\(v\.(\d+)(?:\s*[-–]\s*(\d+))?\)/gi;
+                while ((match = relVerse.exec(text)) !== null) {
+                    const vN = parseInt(match[1]);
+                    const vEnd = match[2] ? parseInt(match[2]) : null;
+                    const chap = ctxBook.chapters.find(c => c.n === context.chapN);
+                    if (chap && chap.v.find(v => v.n == vN)) {
+                        allMatches.push({ start: match.index, end: match.index + match[0].length,
+                            html: `<span class="note-bible-ref" data-book-id="${ctxBook.id}" data-chap="${context.chapN}" data-verse="${vN}" data-verse-end="${vEnd || ''}">${escapeHtml(match[0])}</span>` });
+                    }
+                }
+            }
+
+            // ── Patrón 3: (N:V) o (N:V-M) — capítulo:verso relativo al libro actual ──
+            const relChapVerse = /\((\d+):(\d+)(?:\s*[-–]\s*(\d+))?\)/gi;
+            while ((match = relChapVerse.exec(text)) !== null) {
+                const cN = parseInt(match[1]);
+                const vN = parseInt(match[2]);
+                const vEnd = match[3] ? parseInt(match[3]) : null;
+                const chap = ctxBook.chapters.find(c => c.n === cN);
+                if (chap && chap.v.find(v => v.n == vN)) {
+                    allMatches.push({ start: match.index, end: match.index + match[0].length,
+                        html: `<span class="note-bible-ref" data-book-id="${ctxBook.id}" data-chap="${cN}" data-verse="${vN}" data-verse-end="${vEnd || ''}">${escapeHtml(match[0])}</span>` });
+                }
+            }
+        }
+    }
+
+    // Ordenar por posición y eliminar solapamientos
+    allMatches.sort((a, b) => a.start - b.start);
+    const filtered = [];
+    let lastEnd = 0;
+    for (const m of allMatches) {
+        if (m.start >= lastEnd) { filtered.push(m); lastEnd = m.end; }
+    }
+
+    const parts = [];
+    let pos = 0;
+    for (const m of filtered) {
+        parts.push(escapeHtml(text.slice(pos, m.start)));
+        parts.push(m.html);
+        pos = m.end;
+    }
+    parts.push(escapeHtml(text.slice(pos)));
     return parts.join('');
 }
 
@@ -1748,6 +1818,8 @@ function attachNoteRefListeners(container) {
             document.getElementById('study-sheet').classList.add('ss-hidden');
             document.body.classList.remove('study-sheet-open');
             pendingVerse = verseN;
+            pendingVerseEnd = el.dataset.verseEnd ? parseInt(el.dataset.verseEnd) : null;
+            pendingChapterN = chapN;
             cleanupPageMode();
             showChapters(book);
             showReader(book, chapter);
@@ -1812,7 +1884,7 @@ function applyStudyMarkers(container, fixedChapN = null) {
             badge.textContent = noteNumberMap[entry.id];
             badge.addEventListener('click', ev => {
                 ev.stopPropagation();
-                openNoteBadgeModal(entry.note, entry.ref);
+                openNoteBadgeModal(entry.note, entry.ref, { bookId: entry.bookId, chapN: entry.chapN });
             });
             verseEl.appendChild(badge);
         });
@@ -1834,10 +1906,10 @@ function reapplyStudyMarkers() {
     applyStudyMarkers(container, readingMode === 'paged' ? currentChapter?.n : null);
 }
 
-function openNoteBadgeModal(note, ref) {
+function openNoteBadgeModal(note, ref, context) {
     document.getElementById('nbm-ref').textContent = ref || '';
     const noteEl = document.getElementById('nbm-note-text');
-    noteEl.innerHTML = linkifyNoteText(note);
+    noteEl.innerHTML = linkifyNoteText(note, context);
     attachNoteRefListeners(noteEl);
     document.getElementById('note-badge-modal').classList.remove('nbm-hidden');
 }
@@ -1941,6 +2013,7 @@ function studyNavNavigateToEntry(entry) {
     const chapter = book.chapters.find(c => c.n === entry.chapN);
     if (!chapter) return;
     pendingVerse = entry.verseN;
+    pendingChapterN = entry.chapN;
     cleanupPageMode();
     showChapters(book);
     showReader(book, chapter);
@@ -1980,7 +2053,7 @@ function renderStudyNavList() {
                 : '';
             return `<div class="snm-list-item ${active}" data-index="${i}">
                 <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
-                ${entry.note ? `<div class="snm-list-note">${linkifyNoteText(entry.note)}</div>` : ''}
+                ${entry.note ? `<div class="snm-list-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN })}</div>` : ''}
                 <button class="snm-goto-btn snm-list-goto" data-index="${i}">→ Ir al versículo</button>
             </div>`;
         } else {
@@ -2028,7 +2101,7 @@ function renderStudyNavModal() {
         content.innerHTML = `
             <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
             <div class="snm-text">${escapeHtml(entry.text)}</div>
-            ${entry.note ? `<div class="snm-note-label">Nota</div><div class="snm-note">${linkifyNoteText(entry.note)}</div>` : ''}
+            ${entry.note ? `<div class="snm-note-label">Nota</div><div class="snm-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN })}</div>` : ''}
             <button id="snm-goto" class="snm-goto-btn">→ Ir al versículo</button>
         `;
         if (entry.note) attachNoteRefListeners(content.querySelector('.snm-note'));

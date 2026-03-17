@@ -206,6 +206,17 @@ main#content.continuous {
     user-select: text;
 }
 
+@keyframes verse-flash {
+    0%   { background: transparent; }
+    20%  { background: rgba(36, 129, 204, 0.25); border-radius: 6px; }
+    80%  { background: rgba(36, 129, 204, 0.25); border-radius: 6px; }
+    100% { background: transparent; }
+}
+
+.verse-flash {
+    animation: verse-flash 2s ease forwards;
+}
+
 .verse {
     margin-bottom: 8px;
     cursor: pointer;
