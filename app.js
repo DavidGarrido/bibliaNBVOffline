@@ -2223,7 +2223,6 @@ function studyNavInit() {
     document.getElementById('snb-center').addEventListener('click', openStudyNavModal);
 
     document.getElementById('snm-overlay').addEventListener('click', closeStudyNavModal);
-    document.getElementById('snm-close').addEventListener('click', closeStudyNavModal);
     document.getElementById('snm-prev').addEventListener('click', () => {
         studyNavIndex = Math.max(0, studyNavIndex - 1);
         localStorage.setItem('bible-study-nav-index', studyNavIndex);
@@ -2233,6 +2232,26 @@ function studyNavInit() {
     document.getElementById('snm-next').addEventListener('click', () => {
         const entries = studyNavEntries();
         studyNavIndex = Math.min(entries.length - 1, studyNavIndex + 1);
+        localStorage.setItem('bible-study-nav-index', studyNavIndex);
+        studyNavUpdate();
+        renderStudyNavModal();
+    });
+
+    // Swipe horizontal en el contenido del modal
+    const content = document.getElementById('snm-content');
+    let swipeStartX = null;
+    content.addEventListener('pointerdown', e => { swipeStartX = e.clientX; });
+    content.addEventListener('pointerup', e => {
+        if (swipeStartX === null) return;
+        const dx = e.clientX - swipeStartX;
+        swipeStartX = null;
+        if (Math.abs(dx) < 40) return;
+        const entries = studyNavEntries();
+        if (dx < 0 && studyNavIndex < entries.length - 1) {
+            studyNavIndex++;
+        } else if (dx > 0 && studyNavIndex > 0) {
+            studyNavIndex--;
+        } else return;
         localStorage.setItem('bible-study-nav-index', studyNavIndex);
         studyNavUpdate();
         renderStudyNavModal();

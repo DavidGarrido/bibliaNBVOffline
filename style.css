@@ -1696,7 +1696,7 @@ h2 {
     max-width: 600px;
     max-height: 75vh;
     display: flex;
-    flex-direction: column;
+    flex-direction: column-reverse;
     overflow: hidden;
 }
 
@@ -1705,7 +1705,7 @@ h2 {
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
-    border-bottom: 1px solid var(--tg-secondary-bg-color, #eee);
+    border-top: 1px solid var(--tg-secondary-bg-color, #eee);
     flex-shrink: 0;
     gap: 4px;
 }
@@ -2130,8 +2130,8 @@ h2 {
         padding-left: 280px;
     }
 
-    /* Limitar el ancho del texto para buena legibilidad */
-    main#content {
+    /* Limitar el ancho del texto solo en el lector */
+    #view-reader {
         max-width: 760px;
         margin: 0 auto;
     }
@@ -2217,7 +2217,16 @@ h2 {
         box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
     }
 
-    /* Ocultar prev/next del modal (se navega desde la lista) */
+    /* En desktop: header vuelve arriba, flechas ocultas (navega por lista) */
+    body.study-nav-open #snm-box {
+        flex-direction: column;
+    }
+
+    body.study-nav-open #snm-header {
+        border-top: none;
+        border-bottom: 1px solid var(--tg-secondary-bg-color, #eee);
+    }
+
     body.study-nav-open .snm-arrow {
         display: none;
     }
