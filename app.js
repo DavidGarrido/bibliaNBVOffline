@@ -1122,8 +1122,61 @@ function studiesInit() {
     
     // Alerta de estudio activo al iniciar (si está habilitada)
     updateStudyAlertToggleText();
-    if (localStorage.getItem('bible-study-alert') !== 'off') {
+    const urlStudyId = new URLSearchParams(window.location.search).get('study');
+    if (urlStudyId) {
+        handleStudyFromUrl(urlStudyId);
+    } else if (localStorage.getItem('bible-study-alert') !== 'off') {
         showActiveStudyAlert(studiesState.activeStudyId || 'general');
+    }
+}
+
+async function handleStudyFromUrl(studyId) {
+    const activateAndOpen = () => {
+        studiesState = studiesSetActive(studiesState, studyId);
+        studiesSave(studiesState);
+        updateStudiesButton();
+        renderStudiesDropdown();
+        studyNavReset();
+        reapplyStudyMarkers();
+        studyNavUpdate();
+        if (studyNavEntries().length > 0) openStudyNavModal();
+    };
+
+    // ¿Ya existe localmente?
+    if (studiesState.studies.find(s => s.id === studyId)) {
+        activateAndOpen();
+        return;
+    }
+
+    // Buscar en compartidos
+    showSaveToast('Buscando estudio compartido...');
+    try {
+        const res = await fetch(SHARED_API, { headers: { Accept: 'application/vnd.github.v3+json' } });
+        if (!res.ok) throw new Error();
+        const files = (await res.json()).filter(f => f.type === 'file' && f.name.endsWith('.json'));
+        const results = await Promise.all(files.map(f => fetch(f.download_url).then(r => r.json()).catch(() => null)));
+
+        let found = null;
+        for (const data of results) {
+            if (data && Array.isArray(data.studies)) {
+                const match = data.studies.find(s => s.id === studyId);
+                if (match) { found = match; break; }
+            }
+        }
+
+        if (!found) {
+            showSaveToast('Estudio no encontrado en compartidos');
+            return;
+        }
+
+        const { _exportedAt, ...study } = found;
+        studiesState = { ...studiesState, studies: [...studiesState.studies, { ...study, tags: study.tags || [], entries: study.entries || [] }] };
+        studiesSave(studiesState);
+        renderStudiesDropdown();
+        showSaveToast(`Estudio "${study.name}" importado ✓`);
+        activateAndOpen();
+    } catch {
+        showSaveToast('Error al buscar el estudio compartido');
     }
 }
 
@@ -1302,10 +1355,19 @@ function renderStudiesDropdown() {
             const tagsHtml = (study.tags || []).length
                 ? `<div class="sd-study-tags">${(study.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('')}</div>`
                 : '';
-            li.innerHTML = `<div class="sd-study-info"><span class="sd-study-name">${study.name}</span>${tagsHtml}</div>`;
+            li.innerHTML = `<div class="sd-study-info"><span class="sd-study-name">${study.name}</span>${tagsHtml}</div><button class="sd-share-btn" title="Compartir enlace">🔗</button>`;
             const isActive = study.id === (studiesState.activeStudyId || 'general');
             if (isActive) li.classList.add('sd-active');
             li.addEventListener('click', () => openStudySheet(study.id));
+            li.querySelector('.sd-share-btn').addEventListener('click', e => {
+                e.stopPropagation();
+                const url = `${location.origin}${location.pathname}?study=${study.id}`;
+                if (navigator.share) {
+                    navigator.share({ title: study.name, url });
+                } else {
+                    navigator.clipboard.writeText(url).then(() => showSaveToast('Enlace copiado ✓')).catch(() => showSaveToast('No se pudo copiar'));
+                }
+            });
             list.appendChild(li);
         });
 }
@@ -1433,6 +1495,7 @@ function openStudySheet(studyId, isStartup = false) {
                     studyNavReset();
                     reapplyStudyMarkers();
                     studyNavUpdate();
+                    if (studyNavEntries().length > 0) openStudyNavModal();
                 });
             });
             document.getElementById('ss-more-studies-btn').remove();
@@ -1447,6 +1510,7 @@ function openStudySheet(studyId, isStartup = false) {
             studyNavReset();
             reapplyStudyMarkers();
             studyNavUpdate();
+            if (studyNavEntries().length > 0) openStudyNavModal();
         });
         document.getElementById('ss-new-study-btn').addEventListener('click', () => {
             closeStudySheet();
@@ -1484,6 +1548,7 @@ function openStudySheet(studyId, isStartup = false) {
                 } else {
                     closeStudySheet();
                 }
+                if (studyNavEntries().length > 0) openStudyNavModal();
             });
             document.getElementById('ss-cancel-btn').addEventListener('click', closeStudySheet);
         }

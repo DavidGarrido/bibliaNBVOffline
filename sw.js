@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-v2.11';
+const CACHE_NAME = 'biblia-v2.12';
 const CORE_ASSETS = [
   './',
   './index.html',
