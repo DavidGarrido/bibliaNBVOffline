@@ -2036,7 +2036,7 @@ function studyNavReset() {
 }
 
 function studyNavIsEnabled() {
-    return localStorage.getItem('bible-study-nav') === 'on';
+    return localStorage.getItem('bible-study-nav') !== 'off';
 }
 
 function studyNavEntries() {
