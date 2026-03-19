@@ -2471,7 +2471,7 @@ function setupExportImport() {
             merge: 'Fusionar: agrega los estudios sin borrar los existentes. Si hay conflicto de ID, se omite el importado.',
             replace: 'Reemplazar: si ya existe un estudio con el mismo ID, se sobreescribe con el del archivo.'
         };
-        document.getElementById('ims-hint').textContent = hints[btn.dataset.mode];
+        document.getElementById('ims-mode-hint').textContent = hints[btn.dataset.mode];
         // Refresh conflict badges
         const mode = btn.dataset.mode;
         document.querySelectorAll('.io-study-conflict').forEach(el => {
@@ -2540,7 +2540,7 @@ function openImportSheet(studies) {
     // Reset mode to merge
     document.querySelectorAll('.ims-mode-btn').forEach(b => b.classList.remove('ims-mode-active'));
     document.querySelector('.ims-mode-btn[data-mode="merge"]').classList.add('ims-mode-active');
-    document.getElementById('ims-hint').textContent = 'Fusionar: agrega los estudios sin borrar los existentes. Si hay conflicto de ID, se omite el importado.';
+    document.getElementById('ims-mode-hint').textContent = 'Fusionar: agrega los estudios sin borrar los existentes. Si hay conflicto de ID, se omite el importado.';
 
     list.innerHTML = studies.map((s, i) => {
         const tags = (s.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('');
@@ -2577,7 +2577,7 @@ function doImport() {
     const mode = document.querySelector('.ims-mode-btn.ims-mode-active').dataset.mode;
     const selected = selectedIdxs.map(i => importStudiesBuffer[i]);
     const existingIds = new Set(studiesState.studies.map(s => s.id));
-    let added = 0, replaced = 0;
+    let added = 0, replaced = 0, lastId = null;
 
     selected.forEach(s => {
         const study = { ...s, tags: s.tags || [], entries: s.entries || [] };
@@ -2585,15 +2585,18 @@ function doImport() {
             if (mode === 'replace') {
                 studiesState = { ...studiesState, studies: studiesState.studies.map(ex => ex.id === s.id ? study : ex) };
                 replaced++;
+                lastId = s.id;
             }
             // merge: skip
         } else {
             studiesState = { ...studiesState, studies: [...studiesState.studies, study] };
             existingIds.add(s.id);
             added++;
+            lastId = s.id;
         }
     });
 
+    if (lastId) studiesState = studiesSetActive(studiesState, lastId);
     studiesSave(studiesState);
     renderStudiesDropdown();
     closeImportSheet();
@@ -2801,7 +2804,7 @@ function doImportFromShared() {
     if (!selectedIdxs.length) { showSaveToast('Selecciona al menos un estudio'); return; }
 
     const existingIds = new Set(studiesState.studies.map(s => s.id));
-    let added = 0;
+    let added = 0, lastId = null;
 
     selectedIdxs.forEach(i => {
         const s = sharedAllStudies[i];
@@ -2810,8 +2813,10 @@ function doImportFromShared() {
         studiesState = { ...studiesState, studies: [...studiesState.studies, { ...study, tags: study.tags || [], entries: study.entries || [] }] };
         existingIds.add(s.id);
         added++;
+        lastId = s.id;
     });
 
+    if (lastId) studiesState = studiesSetActive(studiesState, lastId);
     studiesSave(studiesState);
     renderStudiesDropdown();
     closeSharedSheet();
