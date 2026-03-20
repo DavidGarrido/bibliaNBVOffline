@@ -430,6 +430,13 @@
                     </div>
                     <button id="cfg-import-btn" class="cfg-toggle-btn">📥 Importar</button>
                 </div>
+                <div class="cfg-item">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">Tutorial al iniciar</div>
+                        <div class="cfg-item-desc">Muestra la presentación de la app cada vez que la abres.</div>
+                    </div>
+                    <button id="cfg-tutorial-toggle" class="cfg-toggle-btn"></button>
+                </div>
                 <div class="cfg-item cfg-item--notify">
                     <div class="cfg-item-info">
                         <div class="cfg-item-label">🔔 Notificaciones de estudios</div>
@@ -442,6 +449,17 @@
                     <div id="cfg-notify-status" class="cfg-notify-status"></div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal landing (3/4 pantalla) -->
+    <div id="landing-modal" class="lm-hidden">
+        <div id="lm-overlay"></div>
+        <div id="lm-box">
+            <button id="lm-close" class="lm-close-btn" aria-label="Cerrar">✕</button>
+            <button class="lm-continue-btn" id="lm-continue-top">Continuar en la app →</button>
+            <iframe id="lm-frame" src="landing.html" title="Acerca de esta app"></iframe>
+            <button class="lm-continue-btn" id="lm-continue-bottom">Continuar en la app →</button>
         </div>
     </div>
 

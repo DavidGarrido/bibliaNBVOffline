@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fondo cuadrado con padding para maskable (zona segura: 80% del área) -->
+  <rect width="512" height="512" fill="#2481cc" rx="0"/>
+
+  <!-- Libro (Biblia): cuerpo principal -->
+  <rect x="110" y="108" width="260" height="316" rx="14" ry="14" fill="#ffffff"/>
+
+  <!-- Lomo del libro (izquierda) -->
+  <rect x="110" y="108" width="36" height="316" rx="14" ry="14" fill="#e0ecf8"/>
+  <rect x="128" y="108" width="18" height="316" fill="#e0ecf8"/>
+
+  <!-- Línea divisoria lomo -->
+  <line x1="146" y1="108" x2="146" y2="424" stroke="#b0cce8" stroke-width="2"/>
+
+  <!-- Cruz centrada en la tapa -->
+  <!-- Barra vertical -->
+  <rect x="240" y="168" width="32" height="120" rx="6" fill="#2481cc"/>
+  <!-- Barra horizontal -->
+  <rect x="204" y="208" width="104" height="32" rx="6" fill="#2481cc"/>
+</svg>

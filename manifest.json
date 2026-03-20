@@ -1,15 +1,26 @@
 {
   "name": "Biblia NBV Offline",
   "short_name": "Biblia NBV",
+  "description": "Lee la Biblia completa sin internet. NBV, NVI, RVR1960 y DHH en español.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#2481cc",
+  "lang": "es",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3389/3389381.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }

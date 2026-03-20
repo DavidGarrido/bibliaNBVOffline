@@ -3582,3 +3582,54 @@ async function shareVerseImage() {
         a.click();
     }, 'image/png');
 }
+
+// ── Modal Landing ─────────────────────────────────────────────
+const landingModal = (function () {
+    const TUTORIAL_KEY = 'tutorial-enabled';
+    const modal          = document.getElementById('landing-modal');
+    const overlay        = document.getElementById('lm-overlay');
+    const closeBtn       = document.getElementById('lm-close');
+    const continueTop    = document.getElementById('lm-continue-top');
+    const continueBottom = document.getElementById('lm-continue-bottom');
+
+    function open() {
+        modal.classList.remove('lm-hidden');
+    }
+
+    function close() {
+        modal.classList.add('lm-hidden');
+        localStorage.setItem(TUTORIAL_KEY, 'false');
+        // Sincronizar toggle en ajustes si está visible
+        const toggle = document.getElementById('cfg-tutorial-toggle');
+        if (toggle) renderTutorialToggle(toggle);
+    }
+
+    function isEnabled() {
+        return localStorage.getItem(TUTORIAL_KEY) !== 'false';
+    }
+
+    function renderTutorialToggle(btn) {
+        btn.textContent = isEnabled() ? 'Activado' : 'Desactivado';
+        btn.classList.toggle('cfg-toggle-on', isEnabled());
+    }
+
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', close);
+    continueTop.addEventListener('click', close);
+    continueBottom.addEventListener('click', close);
+
+    // Mostrar si está habilitado
+    if (isEnabled()) open();
+
+    // Toggle en ajustes
+    document.getElementById('cfg-tutorial-toggle').addEventListener('click', function () {
+        const next = !isEnabled();
+        localStorage.setItem(TUTORIAL_KEY, next ? 'true' : 'false');
+        renderTutorialToggle(this);
+    });
+
+    // Inicializar estado visual del toggle
+    renderTutorialToggle(document.getElementById('cfg-tutorial-toggle'));
+
+    return { open, close, isEnabled };
+})();
