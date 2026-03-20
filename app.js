@@ -1512,6 +1512,90 @@ function setupStudiesListeners() {
     
     // Save note
     document.getElementById('ns-save-btn').addEventListener('click', handleSaveNote);
+
+    // Autocomplete @version: en el textarea
+    const noteInput    = document.getElementById('ns-note-input');
+    const acContainer  = document.getElementById('ns-autocomplete');
+
+    function hideNoteAc() {
+        acContainer.classList.add('ns-ac-hidden');
+        acContainer.innerHTML = '';
+    }
+
+    // Inserta `text` reemplazando lo que matcheó el regex antes del cursor
+    function noteAcInsert(pattern, text) {
+        const val = noteInput.value;
+        const pos = noteInput.selectionStart;
+        const textBefore = val.slice(0, pos);
+        const m = textBefore.match(pattern);
+        if (!m) return;
+        const start = pos - m[0].length;
+        noteInput.value = val.slice(0, start) + text + val.slice(pos);
+        const newPos = start + text.length;
+        noteInput.setSelectionRange(newPos, newPos);
+        hideNoteAc();
+    }
+
+    function showNoteAcItems(items) {
+        // items: [{ label, insert, pattern }]
+        acContainer.innerHTML = items.map((it, i) =>
+            `<span class="ns-ac-item" data-i="${i}">${it.label}</span>`
+        ).join('');
+        acContainer.classList.remove('ns-ac-hidden');
+
+        acContainer.querySelectorAll('.ns-ac-item').forEach(el => {
+            el.addEventListener('pointerdown', e => {
+                e.preventDefault();
+                const it = items[parseInt(el.dataset.i)];
+                noteAcInsert(it.pattern, it.insert);
+            });
+        });
+    }
+
+    noteInput.addEventListener('input', () => {
+        const pos = noteInput.selectionStart;
+        const textBefore = noteInput.value.slice(0, pos);
+
+        // ── @version: ──────────────────────────────────────────
+        let m = textBefore.match(/@version:([a-z0-9]*)$/i);
+        if (m) {
+            const partial = m[1].toLowerCase();
+            const items = translations
+                .filter(t => t.id.startsWith(partial))
+                .map(t => ({ label: t.id.toUpperCase(), insert: `@version:${t.id}`, pattern: /@version:([a-z0-9]*)$/i }));
+            if (items.length) { showNoteAcItems(items); return; }
+        }
+
+        // ── @entrada: ──────────────────────────────────────────
+        m = textBefore.match(/@entrada:(\d*)$/i);
+        if (m && studiesState) {
+            const partial = m[1];
+            const entries = studiesGetActive(studiesState).entries;
+            const items = entries
+                .map((e, i) => ({ n: i + 1, label: e.type === 'verse' ? `${i + 1} ${e.ref}` : `${i + 1} 📝 Nota` }))
+                .filter(it => partial === '' || String(it.n).startsWith(partial))
+                .map(it => ({ label: it.label, insert: `@entrada:${it.n}`, pattern: /@entrada:(\d*)$/i }));
+            if (items.length) { showNoteAcItems(items); return; }
+        }
+
+        // ── @estudio: ──────────────────────────────────────────
+        m = textBefore.match(/@estudio:([^\s]*)$/i);
+        if (m && studiesState) {
+            const partial = m[1].replace(/_/g, ' ').toLowerCase();
+            const items = studiesState.studies
+                .filter(s => s.name.toLowerCase().startsWith(partial))
+                .map(s => ({
+                    label: s.name,
+                    insert: `@estudio:${s.name.replace(/\s+/g, '_')}`,
+                    pattern: /@estudio:([^\s]*)$/i
+                }));
+            if (items.length) { showNoteAcItems(items); return; }
+        }
+
+        hideNoteAc();
+    });
+
+    noteInput.addEventListener('blur', () => setTimeout(hideNoteAc, 150));
     
     // Save verse button in verse-actions
     document.getElementById('va-save').addEventListener('click', handleSaveVerse);
@@ -1832,7 +1916,7 @@ function renderStudyEntries(study) {
                 <div class="ss-entry">
                     <div class="ss-entry-ref" data-entry-id="${entry.id}">${entry.ref}${entry.translationId ? ` <span class="ss-entry-version">${entry.translationId.toUpperCase()}</span>` : ''}</div>
                     <div class="ss-entry-text">${entry.text}</div>
-                    ${entry.note ? `<div class="ss-entry-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN })}</div>` : ''}
+                    ${entry.note ? `<div class="ss-entry-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN })}</div>` : ''}
                     <div class="ss-entry-actions">
                         <button class="ss-edit-entry" data-entry-id="${entry.id}">✏️ Editar nota</button>
                         <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
@@ -2131,6 +2215,47 @@ function linkifyNoteText(text, context) {
         }
     }
 
+    // ── Patrón @version:XXXX ─────────────────────────────────────
+    if (context && context.bookId && context.chapN && context.verseN) {
+        const versionPattern = /@version:([a-z0-9]+)/gi;
+        while ((match = versionPattern.exec(text)) !== null) {
+            const versionId = match[1].toLowerCase();
+            const translation = translations.find(t => t.id === versionId);
+            if (translation) {
+                allMatches.push({ start: match.index, end: match.index + match[0].length,
+                    html: `<span class="note-version-ref" data-version="${versionId}" data-book-id="${context.bookId}" data-chap="${context.chapN}" data-verse="${context.verseN}">${escapeHtml(match[0])}</span>` });
+            }
+        }
+    }
+
+    // ── Patrón @entrada:N ─────────────────────────────────────────
+    if (studiesState) {
+        const entryPattern = /@entrada:(\d+)/gi;
+        while ((match = entryPattern.exec(text)) !== null) {
+            const n = parseInt(match[1]);
+            const entries = studiesGetActive(studiesState).entries;
+            const entry = entries[n - 1];
+            if (entry) {
+                const preview = entry.type === 'verse' ? entry.ref : '📝 Nota';
+                allMatches.push({ start: match.index, end: match.index + match[0].length,
+                    html: `<span class="note-entry-ref" data-index="${n - 1}" title="${escapeHtml(preview)}">${escapeHtml(match[0])}</span>` });
+            }
+        }
+    }
+
+    // ── Patrón @estudio:nombre ───────────────────────────────────
+    if (studiesState) {
+        const studyPattern = /@estudio:([^\s]+)/gi;
+        while ((match = studyPattern.exec(text)) !== null) {
+            const nameRaw = match[1].replace(/_/g, ' ');
+            const study = studiesState.studies.find(s => s.name.toLowerCase() === nameRaw.toLowerCase());
+            if (study) {
+                allMatches.push({ start: match.index, end: match.index + match[0].length,
+                    html: `<span class="note-study-ref" data-study-id="${study.id}">${escapeHtml(match[0])}</span>` });
+            }
+        }
+    }
+
     // ── Patrón de suscripción ────────────────────────────────────
     const notifyPattern = /activa(?:r)?(?: las?)? notificaciones?|suscr[íi]bete(?: al? estudio)?|suscr[íi]bete(?: para(?: recibir)?(?: las?)? actualizaciones?)?|activar? notificaciones?/gi;
     while ((match = notifyPattern.exec(text)) !== null) {
@@ -2199,6 +2324,81 @@ function attachNoteRefListeners(container) {
             el.title = isStudySubscribed(active.id) ? 'Notificaciones activadas 🔔' : 'Activar notificaciones';
         }
     });
+
+    container.querySelectorAll('.note-version-ref').forEach(el => {
+        el.addEventListener('click', async e => {
+            e.stopPropagation();
+            // Toggle: si ya hay popup, quitarlo
+            const existing = el.nextElementSibling;
+            if (existing && existing.classList.contains('note-version-popup')) {
+                existing.remove();
+                el.classList.remove('note-version-ref--active');
+                return;
+            }
+
+            const versionId = el.dataset.version;
+            const bookId    = parseInt(el.dataset.bookId);
+            const chapN     = parseInt(el.dataset.chap);
+            const verseN    = parseInt(el.dataset.verse);
+
+            // Cargar traducción si no está en caché
+            let versionData = bibleCache[versionId];
+            if (!versionData) {
+                const translation = translations.find(t => t.id === versionId);
+                if (!translation) return;
+                const originalText = el.textContent;
+                el.textContent = '⏳';
+                try {
+                    const resp = await fetch(translation.file);
+                    versionData = await resp.json();
+                    bibleCache[versionId] = versionData;
+                } catch {
+                    el.textContent = originalText;
+                    return;
+                }
+                el.textContent = originalText;
+            }
+
+            const book    = versionData.find(b => b.id === bookId);
+            const chapter = book && book.chapters.find(c => c.n === chapN);
+            const verse   = chapter && chapter.v.find(v => v.n == verseN);
+            if (!verse) return;
+
+            const popup = document.createElement('span');
+            popup.className = 'note-version-popup';
+            popup.innerHTML = `<span class="nvp-label">${versionId.toUpperCase()}</span>${escapeHtml(verse.t)}`;
+            el.classList.add('note-version-ref--active');
+            el.after(popup);
+        });
+    });
+
+    container.querySelectorAll('.note-entry-ref').forEach(el => {
+        el.addEventListener('click', e => {
+            e.stopPropagation();
+            const idx = parseInt(el.dataset.index);
+            closeNoteBadgeModal();
+            document.getElementById('study-sheet').classList.add('ss-hidden');
+            document.body.classList.remove('study-sheet-open');
+            studyNavIndex = idx;
+            localStorage.setItem('bible-study-nav-index', idx);
+            studyNavUpdate();
+            openStudyNavModal();
+        });
+    });
+
+    container.querySelectorAll('.note-study-ref').forEach(el => {
+        el.addEventListener('click', e => {
+            e.stopPropagation();
+            const studyId = el.dataset.studyId;
+            closeNoteBadgeModal();
+            closeStudyNavModal();
+            studiesState = studiesSetActive(studiesState, studyId);
+            studiesSave(studiesState);
+            reapplyStudyMarkers();
+            studyNavUpdate();
+            openStudySheet(studyId);
+        });
+    });
 }
 
 // ── Marcadores de estudio en el lector ────────────────────────
@@ -2258,7 +2458,7 @@ function applyStudyMarkers(container, fixedChapN = null) {
             badge.textContent = noteNumberMap[entry.id];
             badge.addEventListener('click', ev => {
                 ev.stopPropagation();
-                openNoteBadgeModal(entry.note, entry.ref, { bookId: entry.bookId, chapN: entry.chapN });
+                openNoteBadgeModal(entry.note, entry.ref, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN });
             });
             verseEl.appendChild(badge);
         });
@@ -2445,7 +2645,7 @@ function renderStudyNavList() {
                 : '';
             return `<div class="snm-list-item ${active}" data-index="${i}">
                 <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
-                ${entry.note ? `<div class="snm-list-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN })}</div>` : ''}
+                ${entry.note ? `<div class="snm-list-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN })}</div>` : ''}
                 <button class="snm-goto-btn snm-list-goto" data-index="${i}">→ Ir al versículo</button>
             </div>`;
         } else {
@@ -2516,7 +2716,7 @@ function renderStudyNavModal() {
         content.innerHTML = `
             <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
             <div class="snm-text">${escapeHtml(entry.text)}</div>
-            ${entry.note ? `<div class="snm-note-label">Nota</div><div class="snm-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN })}</div>` : ''}
+            ${entry.note ? `<div class="snm-note-label">Nota</div><div class="snm-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN })}</div>` : ''}
             <button id="snm-goto" class="snm-goto-btn">→ Ir al versículo</button>
         `;
         if (entry.note) attachNoteRefListeners(content.querySelector('.snm-note'));

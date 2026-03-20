@@ -1585,6 +1585,39 @@ h2 {
     font-family: inherit;
 }
 
+#ns-autocomplete {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--tg-secondary-bg-color, #eee);
+    flex-shrink: 0;
+    background: var(--tg-secondary-bg-color, #f5f5f5);
+}
+
+#ns-autocomplete.ns-ac-hidden {
+    display: none;
+}
+
+.ns-ac-item {
+    padding: 5px 12px;
+    border-radius: 14px;
+    background: var(--tg-bg-color, #fff);
+    border: 1px solid #7c3aed;
+    color: #7c3aed;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.4px;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ns-ac-item:active {
+    background: #7c3aed;
+    color: #fff;
+}
+
 #ns-actions {
     padding: 12px 16px;
     border-top: 1px solid var(--tg-secondary-bg-color, #eee);
@@ -2174,6 +2207,65 @@ h2 {
 .note-notify-ref--on {
     color: #e67e00;
     text-decoration-style: solid;
+}
+
+.note-entry-ref {
+    color: #0891b2;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+}
+
+.note-study-ref {
+    color: #059669;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+}
+
+.note-version-ref {
+    color: #7c3aed;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: pointer;
+    font-weight: 600;
+    font-style: normal;
+    user-select: none;
+}
+
+.note-version-ref--active {
+    color: #5b21b6;
+    text-decoration-style: solid;
+}
+
+.note-version-popup {
+    display: block;
+    margin-top: 5px;
+    padding: 6px 10px;
+    background: rgba(124, 58, 237, 0.07);
+    border-left: 2px solid #7c3aed;
+    border-radius: 0 4px 4px 0;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 1.5;
+    color: var(--tg-text-color, #000);
+}
+
+.nvp-label {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.12);
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-right: 5px;
+    vertical-align: middle;
+    letter-spacing: 0.5px;
 }
 
 /* ── Note Badge Modal ── */
