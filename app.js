@@ -617,8 +617,107 @@ function parseQuery(raw) {
 function buildQsSuggestions(raw) {
     if (!raw.trim()) return [];
     const parsed = parseQuery(raw);
-    if (!parsed) return [];
     const items = [];
+
+    // Si no es referencia válida, buscar palabra en la Biblia
+    if (!parsed && raw.trim().length >= 2) {
+        const bible = bibleCache[elements.translationSelect.value] || bibleData;
+        const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        const words = raw.trim().split(/\s+/);
+        let bookScope = null;
+        let scopeLabel = 'la Biblia';
+        let scopeBooks = null; // null = toda la Biblia, array de ids = filtrado
+
+        if (!qsForceFullSearch && words.length >= 2) {
+            const firstWord = norm(words[0]);
+
+            // Detectar prefijo AT / NT
+            if (['at', 'antiguo'].includes(firstWord)) {
+                bookScope = { searchTerm: words.slice(1).join(' '), label: 'Antiguo Testamento' };
+                scopeBooks = (bible || []).filter(b => b.id <= 39).map(b => b.id);
+                scopeLabel = 'el Antiguo Testamento';
+            } else if (['nt', 'nuevo'].includes(firstWord)) {
+                bookScope = { searchTerm: words.slice(1).join(' '), label: 'Nuevo Testamento' };
+                scopeBooks = (bible || []).filter(b => b.id >= 40).map(b => b.id);
+                scopeLabel = 'el Nuevo Testamento';
+            } else {
+                // Detectar nombre de libro como prefijo
+                for (let len = Math.min(words.length - 1, 3); len >= 1; len--) {
+                    const prefix = words.slice(0, len).join(' ');
+                    const matchedBooks = findBooks(prefix);
+                    if (matchedBooks.length > 0) {
+                        bookScope = { searchTerm: words.slice(len).join(' '), label: matchedBooks.map(b => b.name).join(', ') };
+                        scopeBooks = matchedBooks.map(b => b.id);
+                        scopeLabel = matchedBooks.map(b => b.name).join(', ');
+                        break;
+                    }
+                }
+            }
+        }
+
+        const searchTerms = norm(bookScope ? bookScope.searchTerm : raw.trim()).split(/\s+/).filter(t => t.length > 0);
+
+        const searchResults = [];
+        if (bible && searchTerms.length > 0) {
+            for (const book of bible) {
+                if (scopeBooks && !scopeBooks.includes(book.id)) continue;
+                for (const chapter of book.chapters) {
+                    for (const verse of chapter.v) {
+                        if (searchTerms.every(term => norm(verse.t).includes(term))) {
+                            searchResults.push({ book, chapter, verse });
+                        }
+                    }
+                }
+            }
+        }
+
+        if (searchResults.length > 0) {
+            items.push({
+                type: 'word-search',
+                icon: '🔍',
+                title: bookScope
+                    ? `"${bookScope.searchTerm}" en ${scopeLabel}`
+                    : `"${raw.trim()}" en la Biblia`,
+                sub: `${searchResults.length} versículos encontrados`,
+                searchTerm: bookScope ? bookScope.searchTerm : raw.trim()
+            });
+            // Fallback antes de los resultados
+            if (bookScope) {
+                items.push({
+                    type: 'word-search-fallback',
+                    icon: '🌐',
+                    title: `Buscar "${raw.trim()}" en toda la Biblia`,
+                    sub: null
+                });
+            }
+            searchResults.forEach(result => {
+                const ref = `${result.book.name} ${result.chapter.n}:${result.verse.n}`;
+                items.push({
+                    type: 'verse',
+                    icon: '📖',
+                    bookName: result.book.name,
+                    title: ref,
+                    sub: result.verse.t,
+                    verseData: { ref, bookId: result.book.id, chapN: result.chapter.n, verseN: parseInt(result.verse.n), text: result.verse.t },
+                    action: () => {
+                        const chapObj = result.book.chapters.find(c => c.n === result.chapter.n);
+                        if (chapObj) {
+                            pendingVerse = parseInt(result.verse.n);
+                            pendingChapterN = result.chapter.n;
+                            closeQS();
+                            showChapters(result.book);
+                            showReader(result.book, chapObj);
+                        }
+                    }
+                });
+            });
+        }
+
+        return items;
+    }
+
+    if (!parsed) return [];
 
     if (parsed.type === 'range') {
         parsed.books.forEach(book => {
@@ -714,24 +813,141 @@ function buildQsSuggestions(raw) {
             sub: `${book.chapters.length} capítulos → ir al capítulo 1`,
             action: () => { closeQS(); showChapters(book); showReader(book, book.chapters[0]); }
         }));
+
+        // También buscar la palabra en versículos (el término puede ser nombre de libro y palabra)
+        if (raw.trim().length >= 2) {
+            const searchTerms = raw.trim().toLowerCase().split(/\s+/).filter(t => t.length > 0);
+            const bible = bibleCache[elements.translationSelect.value] || bibleData;
+            const searchResults = [];
+            if (bible) {
+                for (const book of bible) {
+                    for (const chapter of book.chapters) {
+                        for (const verse of chapter.v) {
+                            if (searchTerms.every(term => verse.t.toLowerCase().includes(term))) {
+                                searchResults.push({ book, chapter, verse });
+                            }
+                        }
+                    }
+                }
+            }
+            if (searchResults.length > 0) {
+                items.push({
+                    type: 'word-search',
+                    icon: '🔍',
+                    title: `"${raw.trim()}" en versículos`,
+                    sub: `${searchResults.length} versículos encontrados`,
+                    searchTerm: raw.trim()
+                });
+                searchResults.forEach(result => {
+                    items.push({
+                        type: 'verse',
+                        icon: '📖',
+                        bookName: result.book.name,
+                        title: `${result.book.name} ${result.chapter.n}:${result.verse.n}`,
+                        sub: result.verse.t,
+                        verseData: { ref: `${result.book.name} ${result.chapter.n}:${result.verse.n}`, bookId: result.book.id, chapN: result.chapter.n, verseN: parseInt(result.verse.n), text: result.verse.t },
+                        action: () => {
+                            const chapObj = result.book.chapters.find(c => c.n === result.chapter.n);
+                            if (chapObj) {
+                                pendingVerse = parseInt(result.verse.n);
+                                pendingChapterN = result.chapter.n;
+                                closeQS();
+                                showChapters(result.book);
+                                showReader(result.book, chapObj);
+                            }
+                        }
+                    });
+                });
+            }
+        }
     }
 
-    return items.slice(0, 6);
+    return items.some(i => i.type === 'word-search') ? items : items.slice(0, 6);
+}
+
+// Estado del buscador de palabras
+let qsWordSearchTerm = '';
+let qsForceFullSearch = false;
+
+function renderQSWordSearch() {
+    const wordSearchDiv = document.getElementById('qs-word-search');
+    const wordCount = document.getElementById('qs-word-count');
+    const results = document.getElementById('qs-results');
+    const items = results.querySelectorAll('.qs-item');
+
+    // Si ya es una búsqueda de palabra (word-search), ocultar el buscador adicional
+    const isWordSearch = qsSuggestions.some(item => item.type === 'word-search');
+    if (isWordSearch) {
+        wordSearchDiv.classList.add('qsw-hidden');
+        return;
+    }
+
+    // Mostrar buscador solo si hay versículos (type === 'verse' o 'chapter' con contenido)
+    const hasVerseContent = qsSuggestions.some(item => item.type === 'verse' || item.rangeText);
+    if (!hasVerseContent) {
+        wordSearchDiv.classList.add('qsw-hidden');
+        return;
+    }
+
+    wordSearchDiv.classList.remove('qsw-hidden');
+
+    if (!qsWordSearchTerm) {
+        wordCount.textContent = '';
+        items.forEach(item => item.classList.remove('qs-word-hidden'));
+        return;
+    }
+
+    // Filtrar versículos por palabra
+    let visibleCount = 0;
+    const term = qsWordSearchTerm.toLowerCase();
+    items.forEach(item => {
+        const itemData = qsSuggestions[Array.from(items).indexOf(item)];
+        let textToSearch = '';
+
+        if (itemData.rangeText) {
+            textToSearch = itemData.rangeText;
+        } else if (itemData.sub) {
+            textToSearch = itemData.sub;
+        }
+
+        const matches = textToSearch.toLowerCase().includes(term);
+        if (matches) {
+            item.classList.remove('qs-word-hidden');
+            // Resaltar palabra encontrada
+            const subEl = item.querySelector('.qs-item-sub');
+            if (subEl) {
+                const regex = new RegExp(`(${qsWordSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                // Restaurar texto plano antes de re-aplicar highlight
+                subEl.innerHTML = subEl.innerHTML.replace(/<span class="highlight">([^<]*)<\/span>/g, '$1');
+                subEl.innerHTML = subEl.innerHTML.replace(regex, '<span class="highlight">$1</span>');
+            }
+            visibleCount++;
+        } else {
+            item.classList.add('qs-word-hidden');
+        }
+    });
+
+    wordCount.textContent = `${visibleCount} resultado${visibleCount !== 1 ? 's' : ''}`;
 }
 
 function renderQS() {
     const input = document.getElementById('qs-input');
     const results = document.getElementById('qs-results');
     const hint = document.getElementById('qs-hint');
+    qsForceFullSearch = false;
     qsSuggestions = buildQsSuggestions(input.value);
     qsActiveIdx = -1;
     qsLastTappedTitle = null;
+    qsWordSearchTerm = '';
+    document.getElementById('qs-word-input').value = '';
     results.innerHTML = '';
     hint.style.display = qsSuggestions.length ? 'none' : 'block';
 
     qsSuggestions.forEach((item, i) => {
         const div = document.createElement('div');
-        div.className = 'qs-item';
+        div.className = 'qs-item'
+            + (item.type === 'word-search' ? ' qs-word-search-header' : '')
+            + (item.type === 'word-search-fallback' ? ' qs-word-search-fallback' : '');
         div.innerHTML = `
             <span class="qs-item-icon">${item.icon}</span>
             <div class="qs-item-main">
@@ -742,7 +958,14 @@ function renderQS() {
                 ${item.verseData ? `<button class="qs-save-btn">🔖 Guardar</button>` : ''}
             </div>`;
         div.addEventListener('click', () => {
-            if (item.type !== 'book') {
+            if (item.type === 'word-search-fallback') {
+                qsForceFullSearch = true;
+                renderQS();
+                return;
+            } else if (!item.action) {
+                // Item sin acción (ej: encabezado de búsqueda de palabra)
+                return;
+            } else if (item.type !== 'book') {
                 // Capítulo o versículo: navegar directo con un solo toque
                 item.action();
             } else if (qsLastTappedTitle === item.title) {
@@ -781,6 +1004,9 @@ function renderQS() {
 
         results.appendChild(div);
     });
+
+    // Mostrar buscador de palabras si hay resultados con contenido de versículos
+    renderQSWordSearch();
 }
 
 function updateQsActive() {
@@ -802,7 +1028,18 @@ function closeQS() {
     document.getElementById('quick-search').classList.add('qs-hidden');
 }
 
-document.getElementById('qs-input').addEventListener('input', renderQS);
+let qsDebounceTimer = null;
+document.getElementById('qs-input').addEventListener('input', () => {
+    clearTimeout(qsDebounceTimer);
+    qsDebounceTimer = setTimeout(renderQS, 350);
+});
+
+// Buscador de palabras dentro de los resultados
+document.getElementById('qs-word-input').addEventListener('input', (e) => {
+    qsWordSearchTerm = e.target.value;
+    renderQSWordSearch();
+});
+
 document.getElementById('qs-overlay').addEventListener('click', closeQS);
 document.getElementById('qs-open-btn').addEventListener('click', openQS);
 document.getElementById('qs-open-btn').addEventListener('click', openQS);
@@ -822,16 +1059,16 @@ document.addEventListener('keydown', e => {
         if (!qsSuggestions.length) return;
         qsActiveIdx = (qsActiveIdx + 1) % qsSuggestions.length;
         updateQsActive();
-        document.getElementById('qs-input').value = qsSuggestions[qsActiveIdx].bookName;
+        if (qsSuggestions[qsActiveIdx].bookName) document.getElementById('qs-input').value = qsSuggestions[qsActiveIdx].bookName;
     } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
         e.preventDefault();
         if (!qsSuggestions.length) return;
         qsActiveIdx = (qsActiveIdx - 1 + qsSuggestions.length) % qsSuggestions.length;
         updateQsActive();
-        document.getElementById('qs-input').value = qsSuggestions[qsActiveIdx].bookName;
+        if (qsSuggestions[qsActiveIdx].bookName) document.getElementById('qs-input').value = qsSuggestions[qsActiveIdx].bookName;
     } else if (e.key === 'Enter') {
         const target = qsActiveIdx >= 0 ? qsSuggestions[qsActiveIdx] : qsSuggestions[0];
-        if (target) target.action();
+        if (target?.action) target.action();
     }
 });
 

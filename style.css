@@ -698,6 +698,31 @@ h2 {
 .qs-item-range { white-space: normal; overflow: visible; text-overflow: unset; line-height: 1.5; }
 .qs-save-btn { margin-top: 6px; background: none; border: 1px solid var(--tg-hint-color, #aaa); border-radius: 12px; font-size: 11px; color: var(--tg-hint-color, #888); padding: 2px 10px; cursor: pointer; }
 
+/* Buscador de palabras dentro de qs-results */
+#qs-word-search { display: flex; align-items: center; padding: 8px 12px; border-top: 1px solid rgba(128,128,128,0.2); background: rgba(0,0,0,0.02); }
+#qs-word-search.qsw-hidden { display: none; }
+#qs-word-input { flex: 1; background: rgba(0,0,0,0.05); border: none; border-radius: 6px; padding: 6px 10px; font-size: 13px; outline: none; }
+#qs-word-count { font-size: 11px; color: var(--tg-hint-color, #888); margin-left: 8px; white-space: nowrap; }
+.qs-item.qs-word-hidden { display: none; }
+.qs-item .highlight { background: #fff3cd; padding: 0 2px; border-radius: 2px; }
+
+/* Item de búsqueda de palabra */
+.qs-item.qs-word-search-header { background: rgba(36, 129, 204, 0.1); border-left: 3px solid var(--theme-color, #2481cc); padding: 5px 10px; }
+.qs-item.qs-word-search-header .qs-item-icon { font-size: 12px; }
+.qs-item.qs-word-search-header .qs-item-title { font-weight: 600; color: var(--theme-color, #2481cc); font-size: 12px; }
+.qs-item.qs-word-search-header .qs-item-sub { font-size: 11px; }
+
+/* Item fallback "buscar en toda la Biblia" */
+.qs-item.qs-word-search-fallback { border-top: 1px solid rgba(128,128,128,0.15); opacity: 0.75; }
+.qs-item.qs-word-search-fallback .qs-item-title { font-size: 13px; color: var(--tg-hint-color, #888); }
+
+/* Separador entre bloque de encabezado/fallback y los versículos */
+.qs-item.qs-word-search-fallback + .qs-item {
+    border-top: 2px solid rgba(128,128,128,0.2);
+    margin-top: 2px;
+    padding-top: 10px;
+}
+
 #splash {
     position: fixed;
     inset: 0;
@@ -1728,6 +1753,7 @@ h2 {
 
 #snm-content {
     overflow-y: auto;
+    touch-action: pan-y;
     padding: 16px;
     flex: 1;
     -webkit-user-select: text;
