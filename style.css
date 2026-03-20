@@ -641,8 +641,11 @@ h2 {
     border-radius: 16px;
     width: 100%;
     max-width: 480px;
+    max-height: calc(100dvh - 80px);
     box-shadow: 0 12px 40px rgba(0,0,0,0.3);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 #qs-input-wrap {
     display: flex;
@@ -670,7 +673,7 @@ h2 {
     font-family: monospace;
     flex-shrink: 0;
 }
-#qs-results { max-height: 300px; overflow-y: auto; }
+#qs-results { flex: 1; overflow-y: auto; min-height: 0; }
 #qs-hint {
     padding: 10px 16px;
     font-size: 12px;
@@ -1819,6 +1822,32 @@ h2 {
     margin-top: 4px;
 }
 
+/* ── Paso de notificación en navegación ── */
+.snm-notify-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0 4px;
+    text-align: center;
+}
+
+.snm-notify-icon {
+    font-size: 40px;
+    line-height: 1;
+}
+
+.snm-notify-title {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.snm-notify-desc {
+    font-size: 13px;
+    opacity: 0.65;
+    line-height: 1.5;
+}
+
 /* ── Study markers in reader ── */
 .verse.verse-in-study .v-text {
     text-decoration: underline;
@@ -2023,6 +2052,43 @@ h2 {
 #ses-name:focus {
     border-color: var(--tg-link-color, #2481cc);
 }
+.ses-subscribable-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    margin-bottom: 4px;
+}
+
+.ses-subscribable-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ses-subscribable-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.ses-subscribable-desc {
+    display: block;
+    font-size: 12px;
+    opacity: 0.6;
+    line-height: 1.4;
+}
+
+.ses-subscribable-check {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--tg-link-color, #2481cc);
+    cursor: pointer;
+}
+
 .ses-tags-label {
     font-size: 12px;
     color: var(--tg-hint-color, #999);
@@ -2093,6 +2159,21 @@ h2 {
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
+}
+
+.note-notify-ref {
+    color: var(--tg-link-color, #2481cc);
+    text-decoration: underline;
+    text-decoration-style: dashed;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    font-weight: 600;
+}
+
+.note-notify-ref--on {
+    color: #e67e00;
+    text-decoration-style: solid;
 }
 
 /* ── Note Badge Modal ── */
@@ -2390,4 +2471,113 @@ h2 {
 
 .cfg-toggle-btn:active {
     opacity: 0.7;
+}
+
+/* ── Notificaciones en config ──────────────────────────────── */
+
+.cfg-item--notify {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.cfg-notify-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    align-items: center;
+}
+
+.cfg-email-input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(0,0,0,0.15);
+    background: var(--tg-secondary-bg-color, var(--tg-theme-secondary-bg-color));
+    color: var(--tg-text-color, var(--tg-theme-text-color));
+    font-size: 13px;
+    outline: none;
+}
+
+.cfg-email-input:focus {
+    border-color: var(--tg-link-color, #2481cc);
+}
+
+.cfg-notify-status {
+    width: 100%;
+    font-size: 12px;
+    min-height: 16px;
+    padding: 0 2px;
+    opacity: 0.75;
+}
+
+/* ── Botón suscripción en sheet de estudio ─────────────────── */
+
+.ss-notify-btn {
+    background: none;
+    border: none;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 2px 4px;
+    opacity: 0.5;
+    transition: opacity 0.15s, transform 0.15s;
+    vertical-align: middle;
+}
+
+.ss-notify-btn:active { transform: scale(0.9); }
+.ss-notify-btn.subscribed { opacity: 1; }
+
+/* ── Banner de actualización de estudios ───────────────────── */
+
+.study-update-banner {
+    position: fixed;
+    bottom: 72px;
+    left: 12px;
+    right: 12px;
+    z-index: 900;
+    background: var(--tg-link-color, #2481cc);
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.study-update-banner--hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px);
+}
+
+.study-update-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.study-update-btn {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.study-update-btn:active { opacity: 0.75; }
+
+.study-update-dismiss {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.8);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 6px;
+    margin-left: auto;
 }

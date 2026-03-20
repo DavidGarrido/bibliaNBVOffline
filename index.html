@@ -333,6 +333,13 @@
             </div>
             <div id="ses-content">
                 <input id="ses-name" type="text" placeholder="Nombre del estudio" autocomplete="off">
+                <label id="ses-subscribable-row" class="ses-subscribable-row">
+                    <div class="ses-subscribable-info">
+                        <span class="ses-subscribable-label">🔔 Permitir suscripciones</span>
+                        <span class="ses-subscribable-desc">Los usuarios podrán suscribirse para recibir aviso cuando se añadan nuevas entregas.</span>
+                    </div>
+                    <input type="checkbox" id="ses-subscribable" class="ses-subscribable-check">
+                </label>
                 <div class="ses-tags-label">Etiquetas</div>
                 <div id="ses-tags-existing"></div>
                 <div id="ses-new-tag-wrap">
@@ -423,7 +430,26 @@
                     </div>
                     <button id="cfg-import-btn" class="cfg-toggle-btn">📥 Importar</button>
                 </div>
+                <div class="cfg-item cfg-item--notify">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">🔔 Notificaciones de estudios</div>
+                        <div class="cfg-item-desc">Ingresa tu email para recibir aviso cuando haya nuevas entregas en los estudios compartidos.</div>
+                    </div>
+                    <div class="cfg-notify-row">
+                        <input type="email" id="cfg-notify-email" class="cfg-email-input" placeholder="tu@email.com" autocomplete="email">
+                        <button id="cfg-notify-save" class="cfg-toggle-btn">Guardar</button>
+                    </div>
+                    <div id="cfg-notify-status" class="cfg-notify-status"></div>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <div id="study-update-banner" class="study-update-banner study-update-banner--hidden">
+        <span id="study-update-text"></span>
+        <div class="study-update-actions">
+            <button id="study-update-open" class="study-update-btn">Ver estudios</button>
+            <button id="study-update-dismiss" class="study-update-dismiss">✕</button>
         </div>
     </div>
 

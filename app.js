@@ -1283,16 +1283,16 @@ function studiesGetActive(state) {
     return state.studies.find(s => s.id === (state.activeStudyId || 'general')) || state.studies[0];
 }
 
-function studiesCreate(state, name, tags = []) {
+function studiesCreate(state, name, tags = [], subscribable = false) {
     const id = 'study_' + Date.now();
-    const newStudy = { id, name, tags, createdAt: new Date().toISOString(), entries: [] };
+    const newStudy = { id, name, tags, subscribable, createdAt: new Date().toISOString(), entries: [] };
     return { ...state, studies: [...state.studies, newStudy] };
 }
 
-function studiesUpdateStudy(state, studyId, { name, tags }) {
+function studiesUpdateStudy(state, studyId, { name, tags, subscribable }) {
     const studies = state.studies.map(s => {
         if (s.id !== studyId) return s;
-        return { ...s, name: name || s.name, tags: tags || [] };
+        return { ...s, name: name || s.name, tags: tags || [], subscribable: !!subscribable };
     });
     return { ...state, studies };
 }
@@ -1365,6 +1365,9 @@ function studiesInit() {
     } else if (localStorage.getItem('bible-study-alert') !== 'off') {
         showActiveStudyAlert(studiesState.activeStudyId || 'general');
     }
+
+    // Comprobar actualizaciones de estudios suscritos
+    checkStudyUpdates();
 }
 
 async function handleStudyFromUrl(studyId) {
@@ -1655,9 +1658,23 @@ function openStudySheet(studyId, isStartup = false) {
         openStudyEditSheet(studyId);
     });
 
-    // Mostrar ID del estudio
+    // Mostrar ID del estudio + botón suscripción
     const idEl = document.getElementById('ss-study-id');
-    idEl.innerHTML = `ID: <span class="ss-study-id-value">${studyId}</span><button class="ss-copy-id-btn" title="Copiar ID">📋</button>`;
+    const subbed = isStudySubscribed(studyId);
+    const notifyBtn = study.subscribable
+        ? `<button class="ss-notify-btn ${subbed ? 'subscribed' : ''}" title="${subbed ? 'Cancelar notificaciones' : 'Activar notificaciones'}">${subbed ? '🔔' : '🔕'}</button>`
+        : '';
+    idEl.innerHTML = `ID: <span class="ss-study-id-value">${studyId}</span><button class="ss-copy-id-btn" title="Copiar ID">📋</button>${notifyBtn}`;
+    if (study.subscribable) {
+        idEl.querySelector('.ss-notify-btn').addEventListener('click', () => {
+            const nowSubbed = toggleStudySubscription(studyId, (study.entries || []).length);
+            const btn = idEl.querySelector('.ss-notify-btn');
+            btn.textContent = nowSubbed ? '🔔' : '🔕';
+            btn.title = nowSubbed ? 'Cancelar notificaciones' : 'Activar notificaciones';
+            btn.classList.toggle('subscribed', nowSubbed);
+            showSaveToast(nowSubbed ? 'Notificaciones activadas 🔔' : 'Notificaciones desactivadas');
+        });
+    }
     idEl.querySelector('.ss-copy-id-btn').addEventListener('click', () => {
         navigator.clipboard.writeText(studyId).then(() => showSaveToast('ID copiado ✓')).catch(() => {
             // fallback manual
@@ -2114,6 +2131,13 @@ function linkifyNoteText(text, context) {
         }
     }
 
+    // ── Patrón de suscripción ────────────────────────────────────
+    const notifyPattern = /activa(?:r)?(?: las?)? notificaciones?|suscr[íi]bete(?: al? estudio)?|suscr[íi]bete(?: para(?: recibir)?(?: las?)? actualizaciones?)?|activar? notificaciones?/gi;
+    while ((match = notifyPattern.exec(text)) !== null) {
+        allMatches.push({ start: match.index, end: match.index + match[0].length,
+            html: `<span class="note-notify-ref">${escapeHtml(match[0])}</span>` });
+    }
+
     // Ordenar por posición y eliminar solapamientos
     allMatches.sort((a, b) => a.start - b.start);
     const filtered = [];
@@ -2156,6 +2180,24 @@ function attachNoteRefListeners(container) {
             showChapters(book);
             showReader(book, chapter);
         });
+    });
+
+    container.querySelectorAll('.note-notify-ref').forEach(el => {
+        el.addEventListener('click', e => {
+            e.stopPropagation();
+            const active = studiesGetActive(studiesState);
+            if (!active.subscribable) return;
+            const nowSubbed = toggleStudySubscription(active.id, (active.entries || []).length);
+            el.classList.toggle('note-notify-ref--on', nowSubbed);
+            el.title = nowSubbed ? 'Notificaciones activadas 🔔' : 'Activar notificaciones';
+            showSaveToast(nowSubbed ? 'Notificaciones activadas 🔔' : 'Notificaciones desactivadas');
+        });
+        // Estado inicial
+        const active = studiesGetActive(studiesState);
+        if (active.subscribable) {
+            el.classList.toggle('note-notify-ref--on', isStudySubscribed(active.id));
+            el.title = isStudySubscribed(active.id) ? 'Notificaciones activadas 🔔' : 'Activar notificaciones';
+        }
     });
 }
 
@@ -2280,6 +2322,14 @@ function studyNavEntries() {
     return studiesGetActive(studiesState).entries;
 }
 
+function studyNavHasNotifyStep() {
+    return !!studiesGetActive(studiesState).subscribable;
+}
+
+function studyNavTotalSteps(entries) {
+    return studyNavHasNotifyStep() ? entries.length + 1 : entries.length;
+}
+
 function studyNavUpdate() {
     const bar = document.getElementById('study-nav-bar');
     if (!studyNavIsEnabled() || elements.viewReader.style.display !== 'block') {
@@ -2295,19 +2345,24 @@ function studyNavUpdate() {
     }
     bar.classList.remove('snb-hidden');
 
-    // Clamp index
-    if (studyNavIndex >= entries.length) studyNavIndex = entries.length - 1;
+    // Clamp index (allowing notify step if applicable)
+    const totalSteps = studyNavTotalSteps(entries);
+    if (studyNavIndex >= totalSteps) studyNavIndex = totalSteps - 1;
     if (studyNavIndex < 0) studyNavIndex = 0;
 
-    const entry = entries[studyNavIndex];
     const refEl = document.getElementById('snb-ref');
     const posEl = document.getElementById('snb-pos');
 
-    refEl.textContent = entry.type === 'verse' ? entry.ref : '📝 Nota';
-    posEl.textContent = `${studyNavIndex + 1}/${entries.length}`;
+    if (studyNavIndex === entries.length) {
+        refEl.textContent = '🔔 Notificaciones';
+    } else {
+        const entry = entries[studyNavIndex];
+        refEl.textContent = entry.type === 'verse' ? entry.ref : '📝 Nota';
+    }
+    posEl.textContent = `${studyNavIndex + 1}/${totalSteps}`;
 
     document.getElementById('snb-prev').disabled = studyNavIndex === 0;
-    document.getElementById('snb-next').disabled = studyNavIndex === entries.length - 1;
+    document.getElementById('snb-next').disabled = studyNavIndex === totalSteps - 1;
 
     // En pantalla grande: abrir el sidebar automáticamente o refrescar si ya está abierto
     if (window.innerWidth >= 1024) {
@@ -2323,10 +2378,15 @@ function studyNavUpdate() {
 function studyNavGo(index) {
     const entries = studyNavEntries();
     if (!entries.length) return;
-    studyNavIndex = Math.max(0, Math.min(index, entries.length - 1));
+    const totalSteps = studyNavTotalSteps(entries);
+    studyNavIndex = Math.max(0, Math.min(index, totalSteps - 1));
     localStorage.setItem('bible-study-nav-index', studyNavIndex);
     studyNavUpdate();
 
+    if (studyNavIndex === entries.length) {
+        openStudyNavModal();
+        return;
+    }
     const entry = entries[studyNavIndex];
     if (entry.type === 'verse') {
         studyNavNavigateToEntry(entry);
@@ -2416,14 +2476,37 @@ function renderStudyNavModal() {
     const entries = studyNavEntries();
     if (!entries.length) return;
 
+    const totalSteps = studyNavTotalSteps(entries);
     // Clamp
-    if (studyNavIndex >= entries.length) studyNavIndex = entries.length - 1;
+    if (studyNavIndex >= totalSteps) studyNavIndex = totalSteps - 1;
     if (studyNavIndex < 0) studyNavIndex = 0;
 
-    const entry = entries[studyNavIndex];
-    document.getElementById('snm-pos').textContent = `${studyNavIndex + 1} de ${entries.length}`;
+    document.getElementById('snm-pos').textContent = `${studyNavIndex + 1} de ${totalSteps}`;
     document.getElementById('snm-prev').disabled = studyNavIndex === 0;
-    document.getElementById('snm-next').disabled = studyNavIndex === entries.length - 1;
+    document.getElementById('snm-next').disabled = studyNavIndex === totalSteps - 1;
+
+    // Paso de notificación (último paso virtual)
+    if (studyNavIndex === entries.length) {
+        const active = studiesGetActive(studiesState);
+        const subbed = isStudySubscribed(active.id);
+        const content = document.getElementById('snm-content');
+        content.innerHTML = `
+            <div class="snm-notify-step">
+                <div class="snm-notify-icon">${subbed ? '🔔' : '🔕'}</div>
+                <div class="snm-notify-title">${subbed ? 'Notificaciones activadas' : 'Activar notificaciones'}</div>
+                <div class="snm-notify-desc">${subbed ? 'Recibirás aviso cuando haya nuevas entregas en este estudio.' : 'Suscríbete para recibir aviso cuando se publiquen nuevas entregas en este estudio.'}</div>
+                <button id="snm-notify-btn" class="snm-goto-btn">${subbed ? '🔕 Desactivar' : '🔔 Activar notificaciones'}</button>
+            </div>
+        `;
+        document.getElementById('snm-notify-btn').addEventListener('click', () => {
+            const nowSubbed = toggleStudySubscription(active.id, (active.entries || []).length);
+            renderStudyNavModal();
+            showSaveToast(nowSubbed ? 'Notificaciones activadas 🔔' : 'Notificaciones desactivadas');
+        });
+        return;
+    }
+
+    const entry = entries[studyNavIndex];
 
     const content = document.getElementById('snm-content');
     if (entry.type === 'verse') {
@@ -2468,7 +2551,8 @@ function studyNavInit() {
     });
     document.getElementById('snm-next').addEventListener('click', () => {
         const entries = studyNavEntries();
-        studyNavIndex = Math.min(entries.length - 1, studyNavIndex + 1);
+        const totalSteps = studyNavTotalSteps(entries);
+        studyNavIndex = Math.min(totalSteps - 1, studyNavIndex + 1);
         localStorage.setItem('bible-study-nav-index', studyNavIndex);
         studyNavUpdate();
         renderStudyNavModal();
@@ -2484,7 +2568,8 @@ function studyNavInit() {
         swipeStartX = null;
         if (Math.abs(dx) < 40) return;
         const entries = studyNavEntries();
-        if (dx < 0 && studyNavIndex < entries.length - 1) {
+        const totalSteps = studyNavTotalSteps(entries);
+        if (dx < 0 && studyNavIndex < totalSteps - 1) {
             studyNavIndex++;
         } else if (dx > 0 && studyNavIndex > 0) {
             studyNavIndex--;
@@ -2517,6 +2602,102 @@ function updateRestorePositionToggleText() {
     btn.textContent = enabled ? '📍 Activado' : '📍 Desactivado';
 }
 
+// ── Notificaciones de estudios ────────────────────────────────
+
+const NOTIFY_SUBS_KEY = 'bible-notify-subs';   // { studyId: entryCount }
+const NOTIFY_EMAIL_KEY = 'bible-notify-email';
+
+function getSubscriptions() {
+    try { return JSON.parse(localStorage.getItem(NOTIFY_SUBS_KEY) || '{}'); } catch { return {}; }
+}
+
+function isStudySubscribed(studyId) {
+    return studyId in getSubscriptions();
+}
+
+function toggleStudySubscription(studyId, currentEntryCount) {
+    const subs = getSubscriptions();
+    if (studyId in subs) {
+        delete subs[studyId];
+        localStorage.setItem(NOTIFY_SUBS_KEY, JSON.stringify(subs));
+        return false;
+    } else {
+        // Guardar conteo y fecha del exportedAt local para detectar ediciones también
+        const localStudy = studiesState.studies.find(s => s.id === studyId);
+        subs[studyId] = {
+            count: currentEntryCount,
+            exportedAt: localStudy?.exportedAt || null
+        };
+        localStorage.setItem(NOTIFY_SUBS_KEY, JSON.stringify(subs));
+        return true;
+    }
+}
+
+async function checkStudyUpdates() {
+    const subs = getSubscriptions();
+    if (!Object.keys(subs).length) return;
+    try {
+        const res = await fetch(SHARED_API, { headers: { Accept: 'application/vnd.github.v3+json' } });
+        if (!res.ok) return;
+        const files = (await res.json()).filter(f => f.type === 'file' && f.name.endsWith('.json'));
+        const results = await Promise.all(files.map(f => fetch(f.download_url).then(r => r.json()).catch(() => null)));
+
+        const updatedStudies = [];
+        results.forEach(data => {
+            if (!data || !Array.isArray(data.studies)) return;
+            data.studies.forEach(s => {
+                if (!(s.id in subs)) return;
+                const remoteCount = (s.entries || []).length;
+                const remoteExportedAt = data.exportedAt || null;
+
+                const localStudy = studiesState.studies.find(ls => ls.id === s.id);
+                const localCount = localStudy ? (localStudy.entries || []).length : 0;
+                const localExportedAt = localStudy?.exportedAt || null;
+
+                const hasNewEntries = remoteCount > localCount;
+                const hasEdits = remoteExportedAt && localExportedAt && remoteExportedAt !== localExportedAt && remoteCount === localCount;
+
+                if (hasNewEntries) {
+                    updatedStudies.push({ id: s.id, name: s.name, delta: remoteCount - localCount, type: 'new' });
+                } else if (hasEdits) {
+                    updatedStudies.push({ id: s.id, name: s.name, delta: 0, type: 'edit' });
+                }
+            });
+        });
+
+        if (updatedStudies.length) {
+            const names = updatedStudies.map(s =>
+                s.type === 'new'
+                    ? `${s.name} (+${s.delta} entrada${s.delta !== 1 ? 's' : ''})`
+                    : `${s.name} (actualizado)`
+            ).join(', ');
+            showStudyUpdateBanner(`🔔 Cambios en: ${names}`);
+        }
+    } catch { /* sin conexión, ignorar */ }
+}
+
+function showStudyUpdateBanner(text) {
+    const banner = document.getElementById('study-update-banner');
+    const textEl = document.getElementById('study-update-text');
+    if (!banner || !textEl) return;
+    textEl.textContent = text;
+    banner.classList.remove('study-update-banner--hidden');
+}
+
+function hideStudyUpdateBanner() {
+    const banner = document.getElementById('study-update-banner');
+    if (banner) banner.classList.add('study-update-banner--hidden');
+}
+
+function updateNotifyEmailDisplay() {
+    const input = document.getElementById('cfg-notify-email');
+    const status = document.getElementById('cfg-notify-status');
+    if (!input) return;
+    const saved = localStorage.getItem(NOTIFY_EMAIL_KEY) || '';
+    input.value = saved;
+    if (status) status.textContent = saved ? `✅ Email guardado: ${saved}` : '';
+}
+
 // ── Modal de configuración ────────────────────────────────────
 
 function openConfigModal() {
@@ -2526,6 +2707,7 @@ function openConfigModal() {
     updateNavToggleText();
     updateRestorePositionToggleText();
     updateAutosaveToggleText();
+    updateNotifyEmailDisplay();
     document.getElementById('config-modal').classList.remove('cfg-hidden');
 }
 
@@ -2559,6 +2741,8 @@ function openStudyEditSheet(studyId = null, options = {}) {
 
     document.getElementById('ses-title').textContent = study ? 'Editar estudio' : 'Nuevo estudio';
     document.getElementById('ses-name').value = study ? study.name : '';
+    const sesSubEl = document.getElementById('ses-subscribable');
+    if (sesSubEl) sesSubEl.checked = study ? !!study.subscribable : false;
     sheet.dataset.studyId = studyId || '';
     sheet.dataset.autoActivate = options.autoActivate ? 'true' : '';
 
@@ -2623,17 +2807,18 @@ function setupStudyEditListeners() {
         const name = document.getElementById('ses-name').value.trim();
         if (!name) { showSaveToast('Escribe un nombre'); return; }
         const tags = getSesSelectedTags();
+        const subscribable = document.getElementById('ses-subscribable')?.checked ?? false;
         const studyId = sheet.dataset.studyId;
         const autoActivate = sheet.dataset.autoActivate === 'true';
 
         if (studyId) {
-            studiesState = studiesUpdateStudy(studiesState, studyId, { name, tags });
+            studiesState = studiesUpdateStudy(studiesState, studyId, { name, tags, subscribable });
             studiesSave(studiesState);
             renderStudiesDropdown();
             closeStudyEditSheet();
             showSaveToast('Estudio actualizado');
         } else {
-            studiesState = studiesCreate(studiesState, name, tags);
+            studiesState = studiesCreate(studiesState, name, tags, subscribable);
             const newId = studiesState.studies[studiesState.studies.length - 1].id;
             if (autoActivate) {
                 studiesState = studiesSetActive(studiesState, newId);
@@ -2667,6 +2852,26 @@ function setupExportImport() {
         closeConfigModal();
         document.getElementById('sd-import-file').click();
     });
+
+    // Guardar email de notificaciones
+    document.getElementById('cfg-notify-save').addEventListener('click', () => {
+        const input = document.getElementById('cfg-notify-email');
+        const status = document.getElementById('cfg-notify-status');
+        const email = (input.value || '').trim();
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            if (status) status.textContent = '⚠️ Email no válido.';
+            return;
+        }
+        localStorage.setItem(NOTIFY_EMAIL_KEY, email);
+        if (status) status.textContent = email ? `✅ Email guardado: ${email}` : '❌ Email eliminado.';
+    });
+
+    // Banner de actualización
+    document.getElementById('study-update-open').addEventListener('click', () => {
+        hideStudyUpdateBanner();
+        openSharedSheet();
+    });
+    document.getElementById('study-update-dismiss').addEventListener('click', hideStudyUpdateBanner);
 
     document.getElementById('sd-import-file').addEventListener('change', e => {
         const file = e.target.files[0];
@@ -2996,7 +3201,7 @@ async function loadAllSharedStudies() {
         results.forEach(data => {
             if (data && Array.isArray(data.studies)) {
                 const date = data.exportedAt ? new Date(data.exportedAt).toLocaleDateString('es') : '';
-                data.studies.forEach(s => sharedAllStudies.push({ ...s, _exportedAt: date }));
+                data.studies.forEach(s => sharedAllStudies.push({ ...s, _exportedAt: date, _exportedAtRaw: data.exportedAt || null }));
             }
         });
 
@@ -3046,8 +3251,8 @@ function doImportFromShared() {
     selectedIdxs.forEach(i => {
         const s = sharedAllStudies[i];
         if (!s || existingIds.has(s.id)) return;
-        const { _exportedAt, ...study } = s;
-        studiesState = { ...studiesState, studies: [...studiesState.studies, { ...study, tags: study.tags || [], entries: study.entries || [] }] };
+        const { _exportedAt, _exportedAtRaw, ...study } = s;
+        studiesState = { ...studiesState, studies: [...studiesState.studies, { ...study, tags: study.tags || [], entries: study.entries || [], exportedAt: _exportedAtRaw || null }] };
         existingIds.add(s.id);
         added++;
         lastId = s.id;
