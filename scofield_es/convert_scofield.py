@@ -10,6 +10,11 @@ DB = Path(__file__).parent / 'BE-Scofield.cmt.mybible'
 OUT = Path(__file__).parent.parent / 'commentary-scofield.json'
 
 def clean(html):
+    # Eliminar el versículo inicial (antes del primer <br/><br/>)
+    sep = '<br/><br/>'
+    idx = html.find(sep)
+    if idx != -1:
+        html = html[idx + len(sep):]
     # Eliminar tags HTML
     text = re.sub(r'<[^>]+>', ' ', html)
     # Decodificar entidades básicas
