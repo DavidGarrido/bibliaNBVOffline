@@ -258,7 +258,7 @@ function showReaderPaged(book, chapter) {
     elements.versesContent.innerHTML = '';
     elements.chapNav.style.display = 'none';
 
-    // Fase 1: renderizar en div oculto para medir alturas
+    // Fase 1: renderizar en div oculto para medir alturas (incluye notas si hay comentario)
     const measurer = document.createElement('div');
     measurer.style.visibility = 'hidden';
     chapter.v.forEach(v => {
@@ -266,6 +266,16 @@ function showReaderPaged(book, chapter) {
         p.className = 'verse';
         p.innerHTML = `<span class="v-num">${v.n}</span><span class="v-text"> ${v.t}</span>`;
         measurer.appendChild(p);
+        if (commentaryData) {
+            const key = `${book.id}_${chapter.n}_${v.n}`;
+            const note = commentaryData[key];
+            if (note) {
+                const noteEl = document.createElement('div');
+                noteEl.className = 'commentary-note';
+                noteEl.innerHTML = `<span class="cn-label">${getCommentaryLabel()}</span>${note}`;
+                measurer.appendChild(noteEl);
+            }
+        }
     });
     elements.versesContent.appendChild(measurer);
 
@@ -283,12 +293,13 @@ function showReaderPaged(book, chapter) {
         elements.versesContent.style.height = pageHeight + 'px';
 
         // Fase 2: calcular cortes por índice de versículo
+        // El slot de cada verso incluye la nota: su fondo es el offsetTop del siguiente verso
         const verseEls = [...measurer.querySelectorAll('.verse')];
         pageBreaks = [0];
         let pageStart = 0;
         for (let i = 0; i < verseEls.length; i++) {
-            const verseBottom = verseEls[i].offsetTop + verseEls[i].offsetHeight;
-            if (verseBottom - pageStart > pageHeight) {
+            const slotEnd = verseEls[i + 1] ? verseEls[i + 1].offsetTop : measurer.scrollHeight;
+            if (slotEnd - pageStart > pageHeight) {
                 pageBreaks.push(i);
                 pageStart = verseEls[i].offsetTop;
             }
