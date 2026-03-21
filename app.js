@@ -9,6 +9,11 @@ const bibleCache = {};
 let readingMode = localStorage.getItem('bible-reading-mode') || 'paged';
 let chapterObserver = null;
 
+// ── Comentarios bíblicos ──────────────────────────────────────
+let commentaries = [];
+let commentaryData = null;
+let commentaryCache = {};
+
 // Estado del modo páginas
 let currentPageNum = 0;
 let totalPageCount = 0;
@@ -67,6 +72,100 @@ async function init() {
     elements.translationSelect.value = saved;
 
     await loadBible(saved);
+    await initCommentaries();
+}
+
+async function initCommentaries() {
+    try {
+        const res = await fetch('commentaries.json');
+        commentaries = await res.json();
+    } catch (e) {
+        commentaries = [];
+    }
+
+    const select = document.getElementById('cfg-commentary-select');
+    if (!select) return;
+
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = 'Ninguno';
+    select.appendChild(noneOpt);
+
+    commentaries.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.label;
+        select.appendChild(opt);
+    });
+
+    const savedCommentary = localStorage.getItem('bible-commentary') || '';
+    select.value = savedCommentary;
+
+    select.addEventListener('change', async () => {
+        const id = select.value;
+        localStorage.setItem('bible-commentary', id);
+        commentaryData = null;
+        if (id) await loadCommentary(id);
+        reapplyCommentaryNotes();
+    });
+
+    if (savedCommentary) await loadCommentary(savedCommentary);
+}
+
+async function loadCommentary(id) {
+    if (commentaryCache[id]) {
+        commentaryData = commentaryCache[id];
+        return;
+    }
+    const c = commentaries.find(c => c.id === id);
+    if (!c) return;
+    try {
+        const res = await fetch(c.file);
+        commentaryData = await res.json();
+        commentaryCache[id] = commentaryData;
+    } catch (e) {
+        commentaryData = null;
+    }
+}
+
+function getCommentaryLabel() {
+    const id = localStorage.getItem('bible-commentary') || '';
+    const c = commentaries.find(c => c.id === id);
+    return c ? c.label.split(' ')[0] : '';
+}
+
+function injectCommentaryNotes(container, bookId, fixedChapN = null) {
+    if (!commentaryData || !bookId) return;
+    container.querySelectorAll('.verse').forEach(verseEl => {
+        const verseN = parseInt(verseEl.querySelector('.v-num')?.textContent);
+        const chapN = fixedChapN ?? parseInt(verseEl.getAttribute('data-chap'));
+        if (!chapN || !verseN) return;
+        const key = `${bookId}_${chapN}_${verseN}`;
+        const note = commentaryData[key];
+        if (!note) return;
+        // Evitar duplicar
+        if (verseEl.nextSibling && verseEl.nextSibling.classList?.contains('commentary-note')) return;
+        const noteEl = document.createElement('div');
+        noteEl.className = 'commentary-note';
+        noteEl.innerHTML = `<span class="cn-label">${getCommentaryLabel()}</span>${note}`;
+        verseEl.after(noteEl);
+    });
+}
+
+function removeCommentaryNotes(container) {
+    container.querySelectorAll('.commentary-note').forEach(el => el.remove());
+}
+
+function reapplyCommentaryNotes() {
+    if (!currentBook || elements.viewReader.style.display !== 'block') return;
+    const container = readingMode === 'paged'
+        ? document.getElementById('pages-strip')
+        : elements.versesContent;
+    if (!container) return;
+    removeCommentaryNotes(container);
+    if (commentaryData) {
+        injectCommentaryNotes(container, currentBook.id, readingMode === 'paged' ? currentChapter?.n : null);
+    }
 }
 
 async function loadBible(translationId, restorePosition = true) {
@@ -249,6 +348,7 @@ function showReaderPaged(book, chapter) {
         strip.style.transform = `translateX(-${currentPageNum * pageWidth}px)`;
         updatePageIndicator();
         applyStudyMarkers(strip, chapter.n);
+        injectCommentaryNotes(strip, book.id, chapter.n);
 
         if (flashVerseN !== null) {
             const page = strip.children[currentPageNum];
@@ -357,6 +457,7 @@ function showReaderContinuous(book, chapter) {
 
     elements.versesContent.querySelectorAll('.chap-header').forEach(h => chapterObserver.observe(h));
     applyStudyMarkers(elements.versesContent);
+    injectCommentaryNotes(elements.versesContent, book.id);
 
     switchView('reader');
 
