@@ -149,6 +149,7 @@ function injectCommentaryNotes(container, bookId, fixedChapN = null) {
         noteEl.className = 'commentary-note';
         noteEl.innerHTML = `<span class="cn-label">${getCommentaryLabel()}</span>${note}`;
         verseEl.after(noteEl);
+        attachNoteRefListeners(noteEl);
     });
 }
 
