@@ -2,5 +2,8 @@
   {"id": "nbv",     "label": "NBV — Nueva Biblia Viva",          "file": "bible-nbv.json"},
   {"id": "rvr1960", "label": "RVR1960 — Reina Valera 1960",      "file": "bible-rvr1960.json"},
   {"id": "nvi",     "label": "NVI — Nueva Versión Internacional", "file": "bible-nvi.json"},
-  {"id": "dhh",     "label": "DHH — Dios Habla Hoy",             "file": "bible-dhh.json"}
+  {"id": "dhh",     "label": "DHH — Dios Habla Hoy",             "file": "bible-dhh.json"},
+  {"id": "tla",     "label": "TLA — Traducción en Lenguaje Actual", "file": "bible-tla.json"},
+  {"id": "ntv",     "label": "NTV — Nueva Traducción Viviente",   "file": "bible-ntv.json"},
+  {"id": "oso",     "label": "Biblia del Oso (1569)",            "file": "bible-oso.json"}
 ]
