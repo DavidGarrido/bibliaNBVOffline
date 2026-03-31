@@ -88,12 +88,33 @@
     <div id="verse-actions" class="va-hidden">
         <span id="va-ref"></span>
         <div class="va-buttons">
-            <button id="va-save" class="va-btn" title="Guardar en estudio">🔖 Guardar</button>
-            <button id="va-compare" class="va-btn" title="Ver en todas las versiones">⚖️ Comparar</button>
-            <button id="va-image" class="va-btn" title="Generar imagen">🖼️ Imagen</button>
-            <button id="va-crossref" class="va-btn" title="Referencias cruzadas">🔗 Refs</button>
+            <button id="va-save" class="va-btn" title="Guardar en estudio">🔖</button>
+            <button id="va-ai" class="va-btn" title="Preguntar a la IA">🤖 IA</button>
+            <button id="va-crossref" class="va-btn" title="Referencias cruzadas">🔗</button>
+            <button id="va-compare" class="va-btn" title="Ver en todas las versiones">⚖️</button>
+            <button id="va-image" class="va-btn" title="Generar imagen">🖼️</button>
         </div>
     </div>
+
+    <!-- Sheet IA -->
+    <div id="ai-sheet" class="ais-hidden">
+        <div id="ais-overlay"></div>
+        <div id="ais-box">
+            <div id="ais-header">
+                <span>🤖 Pregunta bíblica</span>
+                <button id="ais-close" class="icon-btn">✕</button>
+            </div>
+            <div id="ais-verse-ctx"></div>
+            <div id="ais-response" class="ais-response-hidden"></div>
+            <div id="ais-input-area">
+                <textarea id="ais-question" placeholder="¿Qué quieres saber sobre estos versículos?" rows="3"></textarea>
+                <button id="ais-send" class="cfg-toggle-btn">Preguntar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Indicador flotante cuando IA está minimizada -->
+    <button id="ai-minimized-indicator" class="ais-minimized-btn ais-min-hidden">🤖 IA</button>
 
     <!-- Modal referencias cruzadas -->
     <div id="crossref-modal" class="crm-hidden">
@@ -455,6 +476,25 @@
                         <button id="cfg-notify-save" class="cfg-toggle-btn">Guardar</button>
                     </div>
                     <div id="cfg-notify-status" class="cfg-notify-status"></div>
+                </div>
+
+                <div class="cfg-item cfg-item--ai">
+                    <div class="cfg-item-info">
+                        <div class="cfg-item-label">🤖 Inteligencia Artificial</div>
+                        <div class="cfg-item-desc">Conecta tu proveedor de IA para generar estudios bíblicos desde cualquier versículo.</div>
+                    </div>
+                    <div class="cfg-ai-row">
+                        <select id="cfg-ai-provider" class="cfg-commentary-select">
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="gemini">Gemini</option>
+                        </select>
+                    </div>
+                    <div class="cfg-ai-row">
+                        <input type="password" id="cfg-ai-key" class="cfg-email-input" placeholder="API Key" autocomplete="off">
+                        <button id="cfg-ai-save" class="cfg-toggle-btn">Guardar</button>
+                    </div>
+                    <div id="cfg-ai-status" class="cfg-notify-status"></div>
                 </div>
             </div>
         </div>

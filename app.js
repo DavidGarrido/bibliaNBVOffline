@@ -3021,7 +3021,275 @@ function openConfigModal() {
     updateRestorePositionToggleText();
     updateAutosaveToggleText();
     updateNotifyEmailDisplay();
+    updateAIConfigDisplay();
     document.getElementById('config-modal').classList.remove('cfg-hidden');
+}
+
+// ── Configuración de IA ───────────────────────────────────────
+
+function getAIConfig() {
+    return {
+        provider: localStorage.getItem('ai-provider') || 'deepseek',
+        key: localStorage.getItem('ai-key') || ''
+    };
+}
+
+function updateAIConfigDisplay() {
+    const { provider, key } = getAIConfig();
+    document.getElementById('cfg-ai-provider').value = provider;
+    document.getElementById('cfg-ai-key').value = key ? '••••••••••••••••' : '';
+    document.getElementById('cfg-ai-key').dataset.saved = key ? '1' : '';
+}
+
+document.getElementById('cfg-ai-key').addEventListener('focus', function () {
+    if (this.dataset.saved) {
+        this.value = '';
+        this.dataset.saved = '';
+    }
+});
+
+document.getElementById('cfg-ai-save').addEventListener('click', function () {
+    const provider = document.getElementById('cfg-ai-provider').value;
+    const keyInput = document.getElementById('cfg-ai-key');
+    const key = keyInput.value.trim();
+    const status = document.getElementById('cfg-ai-status');
+
+    if (!key) {
+        status.textContent = 'Ingresa una API key.';
+        status.style.color = 'red';
+        return;
+    }
+
+    localStorage.setItem('ai-provider', provider);
+    localStorage.setItem('ai-key', key);
+    keyInput.value = '••••••••••••••••';
+    keyInput.dataset.saved = '1';
+    status.textContent = '✓ Guardado correctamente.';
+    status.style.color = '';
+    setTimeout(() => { status.textContent = ''; }, 3000);
+});
+
+// ── Sheet IA ─────────────────────────────────────────────────
+
+let aiVerseContexts = []; // Array de contextos (versículos)
+let aiConversation = [];  // Historial de mensajes
+let aiMinimized = false;
+
+function updateAIContextDisplay() {
+    const ctxEl = document.getElementById('ais-verse-ctx');
+    if (aiVerseContexts.length === 0) {
+        ctxEl.innerHTML = '';
+        return;
+    }
+    if (aiVerseContexts.length === 1) {
+        const ctx = aiVerseContexts[0];
+        ctxEl.innerHTML = '<strong>Contexto:</strong> ' + ctx.ref + ' — "' + ctx.text + '"';
+    } else {
+        ctxEl.innerHTML = '<strong>Contexto (' + aiVerseContexts.length + ' versículos):</strong> ' + aiVerseContexts.map(function (c) { return c.ref; }).join(', ');
+    }
+}
+
+function addAIContext(ref, text, bookId, chapN, verseN) {
+    // Evitar duplicados
+    var exists = aiVerseContexts.some(function (c) { return c.ref === ref; });
+    if (!exists) {
+        aiVerseContexts.push({ ref: ref, text: text, bookId: bookId, chapN: chapN, verseN: verseN });
+    }
+    updateAIContextDisplay();
+}
+
+function buildSystemPrompt() {
+    var ctxText = aiVerseContexts.map(function (c) { return c.ref + ' — "' + c.text + '"'; }).join('; ');
+    return 'Eres un pastor y teologo cristiano evangelico. Respondes preguntas biblicas siempre desde las Escrituras. Usa exclusivamente la Biblia como autoridad. No des consejos psicologicos, filosoficos ni seculares. Si la pregunta no tiene respuesta biblica directa, dilo con honestidad. Responde siempre en espanol. Se conciso: maximo 3 parrafos. Los versiculos de contexto son: ' + ctxText;
+}
+
+function showAISheet() {
+    document.getElementById('ai-sheet').classList.remove('ais-hidden');
+    document.getElementById('ai-minimized-indicator').classList.add('ais-min-hidden');
+    aiMinimized = false;
+}
+
+function minimizeAISheet() {
+    document.getElementById('ai-sheet').classList.add('ais-hidden');
+    document.getElementById('ai-minimized-indicator').classList.remove('ais-min-hidden');
+    aiMinimized = true;
+}
+
+document.getElementById('va-ai').addEventListener('click', function () {
+    if (!selectedVerseEl) return;
+    const { verseN, chapN } = getVerseInfo(selectedVerseEl);
+    const ref = currentBook.name + ' ' + chapN + ':' + verseN;
+    const verseText = selectedVerseEl.querySelector('.v-text')?.textContent || '';
+
+    var sheetVisible = !document.getElementById('ai-sheet').classList.contains('ais-hidden');
+
+    // Si es una conversación nueva (sin conversación Y sheet oculto), reiniciar todo
+    if (aiConversation.length === 0 && !sheetVisible && !aiMinimized) {
+        aiVerseContexts = [];
+        aiConversation = [];
+    }
+
+    // Añadir al contexto
+    addAIContext(ref, verseText, currentBook.id, chapN, verseN);
+
+    // Limpiar pregunta anterior pero mantener respuesta previa
+    document.getElementById('ais-question').value = '';
+
+    // Si el sheet está minimizado, restaurar; si ya está abierto, solo actualizar contexto
+    if (!sheetVisible) {
+        showAISheet();
+    }
+});
+
+// Botón flotante para restaurar cuando está minimizado
+document.getElementById('ai-minimized-indicator').addEventListener('click', showAISheet);
+
+document.getElementById('ais-close').addEventListener('click', function () {
+    minimizeAISheet();
+});
+document.getElementById('ais-overlay').addEventListener('click', function () {
+    minimizeAISheet();
+});
+
+document.getElementById('ais-send').addEventListener('click', askAI);
+document.getElementById('ais-question').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        askAI();
+    }
+});
+
+async function askAI() {
+    const question = document.getElementById('ais-question').value.trim();
+    if (!question || aiVerseContexts.length === 0) return;
+
+    const { provider, key } = getAIConfig();
+    if (!key) {
+        alert('Configura tu API key en Ajustes primero.');
+        minimizeAISheet();
+        openConfigModal();
+        return;
+    }
+
+    const sendBtn = document.getElementById('ais-send');
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Consultando…';
+
+    // Construir el historial de conversación
+    var messages = [{ role: 'system', content: buildSystemPrompt() }];
+    // Añadir conversación previa
+    aiConversation.forEach(function (msg) {
+        messages.push(msg);
+    });
+    // Añadir la pregunta actual
+    messages.push({ role: 'user', content: question });
+
+    const payload = {
+        model: provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini',
+        messages: messages,
+        max_tokens: 1000,
+        temperature: 0.7
+    };
+
+    const endpoint = provider === 'deepseek'
+        ? 'https://api.deepseek.com/v1/chat/completions'
+        : provider === 'openai'
+            ? 'https://api.openai.com/v1/chat/completions'
+            : 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+    try {
+        let res;
+        if (provider === 'gemini') {
+            // Google Gemini
+            const geminiBody = JSON.stringify({
+                contents: [{ parts: [{ text: question }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            });
+            res = await fetch(endpoint + '?key=' + key, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: geminiBody
+            });
+            const data = await res.json();
+            const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No hubo respuesta.';
+            document.getElementById('ais-response').innerHTML = linkifyAIResponse(reply);
+            setupAIResponseLinks();
+            // Añadir al historial
+            aiConversation.push({ role: 'user', content: question });
+            aiConversation.push({ role: 'assistant', content: reply });
+            document.getElementById('ais-question').value = '';
+        } else {
+            // DeepSeek / OpenAI - headers como strings plain
+            const bodyStr = JSON.stringify(payload);
+            const authHeader = 'Bearer ' + key;
+            res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authHeader
+                },
+                body: bodyStr
+            });
+            const data = await res.json();
+            const reply = data?.choices?.[0]?.message?.content || data?.error?.message || 'No hubo respuesta.';
+            document.getElementById('ais-response').innerHTML = linkifyAIResponse(reply);
+            setupAIResponseLinks();
+            // Añadir al historial
+            aiConversation.push({ role: 'user', content: question });
+            aiConversation.push({ role: 'assistant', content: reply });
+            document.getElementById('ais-question').value = '';
+        }
+        document.getElementById('ais-response').classList.remove('ais-response-hidden');
+    } catch (e) {
+        document.getElementById('ais-response').textContent = 'Error: ' + e.message;
+        document.getElementById('ais-response').classList.remove('ais-response-hidden');
+    }
+
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Preguntar';
+}
+
+// Detectar referencias bíblicas en la respuesta y hacerlas clicables
+function linkifyAIResponse(text) {
+    if (!text || !bibleData) return text;
+    // Regex: libro capítulo:verso o libro capítulo:verso-verso
+    // Acepta abreviaciones comunes
+    const bookPatterns = [
+        'Génesis', 'Exodo', 'Levítico', 'Números', 'Deuteronomio', 'Josué', 'Jueces', 'Ruth', '1 Samuel', '2 Samuel', '1 Reyes', '2 Reyes', '1 Crónicas', '2 Crónicas', 'Esdras', 'Nehemías', 'Tobías', 'Judit', 'Ester', 'Job', 'Salmos', 'Proverbios', 'Eclesiastés', 'Cantares', 'Isaías', 'Jeremías', 'Lamentaciones', 'Baruc', 'Ezequiel', 'Daniel', 'Oseas', 'Joel', 'Amós', 'Abdías', 'Jonás', 'Miqueas', 'Nahum', 'Habacuc', 'Sofonías', 'Hageo', 'Zacarías', 'Malaquías', 'Mateo', 'Marcos', 'Lucas', 'Juan', 'Hechos', 'Romanos', '1 Corintios', '2 Corintios', 'Gálatas', 'Efesios', 'Filipenses', 'Colosenses', '1 Tesalonicenses', '2 Tesalonicenses', '1 Timoteo', '2 Timoteo', 'Tito', 'Filemón', 'Hebreos', 'Santiago', '1 Pedro', '2 Pedro', '1 Juan', '2 Juan', '3 Juan', 'Judas', 'Apocalipsis',
+        'Gen', 'Ex', 'Lev', 'Num', 'Dt', 'Jos', 'Jue', 'Ruth', '1 Sam', '2 Sam', '1 Rey', '2 Rey', '1 Cr', '2 Cr', 'Esd', 'Neh', 'Tob', 'Jdt', 'Est', 'Job', 'Sal', 'Prov', 'Ecl', 'Cant', 'Is', 'Jer', 'Lam', 'Bar', 'Ez', 'Dan', 'Os', 'Jl', 'Am', 'Abd', 'Jon', 'Miq', 'Nah', 'Hab', 'Sof', 'Hag', 'Zac', 'Mal', 'Mt', 'Mc', 'Lc', 'Jn', 'Hch', 'Rom', '1 Co', '2 Co', 'Gál', 'Ef', 'Flp', 'Col', '1 Tes', '2 Tes', '1 Tim', '2 Tim', 'Tit', 'Flm', 'Heb', 'Stg', '1 Pe', '2 Pe', '1 Jn', '2 Jn', '3 Jn', 'Jud', 'Ap'
+    ].join('|');
+    const regex = new RegExp('(' + bookPatterns + ')\\s+(\\d+)(?::(\\d+)(?:-(\\d+))?)?', 'gi');
+    return text.replace(regex, function (match, book, chap, verse, verseEnd) {
+        const parsed = parseQuery(book + ' ' + chap + (verse ? ':' + verse + (verseEnd ? '-' + verseEnd : '') : ''));
+        if (parsed && parsed.books && parsed.books[0]) {
+            const b = parsed.books[0];
+            const ref = b.name + ' ' + chap + ':' + (verse || '1') + (verseEnd ? '-' + verseEnd : '');
+            return '<span class="ais-ref" data-book="' + b.id + '" data-chap="' + chap + '" data-verse="' + (verse || '1') + '" data-verse-end="' + (verseEnd || '') + '">' + ref + '</span>';
+        }
+        return match;
+    });
+}
+
+function setupAIResponseLinks() {
+    const responseEl = document.getElementById('ais-response');
+    responseEl.querySelectorAll('.ais-ref').forEach(function (el) {
+        el.addEventListener('click', function () {
+            const bookId = parseInt(this.dataset.book);
+            const chap = parseInt(this.dataset.chap);
+            const verse = parseInt(this.dataset.verse);
+            const book = bibleData.find(function (b) { return b.id === bookId; });
+            if (!book) return;
+            const chapter = book.chapters.find(function (c) { return c.n === chap; });
+            if (!chapter) return;
+            // Usar el mismo patrón que studyNavNavigateToEntry
+            pendingVerse = verse;
+            pendingChapterN = chap;
+            minimizeAISheet();
+            cleanupPageMode();
+            showChapters(book);
+            showReader(book, chapter);
+        });
+    });
 }
 
 function closeConfigModal() {
