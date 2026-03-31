@@ -1533,7 +1533,7 @@ h2 {
     border-radius: 16px 16px 0 0;
     width: 100%;
     max-width: 600px;
-    max-height: 72vh;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1576,7 +1576,7 @@ h2 {
 
 #ns-note-input {
     width: 100%;
-    min-height: 100px;
+    min-height: 160px;
     padding: 12px;
     border: 1px solid var(--tg-hint-color, #999);
     border-radius: 8px;
@@ -2746,9 +2746,11 @@ h2 {
     padding: 12px 20px;
     font-size: 14px;
     font-weight: 600;
-    cursor: pointer;
+    cursor: grab;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     animation: vimSlideUp 0.2s ease;
+    touch-action: none;
+    user-select: none;
 }
 .ais-min-hidden { display: none; }
 

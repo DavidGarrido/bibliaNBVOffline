@@ -3149,6 +3149,60 @@ document.getElementById('va-ai').addEventListener('click', function () {
 });
 
 // Botón flotante para restaurar cuando está minimizado
+// ── Botón flotante IA: draggable ─────────────────────────────
+(function () {
+    const btn = document.getElementById('ai-minimized-indicator');
+    let dragging = false, startX, startY, origLeft, origTop, moved;
+
+    function applyPos(left, top) {
+        const maxX = window.innerWidth - btn.offsetWidth;
+        const maxY = window.innerHeight - btn.offsetHeight;
+        left = Math.max(0, Math.min(left, maxX));
+        top  = Math.max(0, Math.min(top,  maxY));
+        btn.style.right  = 'auto';
+        btn.style.bottom = 'auto';
+        btn.style.left   = left + 'px';
+        btn.style.top    = top  + 'px';
+        localStorage.setItem('ai-btn-pos', JSON.stringify({ left, top }));
+    }
+
+    // Restaurar posición guardada
+    try {
+        const saved = JSON.parse(localStorage.getItem('ai-btn-pos'));
+        if (saved) applyPos(saved.left, saved.top);
+    } catch (e) {}
+
+    function onStart(cx, cy) {
+        dragging = true;
+        moved = false;
+        const rect = btn.getBoundingClientRect();
+        origLeft = rect.left;
+        origTop  = rect.top;
+        startX = cx;
+        startY = cy;
+    }
+    function onMove(cx, cy) {
+        if (!dragging) return;
+        const dx = cx - startX, dy = cy - startY;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+        if (moved) applyPos(origLeft + dx, origTop + dy);
+    }
+    function onEnd() {
+        dragging = false;
+    }
+
+    btn.addEventListener('mousedown',  e => { onStart(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', e => { onMove(e.clientX, e.clientY); });
+    window.addEventListener('mouseup',   () => onEnd());
+
+    btn.addEventListener('touchstart', e => { const t = e.touches[0]; onStart(t.clientX, t.clientY); }, { passive: true });
+    window.addEventListener('touchmove', e => { if (dragging) { e.preventDefault(); const t = e.touches[0]; onMove(t.clientX, t.clientY); } }, { passive: false });
+    window.addEventListener('touchend',  () => onEnd());
+
+    // Solo abrir el sheet si no hubo movimiento real
+    btn.addEventListener('click', e => { if (moved) { moved = false; e.stopImmediatePropagation(); } });
+})();
+
 document.getElementById('ai-minimized-indicator').addEventListener('click', showAISheet);
 
 document.getElementById('ais-close').addEventListener('click', function () {
