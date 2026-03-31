@@ -3028,9 +3028,10 @@ function openConfigModal() {
 // ── Configuración de IA ───────────────────────────────────────
 
 function getAIConfig() {
+    const rawKey = localStorage.getItem('ai-key') || '';
     return {
         provider: localStorage.getItem('ai-provider') || 'deepseek',
-        key: localStorage.getItem('ai-key') || ''
+        key: rawKey.replace(/[^\x20-\x7E]/g, '').trim()
     };
 }
 
@@ -3061,7 +3062,8 @@ document.getElementById('cfg-ai-save').addEventListener('click', function () {
     }
 
     localStorage.setItem('ai-provider', provider);
-    localStorage.setItem('ai-key', key);
+    // Eliminar caracteres no-ASCII que rompen los headers HTTP en móvil
+    localStorage.setItem('ai-key', key.replace(/[^\x20-\x7E]/g, '').trim());
     keyInput.value = '••••••••••••••••';
     keyInput.dataset.saved = '1';
     status.textContent = '✓ Guardado correctamente.';
@@ -3074,6 +3076,7 @@ document.getElementById('cfg-ai-save').addEventListener('click', function () {
 let aiVerseContexts = []; // Array de contextos (versículos)
 let aiConversation = [];  // Historial de mensajes
 let aiMinimized = false;
+let aiLastNoteText = '';  // Texto plano de la última respuesta para guardar como nota
 
 function updateAIContextDisplay() {
     const ctxEl = document.getElementById('ais-verse-ctx');
@@ -3127,6 +3130,10 @@ document.getElementById('va-ai').addEventListener('click', function () {
     if (aiConversation.length === 0 && !sheetVisible && !aiMinimized) {
         aiVerseContexts = [];
         aiConversation = [];
+        aiLastNoteText = '';
+        document.getElementById('ais-save-area').classList.add('ais-save-hidden');
+        document.getElementById('ais-response').classList.add('ais-response-hidden');
+        document.getElementById('ais-response').innerHTML = '';
     }
 
     // Añadir al contexto
@@ -3149,6 +3156,14 @@ document.getElementById('ais-close').addEventListener('click', function () {
 });
 document.getElementById('ais-overlay').addEventListener('click', function () {
     minimizeAISheet();
+});
+
+document.getElementById('ais-save-note').addEventListener('click', function () {
+    if (!aiLastNoteText) return;
+    minimizeAISheet();
+    openNoteSheet(null);
+    document.getElementById('ns-title').textContent = 'Guardar respuesta IA';
+    document.getElementById('ns-note-input').value = aiLastNoteText;
 });
 
 document.getElementById('ais-send').addEventListener('click', askAI);
@@ -3217,6 +3232,8 @@ async function askAI() {
             // Añadir al historial
             aiConversation.push({ role: 'user', content: question });
             aiConversation.push({ role: 'assistant', content: reply });
+            aiLastNoteText = '🤖 ' + aiVerseContexts.map(c => c.ref).join(', ') + '\n\nPregunta: ' + question + '\n\nRespuesta:\n' + reply;
+            document.getElementById('ais-save-area').classList.remove('ais-save-hidden');
             document.getElementById('ais-question').value = '';
         } else {
             // DeepSeek / OpenAI - headers como strings plain
@@ -3237,6 +3254,8 @@ async function askAI() {
             // Añadir al historial
             aiConversation.push({ role: 'user', content: question });
             aiConversation.push({ role: 'assistant', content: reply });
+            aiLastNoteText = '🤖 ' + aiVerseContexts.map(c => c.ref).join(', ') + '\n\nPregunta: ' + question + '\n\nRespuesta:\n' + reply;
+            document.getElementById('ais-save-area').classList.remove('ais-save-hidden');
             document.getElementById('ais-question').value = '';
         }
         document.getElementById('ais-response').classList.remove('ais-response-hidden');

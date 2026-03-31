@@ -2752,6 +2752,23 @@ h2 {
 }
 .ais-min-hidden { display: none; }
 
+#ais-save-area {
+    padding: 0 20px 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+.ais-save-hidden { display: none !important; }
+.ais-save-btn {
+    background: var(--tg-button-color, var(--tg-theme-button-color));
+    color: var(--tg-button-text-color, var(--tg-theme-button-text-color));
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
 /* ── Botón suscripción en sheet de estudio ─────────────────── */
 
 .ss-notify-btn {
