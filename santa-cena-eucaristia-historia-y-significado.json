@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "exportedAt": "2026-03-19T12:00:00.000Z",
+  "studies": [
+    {
+      "id": "santa-cena-eucaristia-historia-y-significado",
+      "name": "La Santa Cena: historia, significado y misterio",
+      "tags": ["doctrina", "historia de la iglesia", "escuela", "grupos pequeños"],
+      "createdAt": "2026-03-19T12:00:00.000Z",
+      "entries": [
+        {
+          "id": "entry-001",
+          "type": "note",
+          "ref": null,
+          "bookId": null,
+          "chapN": null,
+          "verseN": null,
+          "text": "La Santa Cena —llamada Eucaristía por los católicos y ortodoxos, comunión por los protestantes— es uno de los pocos actos que unen a todos los cristianos de todos los tiempos, culturas y denominaciones. Cada semana, un católico en Roma, un bautista en Brasil, un ortodoxo en Moscú y un pentecostal en Argentina toman el pan y la copa y recuerdan a Jesús. Dos mil años, todos los continentes, el mismo gesto. Este estudio recorre los orígenes bíblicos de ese gesto, el debate histórico sobre su significado y el llamado a recuperar su dimensión comunitaria.",
+          "translationId": null,
+          "note": "",
+          "savedAt": "2026-03-19T12:00:00.000Z"
+        },
+        {
+          "id": "entry-002",
+          "type": "note",
+          "ref": null,
+          "bookId": null,
+          "chapN": null,
+          "verseN": null,
+          "text": "## 1. La raíz judía: el Pesaj\n\nLa última cena no fue una cena cualquiera: Jesús estaba celebrando el Pesaj (Pascua judía), el ritual más antiguo del pueblo de Israel, que conmemoraba la liberación de Egipto. En esa mesa había pan sin levadura (matza, el pan de la aflicción que comían los esclavos) y cuatro copas de vino, cada una ligada a una de las promesas de Dios en Éxodo 6:6-8. La comunidad se reunía para revivir el éxodo: volver a cruzar el Mar Rojo de alguna manera. Es sobre esa estructura milenaria donde Jesús hace algo radicalmente nuevo.",
+          "translationId": null,
+          "note": "",
+          "savedAt": "2026-03-19T12:01:00.000Z"
+        },
+        {
+          "id": "entry-003",
+          "type": "verse",
+          "ref": "Éxodo 6:6",
+          "bookId": 2,
+          "chapN": 6,
+          "verseN": 6,
+          "verseEnd": 8,
+          "text": "Por lo tanto, diles a los descendientes de Israel que usaré todo mi poder y realizaré grandes milagros, para sacarlos de la esclavitud y hacerlos libres.",
+          "translationId": "nbv",
+          "note": "Las cuatro promesas de Dios en estos versículos («sacaré», «libraré», «redimiré», «tomaré») eran recordadas en la Pascua con cuatro copas de vino. La Santa Cena hereda esta estructura: así como Israel recordaba su liberación de la esclavitud, el creyente recuerda su liberación del pecado. La copa que Jesús toma esa noche resuena con siglos de promesas cumplidas.",
+          "savedAt": "2026-03-19T12:02:00.000Z"
+        },
+        {
+          "id": "entry-004",
+          "type": "verse",
+          "ref": "Éxodo 12:12",
+          "bookId": 2,
+          "chapN": 12,
+          "verseN": 12,
+          "verseEnd": 13,
+          "text": "»Esa noche yo pasaré por la tierra de Egipto, y daré muerte a todos los primogénitos de los hombres y de los animales de Egipto, y así ejecutaré mi juicio sobre todos los dioses de Egipto; porque yo soy el Señor.",
+          "translationId": "nbv",
+          "note": "La sangre del cordero sobre el dintel de las casas israelitas era lo que apartaba la muerte. Esta imagen —la sangre del inocente que cubre y salva— es la figura central que Jesús resignifica en la última cena: él es el cordero cuya sangre sella un nuevo pacto. Juan el Bautista lo llamará «el Cordero de Dios que quita el pecado del mundo» (Juan 1:29). La copa de la Pascua se convierte así en la copa del nuevo pacto.",
+          "savedAt": "2026-03-19T12:03:00.000Z"
+        },
+        {
+          "id": "entry-005",
+          "type": "note",
+          "ref": null,
+          "bookId": null,
+          "chapN": null,
+          "verseN": null,
+          "text": "## 2. La institución: Jesús reinterpreta la Pascua\n\nEn aquella última cena, Jesús toma los elementos conocidos —el pan sin levadura y la copa— y les da un significado completamente nuevo. Conecta el pasado (la liberación de Egipto), el presente (su cuerpo entregado, su sangre derramada) y el futuro (hacedlo hasta que yo vuelva). Ningún profeta ni maestro judío había hecho algo así: tomar el ritual más sagrado de su pueblo y decir «yo soy el cumplimiento de todo esto». Esta audacia solo tiene sentido si quien habla es en verdad el Mesías.",
+          "translationId": null,
+          "note": "",
+          "savedAt": "2026-03-19T12:04:00.000Z"
+        },
+        {
+          "id": "entry-006",
+          "type": "verse",
+          "ref": "Lucas 22:14",
+          "bookId": 42,
+          "chapN": 22,
+          "verseN": 14,
+          "verseEnd": 20,
+          "text": "Cuando llegó la hora, Jesús y sus apóstoles se sentaron a la mesa.",
+          "translationId": "nbv",
+          "note": "Lucas presenta la cena con notable detalle litúrgico. Dos elementos clave: (1) Jesús expresa un deseo profundo («había deseado muchísimo comer esta Pascua con ustedes», v. 15) — la cena no fue una obligación sino un acto de amor deliberado. (2) El doble gesto del pan (v. 19) y la copa (v. 20) estructura lo que la iglesia repetiría por siglos: tomar, dar gracias, partir, dar. El «hagan esto para que se acuerden de mí» no es solo un mandato ritual sino una invitación a volver continuamente al centro de la fe.",
+          "savedAt": "2026-03-19T12:05:00.000Z"
+        },
+        {
+          "id": "entry-007",
+          "type": "verse",
+          "ref": "1 Corintios 11:23",
+          "bookId": 46,
+          "chapN": 11,
+          "verseN": 23,
+          "verseEnd": 26,
+          "text": "Esto es lo que el Señor me enseñó, y que ya les transmití antes: La noche en que Judas lo traicionó, el Señor Jesús tomó pan",
+          "translationId": "nbv",
+          "note": "Pablo recibe esta tradición directamente del Señor (no de los doce) y la transmite a Corinto. Tres datos notables: (1) La fecha es precisa: «la noche en que Judas lo traicionó», subrayando que Jesús compartió la mesa con su traidor. (2) El versículo 26 añade una dimensión que Lucas no incluye: la cena es un anuncio público de la muerte del Señor «hasta que él venga». Es simultáneamente memorial del pasado y proclamación de una esperanza futura. (3) La palabra «anunciando» (v. 26) implica que la cena tiene dimensión testimonial: celebrarla es predicar.",
+          "savedAt": "2026-03-19T12:06:00.000Z"
+        },
+        {
+          "id": "entry-008",
+          "type": "note",
+          "ref": null,
+          "bookId": null,
+          "chapN": null,
+          "verseN": null,
+          "text": "## 3. El gran debate: ¿literal o simbólico?\n\nEsta es la fractura más profunda del cristianismo en torno a la cena. Tiene sus raíces en Juan 6 y se formalizó a lo largo de la historia de la iglesia:\n\n**Posición literal (catolicismo romano):** El pan y el vino se convierten realmente en el cuerpo y la sangre de Cristo. La doctrina de la *transustanciación*, formulada por Tomás de Aquino y definida dogmáticamente en el Concilio de Letrán IV (1215) y Trento (1545-1563), enseña que cuando el sacerdote consagra el pan, la sustancia del pan desaparece y entra la sustancia del cuerpo de Cristo, aunque los accidentes (olor, textura, sabor) permanecen. Fundamento: las palabras «esto es mi cuerpo» tomadas en sentido literal.\n\n**Posición simbólico-memorial (Zuinglio, tradición bautista y evangélica):** Pan y copa son símbolos del cuerpo y la sangre; la cena es un acto de memoria y proclamación. Fundamento: Jesús usó constantemente metáforas en Juan («yo soy la puerta», «yo soy la vid»); lo finito no puede contener lo infinito.\n\n**Posición de Lutero (consubstanciación):** El cuerpo de Cristo está presente «en, con y bajo» el pan, sin que la sustancia del pan desaparezca.\n\n**Posición de Calvino (presencia espiritual real):** Cristo está presente de modo espiritual y real para el creyente que se acerca con fe, pero no de modo físico.\n\nEl debate entre Lutero y Zuinglio fue tan encendido que los separó definitivamente en 1529 (Coloquio de Marburgo), fragmentando el protestantismo naciente.",
+          "translationId": null,
+          "note": "",
+          "savedAt": "2026-03-19T12:07:00.000Z"
+        },
+        {
+          "id": "entry-009",
+          "type": "verse",
+          "ref": "Juan 6:53",
+          "bookId": 43,
+          "chapN": 6,
+          "verseN": 53,
+          "verseEnd": 56,
+          "text": "Jesús les dijo: ―Les aseguro que si no comen la carne del Hijo del hombre y no beben su sangre, no tienen realmente vida.",
+          "translationId": "nbv",
+          "note": "Este pasaje es el epicentro del debate. Quienes sostienen la presencia real señalan que Jesús no suavizó su afirmación cuando los discípulos la encontraron escandalosa («dura es esta palabra, ¿quién la va a poder oír?»), lo cual sugiere que hablaba en serio. Quienes la interpretan como metáfora señalan que en el mismo evangelio de Juan Jesús dice «yo soy la vid», «yo soy el pan de vida» (Juan 6:35) y «yo soy la puerta» sin que nadie entienda esas afirmaciones en sentido literal. Ambas posiciones tienen peso exegético. Lo que ninguna posición puede minimizar es la gravedad de las palabras: acceder a la vida eterna pasa por «comer» de Cristo, sea lo que sea que eso signifique exactamente.",
+          "savedAt": "2026-03-19T12:08:00.000Z"
+        },
+        {
+          "id": "entry-010",
+          "type": "note",
+          "ref": null,
+          "bookId": null,
+          "chapN": null,
+          "verseN": null,
+          "text": "## 4. El problema de Corinto: comer sin discernir\n\nPablo no entra en el debate literal/simbólico. Su preocupación es diferente y muy concreta: en Corinto la cena del Señor era una cena real. Los ricos llegaban primero, comían en exceso y se emborrachaban, mientras los pobres llegaban después y pasaban hambre. Pablo llama a esto «comer y beber indignamente». No se refiere a tener pecados no confesados (lectura que ha angustiado a generaciones de creyentes), sino a destrozar la unidad del cuerpo de Cristo comiendo sin considerar a los demás. «Discernir el cuerpo» (v. 29) probablemente significa reconocer que la iglesia entera es el cuerpo de Cristo, no solo que el pan es el cuerpo físico. La Santa Cena sin justicia y sin comunidad pierde su esencia.",
+          "translationId": null,
+          "note": "",
+          "savedAt": "2026-03-19T12:09:00.000Z"
+        },
+        {
+          "id": "entry-011",
+          "type": "verse",
+          "ref": "1 Corintios 11:27",
+          "bookId": 46,
+          "chapN": 11,
+          "verseN": 27,
+          "verseEnd": 29,
+          "text": "Así que si alguien come de este pan y bebe de esta copa del Señor indignamente, está pecando contra el cuerpo y la sangre del Señor.",
+          "translationId": "nbv",
+          "note": "«Comer indignamente» no describe la condición espiritual del comulgante individual, sino la manera en que se celebra la cena: con exclusión de los pobres, con desunión, sin amor. El «examinarse» del versículo 28 apunta a preguntarse: ¿estoy participando de esta mesa de una manera coherente con lo que ella representa? Una iglesia que celebra la comunión sin atender a sus miembros más vulnerables come y bebe «sin pensar en el cuerpo de Cristo» (v. 29), es decir, ignorando que ese cuerpo somos nosotros juntos.",
+          "savedAt": "2026-03-19T12:10:00.000Z"
+        },
+        {
+          "id": "entry-012",
+          "type": "verse",
+          "ref": "Juan 17:20",
+          "bookId": 43,
+          "chapN": 17,
+          "verseN": 20,
+          "verseEnd": 21,
+          "text": "»No ruego sólo por estos, sino también por los que van a creer en mí por medio del mensaje de ellos.",
+          "translationId": "nbv",
+          "note": "La oración sacerdotal de Jesús en Juan 17 resuena de fondo en toda la teología de la cena. «Que todos estén unidos» (v. 21) no es una aspiración ecuménica vaga: es el propósito evangelístico del Cuerpo de Cristo. La Santa Cena, practicada con auténtica unidad, es en sí misma una proclamación al mundo. La Didajé del siglo I recoge esta intuición: la iglesia dispersa se reunía a partir el pan como señal de unidad en medio de la persecución.",
+          "savedAt": "2026-03-19T12:11:00.000Z"
+        },
+        {
+          "id": "entry-013",
+          "type": "note",
+          "ref": null,
+          "bookId": null,
+          "chapN": null,
+          "verseN": null,
+          "text": "## 5. Recuperar la mesa: hacia una Santa Cena viva\n\nEl teólogo jesuita Henri de Lubac observó que hasta la Edad Media la Eucaristía era un evento que transformaba a la comunidad; a partir de la Edad Media se convirtió en un objeto sagrado que se adora. El foco pasó de lo que hacemos juntos a lo que está en el pan. Algo se perdió en ese cambio.\n\nEl teólogo guatemalteco Junior Zapata plantea la pregunta de otra manera: ¿cómo pasamos de una cena larga, ruidosa, con comida de verdad y mucho vino —la cena de Pascua donde Jesús instituyó la comunión, sentado con Judas, el que ya había negociado su traición— a un pedazo de oblea y un vasito de jugo de plástico con un poquito de jugo que no sacia?\n\n¿Cómo llegamos a una mesa de admisión restringida cuando el original se sentó a comer con el traidor?\n\nZapata argumenta que la comunión no es un premio a la santidad sino una herramienta para infundir gracia. Y que el gesto de *partir* el pan —compartir algo de lo mío contigo— es inseparable del significado. Si el pan ya viene partido en pedacitos individuales, perdemos el símbolo.\n\nEl debate literal versus simbólico, aunque importante, puede convertirse en una trampa si nos hace olvidar lo que Pablo gritaba desde Corinto: algo tiene que pasar en esa mesa. No deberíamos salir de ella siendo los mismos.\n\nQuizás estemos más cerca de la Santa Cena original cuando compartimos una mesa con alguien que necesita a Jesús que cuando participamos de un ritual frío en un auditorio donde ni siquiera nos miramos a los ojos.",
+          "translationId": null,
+          "note": "",
+          "savedAt": "2026-03-19T12:12:00.000Z"
+        },
+        {
+          "id": "entry-014",
+          "type": "note",
+          "ref": null,
+          "bookId": null,
+          "chapN": null,
+          "verseN": null,
+          "text": "## Preguntas para reflexión y discusión\n\n1. ¿Cómo celebras la Santa Cena en tu iglesia? ¿Qué elementos de esa práctica te parecen más significativos?\n2. Antes de leer este estudio, ¿habías pensado en la relación entre la Pascua judía y la última cena? ¿Qué cambió en tu comprensión?\n3. ¿Cómo entiendes la advertencia de Pablo sobre «comer indignamente»? ¿De qué maneras podría aplicarse a tu comunidad hoy?\n4. ¿Dónde te ubicas en el debate literal/simbólico? ¿Por qué? ¿Qué peso le das a ese debate frente a la dimensión comunitaria de la cena?\n5. Si Jesús compartió la mesa con Judas, ¿quién debería —o no debería— ser excluido de la mesa del Señor en tu iglesia?\n6. Junior Zapata dice que la comunión es una herramienta para infundir gracia, no un premio a la santidad. ¿Cómo cambiaría tu práctica si creyeras eso de verdad?",
+          "translationId": null,
+          "note": "",
+          "savedAt": "2026-03-19T12:13:00.000Z"
+        }
+      ]
+    }
+  ]
+}
