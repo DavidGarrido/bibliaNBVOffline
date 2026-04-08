@@ -214,12 +214,23 @@ async function loadBible(translationId, restorePosition = true) {
 
 function renderBooks(filter = '') {
     elements.booksList.innerHTML = '';
+
+    // Banner retorno si hay lectura activa
+    if (!filter && currentBook && currentChapter) {
+        const banner = document.createElement('li');
+        banner.className = 'chap-return-banner books-return-banner';
+        banner.innerHTML = `<span>Leyendo ${currentBook.name} ${currentChapter.n}</span><span class="chap-return-label">Volver ›</span>`;
+        banner.onclick = () => returnToReader(currentBook);
+        elements.booksList.appendChild(banner);
+    }
+
     const filtered = bibleData.filter(b =>
         b.name.toLowerCase().includes(filter.toLowerCase())
     );
     filtered.forEach(book => {
         const li = document.createElement('li');
         li.innerText = book.name;
+        if (currentBook && book.id === currentBook.id) li.classList.add('book-item--current');
         li.onclick = () => showChapters(book);
         elements.booksList.appendChild(li);
     });
@@ -228,9 +239,26 @@ function renderBooks(filter = '') {
 function showChapters(book) {
     currentBook = book;
     elements.chaptersGrid.innerHTML = '';
+
+    // Guardar título del reader antes de que se sobreescriba
+    if (elements.viewReader.style.display === 'block') {
+        lastReaderTitle = document.getElementById('tb-title').textContent;
+    }
+
+    // Banner "seguir leyendo" si hay capítulo activo de este libro
+    const prevChapter = currentChapter;
+    if (prevChapter && prevChapter._bookId === book.id) {
+        const banner = document.createElement('div');
+        banner.className = 'chap-return-banner';
+        banner.innerHTML = `<span>Leyendo ${prevChapter.n}</span><span class="chap-return-label">Volver ›</span>`;
+        banner.onclick = () => returnToReader(book);
+        elements.chaptersGrid.appendChild(banner);
+    }
+
     book.chapters.forEach(chap => {
         const btn = document.createElement('div');
         btn.className = 'chapter-btn';
+        if (prevChapter && chap.n === prevChapter.n) btn.classList.add('chapter-btn--current');
         btn.innerText = chap.n;
         btn.onclick = () => showReader(book, chap);
         elements.chaptersGrid.appendChild(btn);
@@ -239,8 +267,21 @@ function showChapters(book) {
     updateTopBar('chapters', { bookName: book.name });
 }
 
+function returnToReader(book) {
+    switchView('reader');
+    const title = document.getElementById('tb-title');
+    const back = document.getElementById('tb-back');
+    if (title && lastReaderTitle) title.textContent = lastReaderTitle;
+    if (back) {
+        back.textContent = `⬅ ${book.name}`;
+        back.classList.remove('tb-hidden');
+        back.onclick = () => { cleanupPageMode(); showChapters(book); };
+    }
+}
+
 function showReader(book, chapter) {
     clearVerseSelection();
+    chapter._bookId = book.id;
     const back = document.getElementById('tb-back');
     if (back) {
         back.textContent = `⬅ ${book.name}`;
@@ -617,7 +658,7 @@ function switchView(view) {
     elements.viewBooks.style.display = view === 'books' ? 'block' : 'none';
     elements.viewChapters.style.display = view === 'chapters' ? 'block' : 'none';
     elements.viewReader.style.display = view === 'reader' ? 'block' : 'none';
-    if (view === 'books') { lastScrollY = 0; updateTopBar('books'); }
+    if (view === 'books') { lastScrollY = 0; updateTopBar('books'); if (bibleData) renderBooks(); }
     // Diferir para que el display ya esté aplicado
     setTimeout(studyNavUpdate, 0);
 
@@ -679,6 +720,7 @@ async function checkVersion() {
 let qsActiveIdx = -1;
 let qsSuggestions = [];
 let pendingVerse = null;
+let lastReaderTitle = '';
 let pendingVerseEnd = null;
 let pendingChapterN = null;
 let pendingPage = null;  // -1 = última página, N = página específica

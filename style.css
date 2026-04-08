@@ -302,6 +302,16 @@ ul#books-list li:active {
     background-color: var(--airbnb-extra-light-gray);
 }
 
+ul#books-list li.book-item--current {
+    font-weight: 700;
+    color: var(--airbnb-rausch);
+}
+
+.books-return-banner {
+    border-bottom: 1px solid rgba(36, 129, 204, 0.2) !important;
+    border-radius: 12px 12px 0 0;
+}
+
 .back-btn {
     background-color: var(--airbnb-extra-light-gray);
     border: none;
@@ -363,6 +373,37 @@ main#content.continuous {
 .chapter-btn:active {
     transform: scale(0.95);
     background-color: var(--airbnb-light-gray);
+}
+
+.chapter-btn--current {
+    background: rgba(36, 129, 204, 0.1);
+    border-color: rgba(36, 129, 204, 0.5);
+    color: var(--airbnb-rausch);
+    box-shadow: 0 0 0 3px rgba(36, 129, 204, 0.12);
+}
+
+.chap-return-banner {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(36, 129, 204, 0.06);
+    border: 1px solid rgba(36, 129, 204, 0.25);
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--airbnb-rausch);
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 4px;
+}
+.chap-return-banner:hover { background: rgba(36, 129, 204, 0.12); }
+.chap-return-banner:active { transform: scale(0.98); }
+.chap-return-label {
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0.8;
 }
 
 .chapter-navigation {
