@@ -216,12 +216,15 @@ function renderBooks(filter = '') {
     elements.booksList.innerHTML = '';
 
     // Banner retorno si hay lectura activa
-    if (!filter && currentBook && currentChapter) {
-        const banner = document.createElement('li');
-        banner.className = 'chap-return-banner books-return-banner';
-        banner.innerHTML = `<span>Leyendo ${currentBook.name} ${currentChapter.n}</span><span class="chap-return-label">Volver ›</span>`;
-        banner.onclick = () => returnToReader(currentBook);
-        elements.booksList.appendChild(banner);
+    if (!filter && currentChapter && currentChapter._bookId) {
+        const readerBook = bibleData.find(b => b.id === currentChapter._bookId);
+        if (readerBook) {
+            const banner = document.createElement('li');
+            banner.className = 'chap-return-banner books-return-banner';
+            banner.innerHTML = `<span>Leyendo ${readerBook.name} ${currentChapter.n}</span><span class="chap-return-label">Volver ›</span>`;
+            banner.onclick = () => returnToReader(readerBook);
+            elements.booksList.appendChild(banner);
+        }
     }
 
     const filtered = bibleData.filter(b =>
@@ -258,7 +261,7 @@ function showChapters(book) {
     book.chapters.forEach(chap => {
         const btn = document.createElement('div');
         btn.className = 'chapter-btn';
-        if (prevChapter && chap.n === prevChapter.n) btn.classList.add('chapter-btn--current');
+        if (prevChapter && prevChapter._bookId === book.id && chap.n === prevChapter.n) btn.classList.add('chapter-btn--current');
         btn.innerText = chap.n;
         btn.onclick = () => showReader(book, chap);
         elements.chaptersGrid.appendChild(btn);
