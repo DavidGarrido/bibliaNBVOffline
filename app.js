@@ -51,7 +51,7 @@ function updateTopBar(view, data = {}) {
         back.onclick = () => { cleanupPageMode(); switchView('books'); };
     } else if (view === 'reader') {
         title.textContent = data.title || '';
-        back.textContent = '⬅ Cap.';
+        back.textContent = `⬅ ${data.bookName || 'Cap.'}`;
         back.classList.remove('tb-hidden');
         back.onclick = () => { cleanupPageMode(); showChapters(currentBook); };
     }
@@ -241,6 +241,12 @@ function showChapters(book) {
 
 function showReader(book, chapter) {
     clearVerseSelection();
+    const back = document.getElementById('tb-back');
+    if (back) {
+        back.textContent = `⬅ ${book.name}`;
+        back.classList.remove('tb-hidden');
+        back.onclick = () => { cleanupPageMode(); showChapters(book); };
+    }
     if (readingMode === 'continuous') {
         showReaderContinuous(book, chapter);
     } else {
@@ -255,7 +261,7 @@ function showReaderPaged(book, chapter) {
 
     currentBook = book;
     currentChapter = chapter;
-    document.getElementById('tb-title').textContent = `${book.name} ${chapter.n}`;
+    document.getElementById('tb-title').textContent = `${chapter.n}`;
     elements.versesContent.innerHTML = '';
     elements.chapNav.style.display = 'none';
 
@@ -397,9 +403,9 @@ function updatePageIndicator() {
                 verseRange = first === last ? `  ·  ${currentChapter.n}:${first}` : `  ·  ${currentChapter.n}:${first}-${last}`;
             }
         }
-        document.getElementById('tb-title').textContent = `${currentBook.name}${verseRange}`;
+        document.getElementById('tb-title').textContent = verseRange.trim().replace(/^·\s*/, '');
     } else {
-        document.getElementById('tb-title').textContent = `${currentBook.name} ${currentChapter.n}  ·  ${currentPageNum + 1}/${totalPageCount}`;
+        document.getElementById('tb-title').textContent = `${currentChapter.n}  ·  ${currentPageNum + 1}/${totalPageCount}`;
     }
 }
 
@@ -432,7 +438,7 @@ function showReaderContinuous(book, chapter) {
     document.querySelector('main#content').classList.add('continuous');
     currentBook = book;
     currentChapter = chapter;
-    document.getElementById('tb-title').textContent = `${book.name} ${chapter.n}`;
+    document.getElementById('tb-title').textContent = `${chapter.n}`;
     elements.versesContent.innerHTML = '';
     elements.chapNav.style.display = 'none';
 
@@ -460,7 +466,7 @@ function showReaderContinuous(book, chapter) {
                 const chap = book.chapters.find(c => c.n === chapN);
                 if (chap) {
                     currentChapter = chap;
-                    document.getElementById('tb-title').textContent = `${book.name} ${chapN}`;
+                    document.getElementById('tb-title').textContent = `${chapN}`;
                     savePosition(book, chap, {});
                 }
             }
@@ -516,7 +522,7 @@ document.querySelector('main#content').addEventListener('scroll', () => {
                 const verseN = verse.querySelector('.v-num')?.textContent;
                 const chapN = parseInt(verse.getAttribute('data-chap')) || currentChapter?.n;
                 if (verseN && currentBook) {
-                    document.getElementById('tb-title').textContent = `${currentBook.name} ${chapN}:${verseN}`;
+                    document.getElementById('tb-title').textContent = `${chapN}:${verseN}`;
                     const pos = JSON.parse(localStorage.getItem('bible-position'));
                     if (pos) {
                         pos.verseN = verseN;
