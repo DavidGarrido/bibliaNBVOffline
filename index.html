@@ -175,9 +175,7 @@
                 <button id="sd-new-note">📝 Nueva nota</button>
                 <button id="sd-new-study">➕ Nuevo estudio</button>
                 <div class="sd-divider"></div>
-                <div class="sd-section-label">Mis estudios</div>
-                <div id="sd-tag-filter"></div>
-                <ul id="sd-studies-list"></ul>
+                <button id="sd-my-studies-btn">📓 Mis estudios</button>
                 <div class="sd-divider"></div>
                 <input type="file" id="sd-import-file" accept=".json" style="display:none">
                 <button id="sd-shared-btn">📚 Estudios compartidos</button>
@@ -536,5 +534,18 @@
             });
         }
     </script>
+
+    <!-- Modal lista de estudios -->
+    <div id="studies-list-modal" class="slm-hidden">
+        <div id="slm-overlay"></div>
+        <div id="slm-box">
+            <div id="slm-header">
+                <span id="slm-title">Mis estudios</span>
+                <button id="slm-close" class="icon-btn">✕</button>
+            </div>
+            <div id="slm-tags"></div>
+            <div id="slm-list"></div>
+        </div>
+    </div>
 </body>
 </html>

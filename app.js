@@ -1560,6 +1560,14 @@ function setupStudiesListeners() {
         openStudySheet(activeStudy.id);
     });
     
+    // Botón Mis estudios
+    document.getElementById('sd-my-studies-btn').addEventListener('click', () => {
+        closeStudiesDropdown();
+        openStudiesListModal();
+    });
+    document.getElementById('slm-overlay').addEventListener('click', closeStudiesListModal);
+    document.getElementById('slm-close').addEventListener('click', closeStudiesListModal);
+
     // Botón de configuración en el drawer
     document.getElementById('sd-config-btn').addEventListener('click', () => {
         closeStudiesDropdown();
@@ -1782,37 +1790,61 @@ function renderTagFilter() {
 }
 
 function renderStudiesDropdown() {
-    const list = document.getElementById('sd-studies-list');
     const header = document.getElementById('sd-header');
     const activeStudy = studiesGetActive(studiesState);
-
     header.innerHTML = `<span class="sd-header-name">${activeStudy.name} ›</span><span class="sd-header-sub">Estudio activo</span>`;
     updateModeToggleText();
-    renderTagFilter();
+    const btn = document.getElementById('sd-my-studies-btn');
+    if (btn) btn.textContent = `📓 Mis estudios (${studiesState.studies.length})`;
+}
 
-    list.innerHTML = '';
-    studiesState.studies
-        .filter(s => !activeTagFilter || (s.tags || []).includes(activeTagFilter))
-        .forEach(study => {
-            const li = document.createElement('li');
-            const tagsHtml = (study.tags || []).length
-                ? `<div class="sd-study-tags">${(study.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('')}</div>`
-                : '';
-            li.innerHTML = `<div class="sd-study-info"><span class="sd-study-name">${study.name}</span>${tagsHtml}</div><button class="sd-share-btn" title="Compartir enlace">🔗</button>`;
-            const isActive = study.id === (studiesState.activeStudyId || 'general');
-            if (isActive) li.classList.add('sd-active');
-            li.addEventListener('click', () => openStudySheet(study.id));
-            li.querySelector('.sd-share-btn').addEventListener('click', e => {
-                e.stopPropagation();
-                const url = `${location.origin}${location.pathname}?study=${study.id}`;
-                if (navigator.share) {
-                    navigator.share({ title: study.name, url });
-                } else {
-                    navigator.clipboard.writeText(url).then(() => showSaveToast('Enlace copiado ✓')).catch(() => showSaveToast('No se pudo copiar'));
-                }
-            });
-            list.appendChild(li);
+function openStudiesListModal() {
+    document.getElementById('studies-list-modal').classList.remove('slm-hidden');
+    renderStudiesModal(null);
+}
+
+function closeStudiesListModal() {
+    document.getElementById('studies-list-modal').classList.add('slm-hidden');
+}
+
+function renderStudiesModal(filterTag) {
+    const allTags = getAllTags();
+    const tagsEl = document.getElementById('slm-tags');
+    const listEl = document.getElementById('slm-list');
+    const titleEl = document.getElementById('slm-title');
+
+    titleEl.textContent = `Mis estudios (${studiesState.studies.length})`;
+
+    // Chips de filtro
+    tagsEl.innerHTML = [
+        `<span class="slm-tag-chip ${!filterTag ? 'slm-tag-active' : ''}" data-tag="">Todas</span>`,
+        ...allTags.map(t => `<span class="slm-tag-chip ${filterTag === t ? 'slm-tag-active' : ''}" data-tag="${t}">${t}</span>`)
+    ].join('');
+    tagsEl.querySelectorAll('.slm-tag-chip').forEach(chip => {
+        chip.addEventListener('click', () => renderStudiesModal(chip.dataset.tag || null));
+    });
+
+    // Lista de estudios
+    const filtered = studiesState.studies.filter(s => !filterTag || (s.tags || []).includes(filterTag));
+    listEl.innerHTML = '';
+    filtered.forEach(study => {
+        const isActive = study.id === (studiesState.activeStudyId || 'general');
+        const tagsHtml = (study.tags || []).length
+            ? `<div class="slm-study-tags">${(study.tags || []).map(t => `<span class="sd-tag-chip">${t}</span>`).join('')}</div>`
+            : '';
+        const item = document.createElement('div');
+        item.className = `slm-study-item${isActive ? ' slm-active' : ''}`;
+        item.innerHTML = `
+            <div class="slm-study-name">${study.name}</div>
+            <div class="slm-study-meta">${study.entries.length} entradas</div>
+            ${tagsHtml}
+        `;
+        item.addEventListener('click', () => {
+            closeStudiesListModal();
+            openStudySheet(study.id);
         });
+        listEl.appendChild(item);
+    });
 }
 
 function updateStudiesButton() {
