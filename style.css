@@ -3264,13 +3264,36 @@ h2 {
     padding: 4px;
 }
 #ais-verse-ctx {
-    padding: 12px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 16px;
     background: var(--airbnb-extra-light-gray);
     font-size: 13px;
     font-style: italic;
     color: rgba(0,0,0,0.7);
     border-bottom: 1px solid rgba(0,0,0,0.06);
     line-height: 1.4;
+}
+.ais-ctx-text {
+    flex: 1;
+}
+.ais-ctx-clear {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    font-size: 11px;
+    color: rgba(0,0,0,0.35);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1;
+    margin-top: 1px;
+    transition: color 0.15s, background 0.15s;
+}
+.ais-ctx-clear:hover {
+    color: #c0392b;
+    background: rgba(192,57,43,0.08);
 }
 #ais-response {
     flex: 1;

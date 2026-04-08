@@ -3164,12 +3164,20 @@ function updateAIContextDisplay() {
         ctxEl.innerHTML = '';
         return;
     }
+    let label;
     if (aiVerseContexts.length === 1) {
         const ctx = aiVerseContexts[0];
-        ctxEl.innerHTML = '<strong>Contexto:</strong> ' + ctx.ref + ' — "' + ctx.text + '"';
+        label = '<strong>Contexto:</strong> ' + ctx.ref + ' — "' + ctx.text + '"';
     } else {
-        ctxEl.innerHTML = '<strong>Contexto (' + aiVerseContexts.length + ' versículos):</strong> ' + aiVerseContexts.map(function (c) { return c.ref; }).join(', ');
+        label = '<strong>Contexto (' + aiVerseContexts.length + ' versículos):</strong> ' + aiVerseContexts.map(function (c) { return c.ref; }).join(', ');
     }
+    ctxEl.innerHTML = '<span class="ais-ctx-text">' + label + '</span><button class="ais-ctx-clear" title="Limpiar contexto" onclick="clearAIContext()">✕</button>';
+}
+
+function clearAIContext() {
+    aiVerseContexts = [];
+    updateAIContextDisplay();
+    minimizeAISheet();
 }
 
 function addAIContext(ref, text, bookId, chapN, verseN) {
