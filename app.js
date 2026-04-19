@@ -1,6 +1,9 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
+// Evita que el browser restaure scroll al recargar (desplazaría la study-nav-bar fuera del viewport)
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
 let bibleData = null;
 let currentBook = null;
 let currentChapter = null;
