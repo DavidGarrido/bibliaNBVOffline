@@ -15,8 +15,12 @@ const NETWORK_FIRST = ['style.css', 'app.js', 'index.html'];
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(CORE_ASSETS))
+    // NO skipWaiting — esperamos confirmación del usuario
   );
-  self.skipWaiting();
+});
+
+self.addEventListener('message', event => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {

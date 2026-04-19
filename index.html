@@ -56,6 +56,8 @@
         </main>
 
         <div id="study-nav-bar" class="snb-hidden">
+            <button id="snb-base" class="snb-arrow snb-base-hidden" title="Ir al texto base">⌂</button>
+            <button id="snb-hist" class="snb-arrow" title="Últimas citas visitadas">☰</button>
             <button id="snb-prev" class="snb-arrow">‹</button>
             <div id="snb-center">
                 <span id="snb-ref"></span>
@@ -219,6 +221,10 @@
                 <div id="ns-verse-ref" class="ns-verse-ref"></div>
                 <div id="ns-verse-text" class="ns-verse-text"></div>
                 <textarea id="ns-note-input" placeholder="Escribe una nota (opcional)"></textarea>
+                <label id="ns-base-ref-row" class="ns-base-ref-row" style="display:none">
+                    <input type="checkbox" id="ns-base-ref-check">
+                    <span id="ns-base-ref-label"></span>
+                </label>
             </div>
             <div id="ns-autocomplete" class="ns-ac-hidden"></div>
             <div id="ns-actions">
@@ -231,6 +237,18 @@
     <div id="save-toast" class="st-hidden">Guardado ✓</div>
 
     <!-- Modal expandido de navegación por estudio -->
+    <!-- Modal historial de citas visitadas -->
+    <div id="snb-hist-modal" class="snbh-hidden">
+        <div id="snbh-overlay"></div>
+        <div id="snbh-box">
+            <div id="snbh-header">
+                <span>Últimas citas visitadas</span>
+                <button id="snbh-close" class="icon-btn">✕</button>
+            </div>
+            <div id="snbh-list"></div>
+        </div>
+    </div>
+
     <div id="study-nav-modal" class="snm-hidden">
         <div id="snm-overlay"></div>
         <div id="snm-box">
@@ -524,14 +542,33 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').then(reg => {
-                    console.log('SW registrado', reg);
-                }).catch(err => {
-                    console.log('SW error', err);
-                });
+                    reg.addEventListener('updatefound', () => {
+                        const sw = reg.installing;
+                        sw.addEventListener('statechange', () => {
+                            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                                mostrarBannerActualizacion(sw);
+                            }
+                        });
+                    });
+                }).catch(err => console.warn('SW:', err));
             });
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                window.location.reload();
-            });
+        }
+
+        function mostrarBannerActualizacion(swEsperando) {
+            const existing = document.getElementById('sw-update-banner');
+            if (existing) return;
+            const banner = document.createElement('div');
+            banner.id = 'sw-update-banner';
+            banner.innerHTML = '🚀 Nueva versión disponible <button onclick="activarNuevaVersion()">Actualizar ahora</button><button onclick="this.parentElement.remove()" style="background:transparent;color:inherit;border:none;cursor:pointer;font-size:1.2em;margin-left:8px">×</button>';
+            document.body.appendChild(banner);
+            window._swEsperando = swEsperando;
+        }
+
+        function activarNuevaVersion() {
+            if (window._swEsperando) {
+                window._swEsperando.postMessage('SKIP_WAITING');
+                navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+            }
         }
     </script>
 

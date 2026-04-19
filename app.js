@@ -282,7 +282,57 @@ function returnToReader(book) {
     }
 }
 
+const HIST_KEY = 'bible-visit-history';
+
+function histPush(book, chapter) {
+    const verseN = pendingVerse || null;
+    const ref = verseN ? `${book.name} ${chapter.n}:${verseN}` : `${book.name} ${chapter.n}`;
+    const entry = { ref, bookId: book.id, chapN: chapter.n, verseN };
+    let hist = histLoad();
+    hist = hist.filter(h => !(h.bookId === entry.bookId && h.chapN === entry.chapN && h.verseN === entry.verseN));
+    hist.push(entry);
+    if (hist.length > 10) hist.length = 10;
+    localStorage.setItem(HIST_KEY, JSON.stringify(hist));
+}
+
+function histLoad() {
+    try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; }
+}
+
+function openHistModal() {
+    const hist = histLoad();
+    const list = document.getElementById('snbh-list');
+    list.innerHTML = hist.length
+        ? hist.map(h => `<div class="snbh-item" data-book-id="${h.bookId}" data-chap="${h.chapN}"${h.verseN ? ` data-verse="${h.verseN}"` : ''}>
+            <span class="snbh-item-ref">${h.ref}</span>
+            <span class="snbh-item-arrow">→</span>
+          </div>`).join('')
+        : '<div style="padding:20px;color:var(--airbnb-foggy);text-align:center;font-size:14px">Sin historial aún</div>';
+    list.querySelectorAll('.snbh-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const bookId = parseInt(el.dataset.bookId);
+            const chapN = parseInt(el.dataset.chap);
+            const verseN = el.dataset.verse ? parseInt(el.dataset.verse) : null;
+            const book = bibleData?.find(b => b.id === bookId);
+            const chapter = book?.chapters.find(c => c.n === chapN);
+            if (!book || !chapter) return;
+            closeHistModal();
+            if (verseN) pendingVerse = verseN;
+            pendingChapterN = chapN;
+            cleanupPageMode();
+            showChapters(book);
+            showReader(book, chapter);
+        });
+    });
+    document.getElementById('snb-hist-modal').classList.remove('snbh-hidden');
+}
+
+function closeHistModal() {
+    document.getElementById('snb-hist-modal').classList.add('snbh-hidden');
+}
+
 function showReader(book, chapter) {
+    histPush(book, chapter);
     clearVerseSelection();
     chapter._bookId = book.id;
     const back = document.getElementById('tb-back');
@@ -1461,6 +1511,11 @@ function studiesUpdateStudy(state, studyId, { name, tags, subscribable }) {
     return { ...state, studies };
 }
 
+function studiesSetBaseRef(state, studyId, baseRef) {
+    const studies = state.studies.map(s => s.id !== studyId ? s : { ...s, baseRef });
+    return { ...state, studies };
+}
+
 function studiesSetActive(state, id) {
     return {
         ...state,
@@ -2226,6 +2281,24 @@ function openNoteSheet(verseData = null, editEntry = null, editStudyId = null) {
         noteInput.placeholder = 'Escribe una nota (opcional)';
     }
 
+    // Base ref checkbox
+    const baseRow = document.getElementById('ns-base-ref-row');
+    const baseCheck = document.getElementById('ns-base-ref-check');
+    const baseLabel = document.getElementById('ns-base-ref-label');
+    if (verseData && !editEntry) {
+        const activeStudy = studiesGetActive(studiesState);
+        baseCheck.checked = false;
+        if (activeStudy.baseRef) {
+            baseLabel.textContent = `Reemplazar texto base (actual: ${activeStudy.baseRef})`;
+        } else {
+            baseLabel.textContent = 'Establecer como texto base';
+        }
+        baseRow.style.display = '';
+    } else {
+        baseRow.style.display = 'none';
+        baseCheck.checked = false;
+    }
+
     sheet.classList.remove('ns-hidden');
     closeStudiesDropdown();
     setTimeout(() => noteInput.focus(), 100);
@@ -2296,6 +2369,12 @@ function handleSaveNote() {
         return;
     }
     
+    const baseCheck = document.getElementById('ns-base-ref-check');
+    if (baseCheck && baseCheck.checked && verseDataStr) {
+        const verseData = JSON.parse(verseDataStr);
+        studiesState = studiesSetBaseRef(studiesState, studiesGetActive(studiesState).id, verseData.ref);
+    }
+
     studiesSave(studiesState);
     closeNoteSheet();
     showSaveToast('Guardado ✓');
@@ -2760,6 +2839,15 @@ function studyNavUpdate() {
     document.getElementById('snb-prev').disabled = studyNavIndex === 0;
     document.getElementById('snb-next').disabled = studyNavIndex === totalSteps - 1;
 
+    const baseBtn = document.getElementById('snb-base');
+    const activeStudy = studiesGetActive(studiesState);
+    if (activeStudy.baseRef) {
+        baseBtn.classList.remove('snb-base-hidden');
+        baseBtn.title = `Texto base: ${activeStudy.baseRef}`;
+    } else {
+        baseBtn.classList.add('snb-base-hidden');
+    }
+
     // En pantalla grande: abrir el sidebar automáticamente o refrescar si ya está abierto
     if (window.innerWidth >= 1024) {
         const modal = document.getElementById('study-nav-modal');
@@ -2937,6 +3025,25 @@ function studyNavInit() {
         studyNavGo(studyNavIndex + 1);
     });
     document.getElementById('snb-center').addEventListener('click', openStudyNavModal);
+    document.getElementById('snb-hist').addEventListener('click', openHistModal);
+    document.getElementById('snbh-close').addEventListener('click', closeHistModal);
+    document.getElementById('snbh-overlay').addEventListener('click', closeHistModal);
+
+    document.getElementById('snb-base').addEventListener('click', () => {
+        const baseRef = studiesGetActive(studiesState).baseRef;
+        if (!baseRef) return;
+        const parsed = parseQuery(baseRef);
+        if (!parsed || !parsed.books?.length) return;
+        const book = parsed.books[0];
+        const chapN = parsed.chap || 1;
+        const chapter = book.chapters.find(c => c.n === chapN);
+        if (!chapter) return;
+        if (parsed.type === 'verse' || parsed.type === 'range') pendingVerse = parsed.verse || parsed.verseStart;
+        pendingChapterN = chapN;
+        cleanupPageMode();
+        showChapters(book);
+        showReader(book, chapter);
+    });
 
     document.getElementById('snm-overlay').addEventListener('click', closeStudyNavModal);
     document.getElementById('snm-prev').addEventListener('click', () => {
