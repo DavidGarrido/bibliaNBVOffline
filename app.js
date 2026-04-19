@@ -3211,55 +3211,12 @@ function openConfigModal() {
     updateRestorePositionToggleText();
     updateAutosaveToggleText();
     updateNotifyEmailDisplay();
-    updateAIConfigDisplay();
     document.getElementById('config-modal').classList.remove('cfg-hidden');
 }
 
 // ── Configuración de IA ───────────────────────────────────────
 
-function getAIConfig() {
-    const rawKey = localStorage.getItem('ai-key') || '';
-    return {
-        provider: localStorage.getItem('ai-provider') || 'deepseek',
-        key: rawKey.replace(/[^\x20-\x7E]/g, '').trim()
-    };
-}
-
-function updateAIConfigDisplay() {
-    const { provider, key } = getAIConfig();
-    document.getElementById('cfg-ai-provider').value = provider;
-    document.getElementById('cfg-ai-key').value = key ? '••••••••••••••••' : '';
-    document.getElementById('cfg-ai-key').dataset.saved = key ? '1' : '';
-}
-
-document.getElementById('cfg-ai-key').addEventListener('focus', function () {
-    if (this.dataset.saved) {
-        this.value = '';
-        this.dataset.saved = '';
-    }
-});
-
-document.getElementById('cfg-ai-save').addEventListener('click', function () {
-    const provider = document.getElementById('cfg-ai-provider').value;
-    const keyInput = document.getElementById('cfg-ai-key');
-    const key = keyInput.value.trim();
-    const status = document.getElementById('cfg-ai-status');
-
-    if (!key) {
-        status.textContent = 'Ingresa una API key.';
-        status.style.color = 'red';
-        return;
-    }
-
-    localStorage.setItem('ai-provider', provider);
-    // Eliminar caracteres no-ASCII que rompen los headers HTTP en móvil
-    localStorage.setItem('ai-key', key.replace(/[^\x20-\x7E]/g, '').trim());
-    keyInput.value = '••••••••••••••••';
-    keyInput.dataset.saved = '1';
-    status.textContent = '✓ Guardado correctamente.';
-    status.style.color = '';
-    setTimeout(() => { status.textContent = ''; }, 3000);
-});
+const AI_WORKER_URL = 'https://procliup-quoter.www-davidalexander.workers.dev/bible';
 
 // ── Sheet IA ─────────────────────────────────────────────────
 
@@ -3430,86 +3387,31 @@ async function askAI() {
     const question = document.getElementById('ais-question').value.trim();
     if (!question || aiVerseContexts.length === 0) return;
 
-    const { provider, key } = getAIConfig();
-    if (!key) {
-        alert('Configura tu API key en Ajustes primero.');
-        minimizeAISheet();
-        openConfigModal();
-        return;
-    }
-
     const sendBtn = document.getElementById('ais-send');
     sendBtn.disabled = true;
     sendBtn.textContent = 'Consultando…';
 
-    // Construir el historial de conversación
-    var messages = [{ role: 'system', content: buildSystemPrompt() }];
-    // Añadir conversación previa
-    aiConversation.forEach(function (msg) {
-        messages.push(msg);
-    });
-    // Añadir la pregunta actual
+    const messages = [{ role: 'system', content: buildSystemPrompt() }];
+    aiConversation.forEach(msg => messages.push(msg));
     messages.push({ role: 'user', content: question });
 
-    const payload = {
-        model: provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini',
-        messages: messages,
-        max_tokens: 1000,
-        temperature: 0.7
-    };
-
-    const endpoint = provider === 'deepseek'
-        ? 'https://api.deepseek.com/v1/chat/completions'
-        : provider === 'openai'
-            ? 'https://api.openai.com/v1/chat/completions'
-            : 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-
     try {
-        let res;
-        if (provider === 'gemini') {
-            // Google Gemini
-            const geminiBody = JSON.stringify({
-                contents: [{ parts: [{ text: question }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] }
-            });
-            res = await fetch(endpoint + '?key=' + key, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: geminiBody
-            });
-            const data = await res.json();
-            const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No hubo respuesta.';
-            document.getElementById('ais-response').innerHTML = linkifyAIResponse(reply);
-            setupAIResponseLinks();
-            // Añadir al historial
-            aiConversation.push({ role: 'user', content: question });
-            aiConversation.push({ role: 'assistant', content: reply });
-            aiLastNoteText = '🤖 ' + aiVerseContexts.map(c => c.ref).join(', ') + '\n\nPregunta: ' + question + '\n\nRespuesta:\n' + reply;
-            document.getElementById('ais-save-area').classList.remove('ais-save-hidden');
-            document.getElementById('ais-question').value = '';
-        } else {
-            // DeepSeek / OpenAI - headers como strings plain
-            const bodyStr = JSON.stringify(payload);
-            const authHeader = 'Bearer ' + key;
-            res = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': authHeader
-                },
-                body: bodyStr
-            });
-            const data = await res.json();
-            const reply = data?.choices?.[0]?.message?.content || data?.error?.message || 'No hubo respuesta.';
-            document.getElementById('ais-response').innerHTML = linkifyAIResponse(reply);
-            setupAIResponseLinks();
-            // Añadir al historial
-            aiConversation.push({ role: 'user', content: question });
-            aiConversation.push({ role: 'assistant', content: reply });
-            aiLastNoteText = '🤖 ' + aiVerseContexts.map(c => c.ref).join(', ') + '\n\nPregunta: ' + question + '\n\nRespuesta:\n' + reply;
-            document.getElementById('ais-save-area').classList.remove('ais-save-hidden');
-            document.getElementById('ais-question').value = '';
-        }
+        const res = await fetch(AI_WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Error del servidor');
+
+        const reply = data.reply;
+        document.getElementById('ais-response').innerHTML = linkifyAIResponse(reply);
+        setupAIResponseLinks();
+        aiConversation.push({ role: 'user', content: question });
+        aiConversation.push({ role: 'assistant', content: reply });
+        aiLastNoteText = '🤖 ' + aiVerseContexts.map(c => c.ref).join(', ') + '\n\nPregunta: ' + question + '\n\nRespuesta:\n' + reply;
+        document.getElementById('ais-save-area').classList.remove('ais-save-hidden');
+        document.getElementById('ais-question').value = '';
         document.getElementById('ais-response').classList.remove('ais-response-hidden');
     } catch (e) {
         document.getElementById('ais-response').textContent = 'Error: ' + e.message;

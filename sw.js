@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-v2.17';
+const CACHE_NAME = 'biblia-v2.18';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -34,6 +34,10 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+
+  // No interceptar requests cross-origin ni POST (ej: worker IA)
+  if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
+
   const filename = url.pathname.split('/').pop();
 
   // version.json: siempre de red

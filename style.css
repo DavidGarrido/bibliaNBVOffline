@@ -3307,6 +3307,12 @@ h2 {
     align-items: center;
 }
 
+.cfg-ai-status-badge {
+    font-size: 13px;
+    color: var(--airbnb-hof);
+    font-weight: 600;
+}
+
 /* ── Sheet IA ───────────────────────────────────────────────── */
 
 #ai-sheet {

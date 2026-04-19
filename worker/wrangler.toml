@@ -1,0 +1,6 @@
+name               = "biblia-nbv-ai"
+main               = "bible-ai-worker.js"
+compatibility_date = "2024-01-01"
+
+# La clave DeepSeek NO va aquí — se sube con:
+#   wrangler secret put AI_API_KEY
