@@ -1269,6 +1269,14 @@ document.addEventListener('keydown', e => {
         openQS();
         return;
     }
+    // Cerrar verse-actions con ESC en PC
+    if (e.key === 'Escape' && window.innerWidth >= 1024) {
+        const va = document.getElementById('verse-actions');
+        if (va.classList.contains('va-active')) {
+            va.classList.remove('va-active');
+            return;
+        }
+    }
     if (document.getElementById('quick-search').classList.contains('qs-hidden')) return;
     if (e.key === 'Escape') { closeQS(); return; }
     if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
@@ -2060,9 +2068,8 @@ function openStudySheet(studyId, isStartup = false) {
             if (window.innerWidth >= 1024) {
                 renderStudyEntries(study);
                 actions.innerHTML = '';
-            } else {
-                closeStudySheet();
             }
+            closeStudySheet();
         });
         document.getElementById('ss-view-entries-btn').addEventListener('click', () => {
             renderStudyEntries(study);
@@ -2116,9 +2123,8 @@ function openStudySheet(studyId, isStartup = false) {
                 if (window.innerWidth >= 1024) {
                     renderStudyEntries(study);
                     actions.innerHTML = '';
-                } else {
-                    closeStudySheet();
                 }
+                closeStudySheet();
             });
         } else {
             actions.innerHTML = `
@@ -2137,9 +2143,8 @@ function openStudySheet(studyId, isStartup = false) {
                 if (window.innerWidth >= 1024) {
                     renderStudyEntries(study);
                     actions.innerHTML = '';
-                } else {
-                    closeStudySheet();
                 }
+                closeStudySheet();
                 if (studyNavEntries().length > 0) openStudyNavModal();
             });
             document.getElementById('ss-cancel-btn').addEventListener('click', closeStudySheet);
@@ -2917,42 +2922,165 @@ function closeStudyNavModal() {
 function renderStudyNavList() {
     const entries = studyNavEntries();
     const content = document.getElementById('snm-content');
-    document.getElementById('snm-pos').textContent = `${entries.length} referencias`;
+    document.getElementById('snm-pos').textContent = `${studyNavIndex + 1} de ${entries.length}`;
 
     if (!entries.length) {
         content.innerHTML = '<div class="ss-empty">No hay entradas en este estudio.</div>';
         return;
     }
 
-    content.innerHTML = entries.map((entry, i) => {
-        const active = i === studyNavIndex ? 'snm-list-active' : '';
-        if (entry.type === 'verse') {
-            const versionTag = entry.translationId
-                ? `<span class="snm-version">${entry.translationId.toUpperCase()}</span>`
-                : '';
-            return `<div class="snm-list-item ${active}" data-index="${i}">
+    const entry = entries[studyNavIndex];
+    if (!entry) return;
+
+    const isPC = window.innerWidth >= 1024;
+
+    if (entry.type === 'verse') {
+        const versionTag = entry.translationId
+            ? `<span class="snm-version">${entry.translationId.toUpperCase()}</span>`
+            : '';
+
+        if (isPC) {
+            // PC: mostrar con textarea para editar nota
+            const noteHtml = entry.note
+                ? `<div class="snm-list-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN })}</div>`
+                : `<textarea class="snm-note-input" data-entry-id="${entry.id}" placeholder="Agregar nota..."></textarea>`;
+            const actionsHtml = entry.note
+                ? `<div class="snm-entry-actions">
+                    <button class="snm-edit-note" data-entry-id="${entry.id}">✏️ Editar nota</button>
+                    <button class="snm-delete-note" data-entry-id="${entry.id}">🗑️ Eliminar</button>
+                   </div>`
+                : `<div class="snm-save-area">
+                    <button class="snm-save-note" data-entry-id="${entry.id}">💾 Guardar</button>
+                    <button class="snm-cancel-note" data-entry-id="${entry.id}">Cancelar</button>
+                   </div>`;
+
+            content.innerHTML = `<div class="snm-list-item snm-list-active">
                 <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
-                ${entry.note ? `<div class="snm-list-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN })}</div>` : ''}
-                <button class="snm-goto-btn snm-list-goto" data-index="${i}">→ Ir al versículo</button>
+                <div class="snm-entry-text">${entry.text}</div>
+                ${noteHtml}
+                ${actionsHtml}
+                <button class="snm-goto-btn snm-list-goto" data-index="${studyNavIndex}">→ Ir al versículo</button>
             </div>`;
         } else {
-            return `<div class="snm-list-item snm-list-item-note ${active}" data-index="${i}">
+            // Móvil: comportamiento original
+            content.innerHTML = `<div class="snm-list-item snm-list-active">
+                <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
+                ${entry.note ? `<div class="snm-list-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN })}</div>` : ''}
+                <button class="snm-goto-btn snm-list-goto" data-index="${studyNavIndex}">→ Ir al versículo</button>
+            </div>`;
+        }
+    } else {
+        // Nota libre
+        if (isPC) {
+            content.innerHTML = `<div class="snm-list-item snm-list-item-note snm-list-active">
+                <div class="snm-note-label">📝 Nota libre</div>
+                <div class="snm-list-note">${linkifyNoteText(entry.text)}</div>
+                <div class="snm-entry-actions">
+                    <button class="snm-edit-note" data-entry-id="${entry.id}">✏️ Editar</button>
+                    <button class="snm-delete-note" data-entry-id="${entry.id}">🗑️ Eliminar</button>
+                </div>
+            </div>`;
+        } else {
+            content.innerHTML = `<div class="snm-list-item snm-list-item-note snm-list-active">
                 <div class="snm-note-label">📝 Nota libre</div>
                 <div class="snm-list-note">${linkifyNoteText(entry.text)}</div>
             </div>`;
         }
-    }).join('');
+    }
 
     content.querySelectorAll('.snm-list-goto').forEach(btn => {
         btn.addEventListener('click', () => {
             const i = parseInt(btn.dataset.index);
-            const entry = entries[i];
+            const e = entries[i];
             studyNavIndex = i;
             localStorage.setItem('bible-study-nav-index', studyNavIndex);
             studyNavUpdate();
-            studyNavNavigateToEntry(entry);
+            studyNavNavigateToEntry(e);
         });
     });
+
+    // Event listeners para PC
+    if (isPC) {
+        content.querySelectorAll('.snm-note-input').forEach(textarea => {
+            textarea.addEventListener('blur', () => {
+                const entryId = textarea.dataset.entryId;
+                const newNote = textarea.value.trim();
+                const entry = entries.find(e => e.id === entryId);
+                if (entry && newNote !== (entry.note || '')) {
+                    entry.note = newNote || null;
+                    studiesSave(studiesState);
+                    studyNavUpdate();
+                    renderStudyNavList();
+                }
+            });
+        });
+
+        content.querySelectorAll('.snm-save-note').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const entryId = btn.dataset.entryId;
+                const textarea = content.querySelector(`.snm-note-input[data-entry-id="${entryId}"]`);
+                if (textarea) {
+                    const newNote = textarea.value.trim();
+                    const entry = entries.find(e => e.id === entryId);
+                    if (entry) {
+                        entry.note = newNote || null;
+                        studiesSave(studiesState);
+                        studyNavUpdate();
+                        renderStudyNavList();
+                        if (newNote) showSaveToast('Nota guardada');
+                    }
+                }
+            });
+        });
+
+        content.querySelectorAll('.snm-cancel-note').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const entryId = btn.dataset.entryId;
+                const textarea = content.querySelector(`.snm-note-input[data-entry-id="${entryId}"]`);
+                if (textarea) {
+                    textarea.value = '';
+                }
+            });
+        });
+
+        content.querySelectorAll('.snm-edit-note').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const entryId = btn.dataset.entryId;
+                const entry = entries.find(e => e.id === entryId);
+                if (entry) {
+                    if (entry.type === 'verse') {
+                        openNoteSheet({
+                            bookId: entry.bookId,
+                            chapN: entry.chapN,
+                            verseN: entry.verseN,
+                            ref: entry.ref,
+                            text: entry.text,
+                            translationId: entry.translationId
+                        }, entry, entry.studyId);
+                    } else {
+                        openNoteSheet(null, entry, entry.studyId);
+                    }
+                }
+            });
+        });
+
+        content.querySelectorAll('.snm-delete-note').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const entryId = btn.dataset.entryId;
+                if (confirm('¿Eliminar esta entrada del estudio?')) {
+                    studiesState = studiesDeleteEntry(studiesState, entryId);
+                    studiesSave(studiesState);
+                    if (studyNavEntries().length > 0) {
+                        studyNavIndex = Math.min(studyNavIndex, studyNavEntries().length - 1);
+                        studyNavUpdate();
+                        renderStudyNavList();
+                    } else {
+                        closeStudyNavModal();
+                    }
+                }
+            });
+        });
+    }
 
     content.querySelectorAll('.snm-list-note').forEach(el => {
         attachNoteRefListeners(el);
@@ -3027,7 +3155,14 @@ function studyNavInit() {
     document.getElementById('snb-next').addEventListener('click', () => {
         studyNavGo(studyNavIndex + 1);
     });
-    document.getElementById('snb-center').addEventListener('click', openStudyNavModal);
+    document.getElementById('snb-center').addEventListener('click', () => {
+        const modal = document.getElementById('study-nav-modal');
+        if (modal.classList.contains('snm-hidden')) {
+            openStudyNavModal();
+        } else {
+            closeStudyNavModal();
+        }
+    });
     document.getElementById('snb-hist').addEventListener('click', openHistModal);
     document.getElementById('snbh-close').addEventListener('click', closeHistModal);
     document.getElementById('snbh-overlay').addEventListener('click', closeHistModal);
@@ -3376,6 +3511,22 @@ document.getElementById('ais-save-note').addEventListener('click', function () {
     openNoteSheet(null);
     document.getElementById('ns-title').textContent = 'Guardar respuesta IA';
     document.getElementById('ns-note-input').value = aiLastNoteText;
+});
+
+document.getElementById('ais-add-to-current').addEventListener('click', function () {
+    if (!aiLastNoteText) return;
+    const entries = studyNavEntries();
+    const entry = entries[studyNavIndex];
+    if (!entry) {
+        showSaveToast('No hay entrada activa');
+        return;
+    }
+    minimizeAISheet();
+    entry.note = entry.note ? entry.note + '\n\n---\n\n' + aiLastNoteText : aiLastNoteText;
+    studiesSave(studiesState);
+    studyNavUpdate();
+    renderStudyNavList();
+    showSaveToast('Nota agregada');
 });
 
 document.getElementById('ais-send').addEventListener('click', askAI);

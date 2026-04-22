@@ -3013,35 +3013,26 @@ h2 {
         display: none;
     }
 
-    /* ── Study sheet → sidebar derecho permanente (sin overlay) ── */
+    /* ── Study sheet → modal centrado pantalla completa (con overlay) ── */
     body.study-sheet-open #study-sheet {
-        align-items: stretch;
-        justify-content: flex-end;
-        z-index: 70;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
         pointer-events: none;
     }
 
     body.study-sheet-open #ss-overlay {
-        display: none;
+        display: block;
     }
 
     body.study-sheet-open #ss-box {
         pointer-events: all;
-        border-radius: 0;
-        width: 380px;
-        max-width: 380px;
-        max-height: none;
-        height: 100vh;
-        border-left: 1px solid var(--airbnb-extra-light-gray);
-        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
-    }
-
-    body.study-sheet-open #app {
-        padding-right: 380px;
-    }
-
-    body.study-sheet-open #verse-actions {
-        right: 380px;
+        border-radius: 16px;
+        width: 90vw;
+        max-width: 900px;
+        max-height: 85vh;
+        height: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
     }
 
     /* ── Study nav modal → sidebar derecho con lista ── */
@@ -3122,6 +3113,88 @@ h2 {
     white-space: pre-wrap;
     -webkit-user-select: text;
     user-select: text;
+}
+
+.snm-entry-text {
+    font-size: 14px;
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--airbnb-extra-light-gray);
+    border-radius: 6px;
+    white-space: pre-wrap;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.snm-note-input {
+    width: 100%;
+    min-height: 80px;
+    margin-top: 8px;
+    padding: 10px;
+    border: 1px solid var(--airbnb-light-gray);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.snm-note-input:focus {
+    outline: none;
+    border-color: var(--airbnb-rausch);
+}
+
+.snm-entry-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.snm-entry-actions button {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: var(--airbnb-extra-light-gray);
+    color: var(--airbnb-dark);
+}
+
+.snm-entry-actions button:hover {
+    background: var(--airbnb-light-gray);
+}
+
+.snm-save-area {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.snm-save-area button {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.snm-save-note {
+    background: var(--airbnb-rausch);
+    color: white;
+}
+
+.snm-save-note:hover {
+    background: var(--airbnb-hof);
+}
+
+.snm-cancel-note {
+    background: var(--airbnb-extra-light-gray);
+    color: var(--airbnb-dark);
+}
+
+.snm-cancel-note:hover {
+    background: var(--airbnb-light-gray);
 }
 
 /* ── Modal de configuración ── */
