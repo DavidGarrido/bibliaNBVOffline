@@ -462,6 +462,23 @@ main#content.continuous {
     border-radius: 4px;
 }
 
+.verse-checkbox {
+    display: none;
+    margin-right: 6px;
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--airbnb-rausch);
+}
+
+.verse-checkboxes-visible .verse-checkbox {
+    display: inline-block;
+}
+
+.verse-checkboxes-visible .v-num {
+    margin-left: 0;
+}
+
 /* ── Barra de acciones del versículo ── */
 #verse-actions {
     position: fixed;

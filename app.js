@@ -1274,6 +1274,7 @@ document.addEventListener('keydown', e => {
         const va = document.getElementById('verse-actions');
         if (va.classList.contains('va-active')) {
             va.classList.remove('va-active');
+            document.querySelectorAll('.verse-selected').forEach(el => el.classList.remove('verse-selected'));
             return;
         }
     }
@@ -1318,6 +1319,26 @@ function clearVerseSelection() {
         el.classList.remove('verse-in-range');
     });
     document.getElementById('verse-actions').classList.remove('va-active');
+
+    // Quitar checkboxes en PC
+    if (window.innerWidth >= 1024) {
+        elements.versesContent.querySelectorAll('.verse-checkbox').forEach(cb => cb.remove());
+        elements.versesContent.querySelectorAll('.verse').forEach(v => v.classList.remove('verse-checkboxes-visible'));
+    }
+}
+
+function showVerseCheckboxes() {
+    if (window.innerWidth < 1024) return;
+    elements.versesContent.querySelectorAll('.verse').forEach(verseEl => {
+        if (verseEl.querySelector('.verse-checkbox')) return;
+        const vNum = verseEl.querySelector('.v-num');
+        if (!vNum) return;
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'verse-checkbox';
+        vNum.parentNode.insertBefore(checkbox, vNum);
+        verseEl.classList.add('verse-checkboxes-visible');
+    });
 }
 
 function highlightVerseRange() {
@@ -1329,8 +1350,12 @@ function highlightVerseRange() {
     const maxN = Math.max(startN, endN);
     elements.versesContent.querySelectorAll('.verse').forEach(el => {
         const { verseN, chapN: vChap } = getVerseInfo(el);
+        const checkbox = el.querySelector('.verse-checkbox');
         if (vChap === chapN && verseN >= minN && verseN <= maxN) {
             el.classList.add('verse-in-range');
+            if (checkbox) checkbox.checked = true;
+        } else {
+            if (checkbox) checkbox.checked = false;
         }
     });
 }
@@ -1350,45 +1375,108 @@ function updateVerseActionBar() {
 
 elements.versesContent.addEventListener('click', e => {
     if (e.target.classList.contains('study-note-badge')) return;
+    if (e.target.classList.contains('verse-checkbox')) return;
     const verseEl = e.target.closest('.verse');
     if (!verseEl) { clearVerseSelection(); return; }
 
-    // Rango ya completo → limpiar y empezar desde el nuevo verso
-    if (selectedVerseEndEl) {
-        clearVerseSelection();
-        selectedVerseEl = verseEl;
-        verseEl.classList.add('verse-selected');
+    const isPC = window.innerWidth >= 1024;
+
+    if (isPC) {
+        // En PC: click selecciona verso y muestra checkboxes
+        if (!selectedVerseEl) {
+            showVerseCheckboxes();
+        }
+        if (selectedVerseEl && selectedVerseEl !== verseEl) {
+            selectedVerseEndEl = verseEl;
+            highlightVerseRange();
+        } else {
+            selectedVerseEl = verseEl;
+            verseEl.classList.add('verse-selected');
+            const checkbox = verseEl.querySelector('.verse-checkbox');
+            if (checkbox) checkbox.checked = true;
+        }
         updateVerseActionBar();
         document.getElementById('verse-actions').classList.add('va-active');
         return;
     }
 
-    // Mismo verso seleccionado → deseleccionar
+    // Móvil: click simple solo selecciona un verso (no rango)
     if (selectedVerseEl === verseEl) {
         clearVerseSelection();
         return;
     }
 
-    // Hay un verso inicial → extender rango si mismo capítulo
-    if (selectedVerseEl) {
+    // Click en otro verso reemplaza la selección (sin rango)
+    clearVerseSelection();
+    selectedVerseEl = verseEl;
+    verseEl.classList.add('verse-selected');
+    updateVerseActionBar();
+    document.getElementById('verse-actions').classList.add('va-active');
+
+    // Mostrar toast de hint rango en móvil
+    if (!isPC) {
+        showSaveToast('Mantén presionado un segundo verso para seleccionar un grupo');
+    }
+});
+
+// Long-press para rango en móvil
+let rangeModeTimeout = null;
+elements.versesContent.addEventListener('contextmenu', e => {
+    if (window.innerWidth >= 1024) return; // solo móvil
+    const verseEl = e.target.closest('.verse');
+    if (!verseEl) return;
+    e.preventDefault();
+
+    // Si ya hay verso seleccionado, long-press crea rango
+    if (selectedVerseEl && selectedVerseEl !== verseEl) {
         const { chapN: startChap } = getVerseInfo(selectedVerseEl);
-        const { chapN: endChap }   = getVerseInfo(verseEl);
+        const { chapN: endChap } = getVerseInfo(verseEl);
         if (startChap === endChap) {
             selectedVerseEndEl = verseEl;
             highlightVerseRange();
-        } else {
-            // Distinto capítulo (modo continuo) → empezar de nuevo
-            clearVerseSelection();
+            updateVerseActionBar();
+            return;
+        }
+    }
+
+    clearVerseSelection();
+    selectedVerseEl = verseEl;
+    verseEl.classList.add('verse-selected');
+    updateVerseActionBar();
+    document.getElementById('verse-actions').classList.add('va-active');
+});
+
+// Checkbox click para rango en PC
+elements.versesContent.addEventListener('change', e => {
+    if (!e.target.classList.contains('verse-checkbox')) return;
+    const checkbox = e.target;
+    const verseEl = checkbox.closest('.verse');
+    if (!verseEl) return;
+
+    const isChecked = checkbox.checked;
+
+    if (isChecked) {
+        if (!selectedVerseEl) {
             selectedVerseEl = verseEl;
             verseEl.classList.add('verse-selected');
+        } else {
+            selectedVerseEndEl = verseEl;
+            highlightVerseRange();
         }
     } else {
-        selectedVerseEl = verseEl;
-        verseEl.classList.add('verse-selected');
+        if (selectedVerseEl === verseEl) {
+            clearVerseSelection();
+        } else if (selectedVerseEndEl === verseEl) {
+            selectedVerseEndEl = null;
+            document.querySelectorAll('.verse-selected').forEach(el => el.classList.remove('verse-selected'));
+            if (selectedVerseEl) selectedVerseEl.classList.add('verse-selected');
+        }
     }
 
     updateVerseActionBar();
-    document.getElementById('verse-actions').classList.add('va-active');
+    if (selectedVerseEl) {
+        document.getElementById('verse-actions').classList.add('va-active');
+    }
 });
 
 document.getElementById('va-compare').addEventListener('click', () => {
