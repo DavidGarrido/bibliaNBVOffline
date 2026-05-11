@@ -436,6 +436,38 @@ main#content.continuous {
     cursor: not-allowed;
 }
 
+/* Botones de navegación flotantes PC */
+.pc-nav-btn {
+    display: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 50px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 8px;
+    font-size: 32px;
+    color: var(--airbnb-dark);
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    transition: background 0.2s, transform 0.1s;
+}
+.pc-nav-btn:hover {
+    background: white;
+}
+.pc-nav-btn:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+@media (min-width: 1024px) {
+    .pc-nav-btn { display: block; }
+    #view-reader { position: relative; }
+    #pc-prev-btn { left: -70px; }
+    #pc-next-btn { right: -70px; }
+}
+
 #verses-content {
     line-height: 1.75;
     font-size: 19px;
@@ -1111,7 +1143,7 @@ h2 {
 }
 
 /* ── Botón Mis estudios ── */
-#sd-my-studies-btn {
+#sd-my-studies-btn, #sd-other-studies-btn {
     width: calc(100% - 24px);
     margin: 3px 12px;
     padding: 13px 16px;
@@ -1129,12 +1161,12 @@ h2 {
     transition: all 0.15s;
     box-sizing: border-box;
 }
-#sd-my-studies-btn:hover {
+#sd-my-studies-btn:hover, #sd-other-studies-btn:hover {
     background: rgba(36, 129, 204, 0.1);
     border-color: rgba(36, 129, 204, 0.5);
     box-shadow: 0 4px 12px rgba(36, 129, 204, 0.12);
 }
-#sd-my-studies-btn:active { transform: scale(0.97); }
+#sd-my-studies-btn:active, #sd-other-studies-btn:active { transform: scale(0.97); }
 
 /* ── Acciones primarias: Nueva nota / Nuevo estudio ── */
 #sd-new-note, #sd-new-study {

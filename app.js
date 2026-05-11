@@ -294,7 +294,7 @@ function histPush(book, chapter) {
     let hist = histLoad();
     hist = hist.filter(h => !(h.bookId === entry.bookId && h.chapN === entry.chapN && h.verseN === entry.verseN));
     hist.push(entry);
-    if (hist.length > 10) hist.length = 10;
+    if (hist.length > 10) hist.shift();
     localStorage.setItem(HIST_KEY, JSON.stringify(hist));
 }
 
@@ -658,6 +658,14 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') simulateSwipe('left');
     if (e.key === 'ArrowLeft')  simulateSwipe('right');
 });
+
+// Botones de navegación de capítulo
+document.getElementById('prev-chap')?.addEventListener('click', () => simulateSwipe('right'));
+document.getElementById('next-chap')?.addEventListener('click', () => simulateSwipe('left'));
+
+// Botones flotantes PC
+document.getElementById('pc-prev-btn')?.addEventListener('click', () => simulateSwipe('right'));
+document.getElementById('pc-next-btn')?.addEventListener('click', () => simulateSwipe('left'));
 
 function simulateSwipe(direction) {
     const bookIndex = bibleData.findIndex(b => b.id === currentBook.id);
@@ -1764,6 +1772,12 @@ function setupStudiesListeners() {
         closeStudiesDropdown();
         openStudiesListModal();
     });
+
+    // Botón Ver otros estudios
+    document.getElementById('sd-other-studies-btn')?.addEventListener('click', () => {
+        closeStudiesDropdown();
+        openStudiesListModal();
+    });
     document.getElementById('slm-overlay').addEventListener('click', closeStudiesListModal);
     document.getElementById('slm-close').addEventListener('click', closeStudiesListModal);
 
@@ -2205,8 +2219,15 @@ function openStudySheet(studyId, isStartup = false) {
         });
     } else {
         const isActive = study.id === studiesState.activeStudyId;
+        const otherStudies = studiesState.studies.filter(s => s.id !== study.id);
+        const moreStudiesBtn = otherStudies.length > 0
+            ? `<button id="ss-more-studies-btn" class="ss-secondary-btn">Ver otros estudios (${otherStudies.length})</button>`
+            : '';
         if (isActive) {
-            actions.innerHTML = `<button id="ss-continue-btn" class="primary-btn">Continuar en este estudio</button>`;
+            actions.innerHTML = `
+                <button id="ss-continue-btn" class="primary-btn">Continuar en este estudio</button>
+                ${moreStudiesBtn}
+            `;
             document.getElementById('ss-continue-btn').addEventListener('click', () => {
                 if (window.innerWidth >= 1024) {
                     renderStudyEntries(study);
@@ -2217,6 +2238,7 @@ function openStudySheet(studyId, isStartup = false) {
         } else {
             actions.innerHTML = `
                 <button id="ss-continue-btn" class="primary-btn">Continuar en este estudio</button>
+                ${moreStudiesBtn}
                 <button id="ss-cancel-btn" class="ss-secondary-btn">Cancelar</button>
             `;
             document.getElementById('ss-continue-btn').addEventListener('click', () => {
@@ -2237,6 +2259,31 @@ function openStudySheet(studyId, isStartup = false) {
             });
             document.getElementById('ss-cancel-btn').addEventListener('click', closeStudySheet);
         }
+
+        // Event listener para "Ver otros estudios"
+        document.getElementById('ss-more-studies-btn')?.addEventListener('click', () => {
+            const content = document.getElementById('ss-content');
+            content.innerHTML = otherStudies.map(s => `
+                <div class="ss-study-option" data-id="${s.id}">
+                    <span class="ss-study-option-name">${s.name}</span>
+                    <span class="ss-study-option-count">${s.entries.length} entradas</span>
+                </div>
+            `).join('');
+            content.querySelectorAll('.ss-study-option').forEach(el => {
+                el.addEventListener('click', () => {
+                    studiesState = studiesSetActive(studiesState, el.dataset.id);
+                    studiesSave(studiesState);
+                    updateStudiesButton();
+                    renderStudiesDropdown();
+                    closeStudySheet();
+                    showSaveToast(`Estudio activo: ${el.querySelector('.ss-study-option-name').textContent}`);
+                    studyNavReset();
+                    reapplyStudyMarkers();
+                    studyNavUpdate();
+                    if (studyNavEntries().length > 0) openStudyNavModal();
+                });
+            });
+        });
     }
 
     sheet.classList.remove('ss-hidden');
