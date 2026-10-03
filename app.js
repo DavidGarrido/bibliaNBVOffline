@@ -3489,7 +3489,7 @@ function openConfigModal() {
 
 // ── Configuración de IA ───────────────────────────────────────
 
-const AI_WORKER_URL = 'https://procliup-quoter.www-davidalexander.workers.dev/bible';
+const AI_WORKER_URL = 'https://biblia-nbv-ai.www-davidalexander.workers.dev/bible';
 
 // ── Sheet IA ─────────────────────────────────────────────────
 
