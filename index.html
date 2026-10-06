@@ -225,6 +225,20 @@
                 <div id="ns-verse-ref" class="ns-verse-ref"></div>
                 <div id="ns-verse-text" class="ns-verse-text"></div>
                 <textarea id="ns-note-input" placeholder="Escribe una nota (opcional)"></textarea>
+                <div class="ns-photo-section">
+                    <div class="ns-photo-header">
+                        <span>📷 Fotos</span>
+                        <span id="ns-photo-count" class="ns-photo-count"></span>
+                    </div>
+                    <div id="ns-photos-preview" class="ns-photos-preview"></div>
+                    <div class="ns-photo-btns">
+                        <label class="ns-photo-btn">
+                            <input type="file" id="ns-photo-file" accept="image/*" multiple style="display:none">
+                            🖼️ Galería
+                        </label>
+                        <button type="button" id="ns-photo-cam" class="ns-photo-btn">📷 Cámara</button>
+                    </div>
+                </div>
                 <label id="ns-base-ref-row" class="ns-base-ref-row" style="display:none">
                     <input type="checkbox" id="ns-base-ref-check">
                     <span id="ns-base-ref-label"></span>
@@ -235,6 +249,32 @@
                 <button id="ns-save-btn" class="primary-btn">Guardar</button>
             </div>
         </div>
+    </div>
+
+    <!-- Modal cámara para fotos de notas -->
+    <div id="note-cam-modal" class="ncm-hidden">
+        <div id="note-cam-overlay"></div>
+        <div id="note-cam-box">
+            <div id="note-cam-header">
+                <span>📷 Tomar foto</span>
+                <button id="note-cam-close" class="icon-btn">✕</button>
+            </div>
+            <div class="note-cam-preview">
+                <video id="note-cam-video" autoplay playsinline></video>
+                <canvas id="note-cam-canvas" style="display:none"></canvas>
+            </div>
+            <div class="note-cam-actions">
+                <button type="button" id="note-cam-switch" class="cfg-toggle-btn" style="display:none">🔄 Cambiar</button>
+                <button type="button" id="note-cam-capture" class="primary-btn">📸 Capturar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visor fullscreen de fotos -->
+    <div id="photo-viewer" class="pv-hidden">
+        <div id="photo-viewer-overlay"></div>
+        <button id="photo-viewer-close" class="icon-btn">✕</button>
+        <img id="photo-viewer-img" alt="Foto ampliada">
     </div>
 
     <!-- Toast de confirmación -->

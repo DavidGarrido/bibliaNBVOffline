@@ -1667,6 +1667,154 @@ function studiesDeleteStudy(state, studyId) {
     return { ...state, studies, activeStudyId: newActiveId };
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ── Fotos de notas (estilo GioBike: binario en IndexedDB) ──────
+// El JSON del estudio solo guarda los ids (entry.images); el
+// binario vive en IndexedDB para no reventar localStorage (~5MB).
+// ═══════════════════════════════════════════════════════════════
+
+const NOTE_PHOTOS_DB = 'biblia-fotos';
+const NOTE_PHOTOS_STORE = 'fotos';
+const NOTE_PHOTOS_MAX_DIM = 1024;
+const NOTE_PHOTOS_QUALITY = 0.82;
+const NOTE_PHOTOS_MAX_PER_ENTRY = 5;
+
+const notePhotoDB = (() => {
+    function open() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(NOTE_PHOTOS_DB, 1);
+            req.onupgradeneeded = e => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(NOTE_PHOTOS_STORE)) {
+                    db.createObjectStore(NOTE_PHOTOS_STORE, { keyPath: 'id' });
+                }
+            };
+            req.onsuccess = e => resolve(e.target.result);
+            req.onerror = e => reject(e.target.error);
+        });
+    }
+    function tx(mode) {
+        return open().then(db => new Promise((resolve, reject) => {
+            try {
+                const t = db.transaction(NOTE_PHOTOS_STORE, mode);
+                resolve({ t, store: t.objectStore(NOTE_PHOTOS_STORE), db });
+            } catch (err) { db.close(); reject(err); }
+        }));
+    }
+    return {
+        async save(id, base64) {
+            const { t, store, db } = await tx('readwrite');
+            return new Promise((resolve, reject) => {
+                store.put({ id, base64, createdAt: new Date().toISOString() });
+                t.oncomplete = () => { db.close(); resolve(id); };
+                t.onerror = e => { db.close(); reject(e.target.error); };
+            });
+        },
+        async get(id) {
+            const { store, db } = await tx('readonly');
+            return new Promise((resolve, reject) => {
+                const req = store.get(id);
+                req.onsuccess = e => { db.close(); resolve(e.target.result?.base64 || null); };
+                req.onerror = e => { db.close(); reject(e.target.error); };
+            });
+        },
+        async del(id) {
+            const { t, store, db } = await tx('readwrite');
+            return new Promise((resolve, reject) => {
+                store.delete(id);
+                t.oncomplete = () => { db.close(); resolve(); };
+                t.onerror = e => { db.close(); reject(e.target.error); };
+            });
+        },
+        async delMany(ids) {
+            for (const id of (ids || [])) {
+                try { await this.del(id); } catch { /* noop */ }
+            }
+        }
+    };
+})();
+
+function genNotePhotoId() {
+    return 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+// Comprime una imagen (File o dataURL) a JPEG max 1024px.
+// Retorna el cuerpo base64 (sin prefijo data:), como GioBike.
+function resizeNoteImage(source, maxDim = NOTE_PHOTOS_MAX_DIM) {
+    return new Promise((resolve, reject) => {
+        const loadSrc = (src, cb) => {
+            if (typeof src === 'string') { cb(src); return; }
+            const fr = new FileReader();
+            fr.onload = e => cb(e.target.result);
+            fr.onerror = reject;
+            fr.readAsDataURL(src);
+        };
+        loadSrc(source, dataUrl => {
+            const img = new Image();
+            img.onload = () => {
+                const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(img.width * scale);
+                canvas.height = Math.round(img.height * scale);
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', NOTE_PHOTOS_QUALITY).split(',')[1]);
+            };
+            img.onerror = reject;
+            img.src = dataUrl;
+        });
+    });
+}
+
+function notePhotoSrc(base64) {
+    return 'data:image/jpeg;base64,' + base64;
+}
+
+// Rellena los contenedores .entry-photos[data-ids] con thumbnails.
+// Cada img abre el visor fullscreen al tocarla.
+async function hydrateEntryPhotos(root) {
+    if (!root) return;
+    const boxes = root.querySelectorAll('.entry-photos[data-ids]');
+    for (const box of boxes) {
+        if (box.dataset.done) continue;
+        box.dataset.done = '1';
+        let ids = [];
+        try { ids = JSON.parse(box.dataset.ids || '[]'); } catch { ids = []; }
+        if (!ids.length) { box.remove(); continue; }
+        for (const id of ids) {
+            try {
+                const b64 = await notePhotoDB.get(id);
+                if (!b64) continue;
+                const img = document.createElement('img');
+                img.src = notePhotoSrc(b64);
+                img.className = 'entry-photo-thumb';
+                img.alt = 'Foto de la nota';
+                img.loading = 'lazy';
+                img.addEventListener('click', () => openPhotoViewer(notePhotoSrc(b64)));
+                box.appendChild(img);
+            } catch { /* foto ilegible: se omite */ }
+        }
+        if (!box.children.length) box.remove();
+    }
+}
+
+function entryPhotosHtml(entry) {
+    const ids = entry.images || [];
+    if (!ids.length) return '';
+    return `<div class="entry-photos" data-ids='${JSON.stringify(ids)}'></div>`;
+}
+
+function openPhotoViewer(src) {
+    const viewer = document.getElementById('photo-viewer');
+    document.getElementById('photo-viewer-img').src = src;
+    viewer.classList.remove('pv-hidden');
+}
+
+function closePhotoViewer() {
+    const viewer = document.getElementById('photo-viewer');
+    viewer.classList.add('pv-hidden');
+    document.getElementById('photo-viewer-img').src = '';
+}
+
 // Variables de estado
 let studiesState = studiesLoad();
 
@@ -1852,6 +2000,27 @@ function setupStudiesListeners() {
     
     // Save note
     document.getElementById('ns-save-btn').addEventListener('click', handleSaveNote);
+
+    // Fotos de la nota: galería + cámara (estilo GioBike)
+    document.getElementById('ns-photo-file').addEventListener('change', e => {
+        noteSheetAddFiles(e.target.files);
+        e.target.value = '';
+    });
+    document.getElementById('ns-photo-cam').addEventListener('click', () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            showSaveToast('Tu navegador no soporta la cámara, usa Galería');
+            return;
+        }
+        noteCamOpen();
+    });
+    document.getElementById('note-cam-close').addEventListener('click', noteCamClose);
+    document.getElementById('note-cam-overlay').addEventListener('click', noteCamClose);
+    document.getElementById('note-cam-switch').addEventListener('click', noteCamSwitch);
+    document.getElementById('note-cam-capture').addEventListener('click', noteCamCapture);
+
+    // Visor fullscreen de fotos
+    document.getElementById('photo-viewer-close').addEventListener('click', closePhotoViewer);
+    document.getElementById('photo-viewer-overlay').addEventListener('click', closePhotoViewer);
 
     // Autocomplete @version: en el textarea
     const noteInput    = document.getElementById('ns-note-input');
@@ -2311,6 +2480,7 @@ function renderStudyEntries(study) {
                     <div class="ss-entry-ref" data-entry-id="${entry.id}">${entry.ref}${entry.translationId ? ` <span class="ss-entry-version">${entry.translationId.toUpperCase()}</span>` : ''}</div>
                     <div class="ss-entry-text">${entry.text}</div>
                     ${entry.note ? `<div class="ss-entry-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN })}</div>` : ''}
+                    ${entryPhotosHtml(entry)}
                     <div class="ss-entry-actions">
                         <button class="ss-edit-entry" data-entry-id="${entry.id}">✏️ Editar nota</button>
                         <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
@@ -2321,6 +2491,7 @@ function renderStudyEntries(study) {
             return `
                 <div class="ss-entry">
                     <div class="ss-entry-text">📝 ${entry.text}</div>
+                    ${entryPhotosHtml(entry)}
                     <div class="ss-entry-actions">
                         <button class="ss-edit-entry" data-entry-id="${entry.id}">✏️ Editar</button>
                         <button class="ss-delete-entry" data-entry-id="${entry.id}">🗑️ Eliminar</button>
@@ -2354,6 +2525,9 @@ function renderStudyEntries(study) {
     // Links de citas en notas
     attachNoteRefListeners(content);
 
+    // Fotos de notas (IndexedDB, async)
+    hydrateEntryPhotos(content);
+
     // Edit handlers
     content.querySelectorAll('.ss-edit-entry').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -2366,8 +2540,10 @@ function renderStudyEntries(study) {
     content.querySelectorAll('.ss-delete-entry').forEach(btn => {
         btn.addEventListener('click', () => {
             showConfirmModal('¿Eliminar esta entrada?', () => {
+                const doomed = study.entries.find(e => e.id === btn.dataset.entryId);
                 studiesState = studiesDeleteEntry(studiesState, study.id, btn.dataset.entryId);
                 studiesSave(studiesState);
+                if (doomed?.images?.length) notePhotoDB.delMany(doomed.images).catch(() => {});
                 const updatedStudy = studiesState.studies.find(s => s.id === study.id);
                 renderStudyEntries(updatedStudy);
                 reapplyStudyMarkers();
@@ -2380,6 +2556,141 @@ function renderStudyEntries(study) {
 function closeStudySheet() {
     document.getElementById('study-sheet').classList.add('ss-hidden');
     document.body.classList.remove('study-sheet-open');
+}
+
+// Fotos en staging del note-sheet: [{ id (existente en IDB) | null,
+// dataUrl (nueva por guardar) | null, removed }]
+let noteSheetPhotos = [];
+let noteSheetRemovedIds = [];
+
+function noteSheetResetPhotos(existingIds) {
+    noteSheetPhotos = (existingIds || []).map(id => ({ id, dataUrl: null, removed: false }));
+    noteSheetRemovedIds = [];
+    renderNsPhotos();
+}
+
+function noteSheetVisiblePhotos() {
+    return noteSheetPhotos.filter(p => !p.removed);
+}
+
+function renderNsPhotos() {
+    const box = document.getElementById('ns-photos-preview');
+    if (!box) return;
+    box.innerHTML = '';
+    noteSheetVisiblePhotos().forEach((p, idx) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'ns-photo-item';
+        const img = document.createElement('img');
+        img.alt = 'Foto ' + (idx + 1);
+        if (p.dataUrl) {
+            img.src = p.dataUrl;
+        } else if (p.id) {
+            img.alt = 'Cargando…';
+            notePhotoDB.get(p.id).then(b64 => {
+                if (b64) { img.src = notePhotoSrc(b64); }
+                else { img.alt = 'No disponible'; }
+            }).catch(() => { img.alt = 'No disponible'; });
+        }
+        img.addEventListener('click', () => {
+            if (img.src && img.src.startsWith('data:')) openPhotoViewer(img.src);
+        });
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'ns-photo-del';
+        del.textContent = '✕';
+        del.title = 'Quitar foto';
+        del.addEventListener('click', () => {
+            p.removed = true;
+            if (p.id) noteSheetRemovedIds.push(p.id);
+            renderNsPhotos();
+        });
+        wrap.appendChild(img);
+        wrap.appendChild(del);
+        box.appendChild(wrap);
+    });
+    const count = document.getElementById('ns-photo-count');
+    if (count) count.textContent = noteSheetVisiblePhotos().length
+        ? `${noteSheetVisiblePhotos().length}/${NOTE_PHOTOS_MAX_PER_ENTRY} fotos` : '';
+}
+
+async function noteSheetAddFiles(fileList) {
+    const files = [...(fileList || [])].filter(f => f.type.startsWith('image/'));
+    if (!files.length) return;
+    const room = NOTE_PHOTOS_MAX_PER_ENTRY - noteSheetVisiblePhotos().length;
+    if (room <= 0) { showSaveToast(`Máximo ${NOTE_PHOTOS_MAX_PER_ENTRY} fotos por nota`); return; }
+    for (const file of files.slice(0, room)) {
+        try {
+            const body = await resizeNoteImage(file);
+            noteSheetPhotos.push({ id: null, dataUrl: notePhotoSrc(body), removed: false });
+        } catch {
+            showSaveToast('No se pudo leer una imagen');
+        }
+    }
+    if (files.length > room) showSaveToast(`Solo se agregaron ${room} (máx. ${NOTE_PHOTOS_MAX_PER_ENTRY})`);
+    renderNsPhotos();
+}
+
+// ── Cámara del note-sheet (modal propio, como GioBike) ──────────
+let noteCamStream = null;
+let noteCamDevices = [];
+let noteCamIndex = 0;
+
+async function noteCamOpen() {
+    document.getElementById('note-cam-modal').classList.remove('ncm-hidden');
+    await noteCamStart();
+}
+
+function noteCamClose() {
+    document.getElementById('note-cam-modal').classList.add('ncm-hidden');
+    if (noteCamStream) {
+        noteCamStream.getTracks().forEach(t => t.stop());
+        noteCamStream = null;
+    }
+}
+
+async function noteCamStart() {
+    const video = document.getElementById('note-cam-video');
+    try {
+        if (noteCamStream) noteCamStream.getTracks().forEach(t => t.stop());
+        const devices = (await navigator.mediaDevices.enumerateDevices())
+            .filter(d => d.kind === 'videoinput');
+        noteCamDevices = devices;
+        const constraints = devices.length && noteCamIndex < devices.length
+            ? { video: { deviceId: { exact: devices[noteCamIndex].deviceId } } }
+            : { video: { facingMode: 'environment' } };
+        noteCamStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = noteCamStream;
+        document.getElementById('note-cam-switch').style.display =
+            devices.length > 1 ? '' : 'none';
+    } catch {
+        showSaveToast('No se pudo abrir la cámara');
+        noteCamClose();
+    }
+}
+
+function noteCamSwitch() {
+    if (!noteCamDevices.length) return;
+    noteCamIndex = (noteCamIndex + 1) % noteCamDevices.length;
+    noteCamStart();
+}
+
+async function noteCamCapture() {
+    const video = document.getElementById('note-cam-video');
+    if (!video.videoWidth) return;
+    if (NOTE_PHOTOS_MAX_PER_ENTRY - noteSheetVisiblePhotos().length <= 0) {
+        showSaveToast(`Máximo ${NOTE_PHOTOS_MAX_PER_ENTRY} fotos por nota`);
+        return;
+    }
+    const canvas = document.getElementById('note-cam-canvas');
+    const scale = Math.min(1, NOTE_PHOTOS_MAX_DIM / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', NOTE_PHOTOS_QUALITY);
+    noteSheetPhotos.push({ id: null, dataUrl, removed: false });
+    renderNsPhotos();
+    noteCamClose();
+    showSaveToast('Foto agregada 📷');
 }
 
 function openNoteSheet(verseData = null, editEntry = null, editStudyId = null) {
@@ -2404,11 +2715,13 @@ function openNoteSheet(verseData = null, editEntry = null, editStudyId = null) {
             textEl.style.display = 'block';
             noteInput.value = editEntry.note || '';
             noteInput.placeholder = 'Nota del versículo (opcional)';
+            noteSheetResetPhotos(editEntry.images);
         } else {
             refEl.style.display = 'none';
             textEl.style.display = 'none';
             noteInput.value = editEntry.text || '';
             noteInput.placeholder = 'Texto de la nota';
+            noteSheetResetPhotos(editEntry.images);
         }
     } else if (verseData) {
         title.textContent = 'Guardar versículo';
@@ -2417,11 +2730,13 @@ function openNoteSheet(verseData = null, editEntry = null, editStudyId = null) {
         textEl.textContent = verseData.text;
         textEl.style.display = 'block';
         noteInput.placeholder = 'Escribe una nota (opcional)';
+        noteSheetResetPhotos([]);
     } else {
         title.textContent = 'Nueva nota';
         refEl.style.display = 'none';
         textEl.style.display = 'none';
         noteInput.placeholder = 'Escribe una nota (opcional)';
+        noteSheetResetPhotos([]);
     }
 
     // Base ref checkbox
@@ -2454,22 +2769,37 @@ function closeNoteSheet() {
     document.getElementById('note-sheet').classList.add('ns-hidden');
 }
 
-function handleSaveNote() {
+async function handleSaveNote() {
     const sheet = document.getElementById('note-sheet');
     const noteInput = document.getElementById('ns-note-input');
     const note = noteInput.value.trim();
     const verseDataStr = sheet.dataset.verseData;
     const editEntryStr = sheet.dataset.editEntry;
 
+    // ── Persiste fotos del staging en IndexedDB ──────────────
+    const keptIds = noteSheetPhotos.filter(p => p.id && !p.removed).map(p => p.id);
+    const newIds = [];
+    for (const p of noteSheetPhotos.filter(p => !p.id && !p.removed && p.dataUrl)) {
+        const body = p.dataUrl.includes(',') ? p.dataUrl.split(',')[1] : p.dataUrl;
+        const id = genNotePhotoId();
+        try { await notePhotoDB.save(id, body); newIds.push(id); }
+        catch { /* sin espacio: se omite la foto */ }
+    }
+    const finalImageIds = [...keptIds, ...newIds];
+    if (noteSheetRemovedIds.length) {
+        notePhotoDB.delMany(noteSheetRemovedIds).catch(() => {});
+        noteSheetRemovedIds = [];
+    }
+
     // ── Modo edición ──────────────────────────────────────────
     if (editEntryStr) {
         const editEntry = JSON.parse(editEntryStr);
         const studyId = sheet.dataset.editStudyId;
         if (editEntry.type === 'verse') {
-            studiesState = studiesUpdateEntry(studiesState, studyId, editEntry.id, { note });
+            studiesState = studiesUpdateEntry(studiesState, studyId, editEntry.id, { note, images: finalImageIds });
         } else {
-            if (!note) { showSaveToast('Escribe algo para guardar'); return; }
-            studiesState = studiesUpdateEntry(studiesState, studyId, editEntry.id, { text: note });
+            if (!note && !finalImageIds.length) { showSaveToast('Escribe algo o agrega una foto'); return; }
+            studiesState = studiesUpdateEntry(studiesState, studyId, editEntry.id, { text: note, images: finalImageIds });
         }
         studiesSave(studiesState);
         closeNoteSheet();
@@ -2497,14 +2827,16 @@ function handleSaveNote() {
             verseEnd: verseData.verseEnd || null,
             text: verseData.text,
             translationId: elements.translationSelect.value,
-            note: note
+            note: note,
+            images: finalImageIds
         };
         studiesState = studiesAddEntry(studiesState, activeStudy.id, entry);
-    } else if (note) {
+    } else if (note || finalImageIds.length) {
         const entry = {
             type: 'note',
             text: note,
-            note: ''
+            note: '',
+            images: finalImageIds
         };
         studiesState = studiesAddEntry(studiesState, activeStudy.id, entry);
     } else {
@@ -2876,7 +3208,7 @@ function applyStudyMarkers(container, fixedChapN = null) {
             badge.textContent = noteNumberMap[entry.id];
             badge.addEventListener('click', ev => {
                 ev.stopPropagation();
-                openNoteBadgeModal(entry.note, entry.ref, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN });
+                openNoteBadgeModal(entry.note, entry.ref, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN }, entry.images);
             });
             verseEl.appendChild(badge);
         });
@@ -2898,11 +3230,20 @@ function reapplyStudyMarkers() {
     applyStudyMarkers(container, readingMode === 'paged' ? currentChapter?.n : null);
 }
 
-function openNoteBadgeModal(note, ref, context) {
+function openNoteBadgeModal(note, ref, context, images) {
     document.getElementById('nbm-ref').textContent = ref || '';
     const noteEl = document.getElementById('nbm-note-text');
     noteEl.innerHTML = linkifyNoteText(note, context);
     attachNoteRefListeners(noteEl);
+    const oldBox = noteEl.parentElement.querySelector('.entry-photos');
+    if (oldBox) oldBox.remove();
+    if (images && images.length) {
+        const box = document.createElement('div');
+        box.className = 'entry-photos';
+        box.dataset.ids = JSON.stringify(images);
+        noteEl.after(box);
+        hydrateEntryPhotos(noteEl.parentElement);
+    }
     document.getElementById('note-badge-modal').classList.remove('nbm-hidden');
 }
 
@@ -3093,16 +3434,20 @@ function renderStudyNavList() {
                 <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
                 <div class="snm-entry-text">${entry.text}</div>
                 ${noteHtml}
+                ${entryPhotosHtml(entry)}
                 ${actionsHtml}
                 <button class="snm-goto-btn snm-list-goto" data-index="${studyNavIndex}">→ Ir al versículo</button>
             </div>`;
+            hydrateEntryPhotos(content);
         } else {
             // Móvil: comportamiento original
             content.innerHTML = `<div class="snm-list-item snm-list-active">
                 <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
                 ${entry.note ? `<div class="snm-list-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN })}</div>` : ''}
+                ${entryPhotosHtml(entry)}
                 <button class="snm-goto-btn snm-list-goto" data-index="${studyNavIndex}">→ Ir al versículo</button>
             </div>`;
+            hydrateEntryPhotos(content);
         }
     } else {
         // Nota libre
@@ -3110,16 +3455,20 @@ function renderStudyNavList() {
             content.innerHTML = `<div class="snm-list-item snm-list-item-note snm-list-active">
                 <div class="snm-note-label">📝 Nota libre</div>
                 <div class="snm-list-note">${linkifyNoteText(entry.text)}</div>
+                ${entryPhotosHtml(entry)}
                 <div class="snm-entry-actions">
                     <button class="snm-edit-note" data-entry-id="${entry.id}">✏️ Editar</button>
                     <button class="snm-delete-note" data-entry-id="${entry.id}">🗑️ Eliminar</button>
                 </div>
             </div>`;
+            hydrateEntryPhotos(content);
         } else {
             content.innerHTML = `<div class="snm-list-item snm-list-item-note snm-list-active">
                 <div class="snm-note-label">📝 Nota libre</div>
                 <div class="snm-list-note">${linkifyNoteText(entry.text)}</div>
+                ${entryPhotosHtml(entry)}
             </div>`;
+            hydrateEntryPhotos(content);
         }
     }
 
@@ -3267,9 +3616,11 @@ function renderStudyNavModal() {
             <div class="snm-ref">${escapeHtml(entry.ref)}${versionTag}</div>
             <div class="snm-text">${escapeHtml(entry.text)}</div>
             ${entry.note ? `<div class="snm-note-label">Nota</div><div class="snm-note">${linkifyNoteText(entry.note, { bookId: entry.bookId, chapN: entry.chapN, verseN: entry.verseN })}</div>` : ''}
+            ${entryPhotosHtml(entry)}
             <button id="snm-goto" class="snm-goto-btn">→ Ir al versículo</button>
         `;
         if (entry.note) attachNoteRefListeners(content.querySelector('.snm-note'));
+        hydrateEntryPhotos(content);
         document.getElementById('snm-goto').addEventListener('click', () => {
             closeStudyNavModal();
             studyNavNavigateToEntry(entry);
@@ -3278,8 +3629,10 @@ function renderStudyNavModal() {
         content.innerHTML = `
             <div class="snm-note-label">📝 Nota libre</div>
             <div class="snm-free-note">${linkifyNoteText(entry.text)}</div>
+            ${entryPhotosHtml(entry)}
         `;
         attachNoteRefListeners(content.querySelector('.snm-free-note'));
+        hydrateEntryPhotos(content);
     }
 }
 
@@ -3924,7 +4277,7 @@ function setupExportImport() {
             try {
                 const data = JSON.parse(ev.target.result);
                 if (!data.studies || !Array.isArray(data.studies)) throw new Error();
-                openImportSheet(data.studies);
+                openImportSheet(data.studies, data.photos);
             } catch {
                 showSaveToast('Archivo inválido');
             }
@@ -3994,12 +4347,22 @@ function closeExportSheet() {
     document.getElementById('export-sheet').classList.add('exs-hidden');
 }
 
-function doExport() {
+async function doExport() {
     const selected = [...document.querySelectorAll('.exs-check:checked')].map(cb => cb.dataset.studyId);
     if (!selected.length) { showSaveToast('Selecciona al menos un estudio'); return; }
 
     const studies = studiesState.studies.filter(s => selected.includes(s.id));
-    const payload = { version: 1, exportedAt: new Date().toISOString(), studies };
+    // Fotos referenciadas (binario de IndexedDB, no cabe en localStorage)
+    const photoIds = new Set();
+    studies.forEach(s => (s.entries || []).forEach(e => (e.images || []).forEach(id => photoIds.add(id))));
+    const photos = {};
+    for (const id of photoIds) {
+        try {
+            const b64 = await notePhotoDB.get(id);
+            if (b64) photos[id] = b64;
+        } catch { /* se omite */ }
+    }
+    const payload = { version: 1, exportedAt: new Date().toISOString(), studies, photos };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -4014,9 +4377,11 @@ function doExport() {
 // ── Import ────────────────────────────────────────────────────
 
 let importStudiesBuffer = [];
+let importPhotosBuffer = {};
 
-function openImportSheet(studies) {
+function openImportSheet(studies, photos) {
     importStudiesBuffer = studies;
+    importPhotosBuffer = photos || {};
     const list = document.getElementById('ims-list');
     const existingIds = new Set(studiesState.studies.map(s => s.id));
     const existingNames = new Set(studiesState.studies.map(s => s.name));
@@ -4053,9 +4418,10 @@ function openImportSheet(studies) {
 function closeImportSheet() {
     document.getElementById('import-sheet').classList.add('ims-hidden');
     importStudiesBuffer = [];
+    importPhotosBuffer = {};
 }
 
-function doImport() {
+async function doImport() {
     const selectedIdxs = [...document.querySelectorAll('.ims-check:checked')].map(cb => parseInt(cb.dataset.idx));
     if (!selectedIdxs.length) { showSaveToast('Selecciona al menos un estudio'); return; }
 
@@ -4063,6 +4429,14 @@ function doImport() {
     const selected = selectedIdxs.map(i => importStudiesBuffer[i]);
     const existingIds = new Set(studiesState.studies.map(s => s.id));
     let added = 0, replaced = 0, lastId = null;
+
+    // Restaura las fotos del archivo a IndexedDB (ignora las que ya existen)
+    for (const [id, b64] of Object.entries(importPhotosBuffer || {})) {
+        try {
+            const exists = await notePhotoDB.get(id);
+            if (!exists && b64) await notePhotoDB.save(id, b64);
+        } catch { /* se omite */ }
+    }
 
     selected.forEach(s => {
         const study = { ...s, tags: s.tags || [], entries: s.entries || [] };
