@@ -90,13 +90,17 @@ async function transcribeAudio(request, env) {
   }
   const url = new URL(request.url);
   const bytes = new Uint8Array(buf);
-  const arr = new Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) arr[i] = bytes[i];
+  // base64 por tramos (evita desbordar la pila con audios grandes)
+  let bin = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
 
   let out;
   try {
     out = await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
-      audio: arr,
+      audio: btoa(bin),
       language: url.searchParams.get('lang') || 'es',
     });
   } catch (e) {
