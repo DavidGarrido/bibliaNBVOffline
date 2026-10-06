@@ -1565,19 +1565,33 @@ async function openVerseCompare(bookId, chapN, verseN) {
                 const res = await fetch(t.file);
                 data = await res.json();
                 bibleCache[t.id] = data;
-            } catch { return { label: t.label, text: null }; }
+            } catch { return { id: t.id, label: t.label, text: null }; }
         }
         const book = data.find(b => b.id == bookId);
         const chap = book?.chapters.find(c => c.n == chapN);
         const verse = chap?.v.find(v => v.n == verseN);
-        return { label: t.label, text: verse?.t || null };
+        return { id: t.id, label: t.label, text: verse?.t || null };
     }));
 
+    const currentTid = elements.translationSelect.value;
     content.innerHTML = results.map(r => `
-        <div class="vc-item">
-            <div class="vc-label">${r.label}</div>
+        <div class="vc-item${r.text ? ' vc-selectable' : ''}${r.id === currentTid ? ' vc-current' : ''}"${r.text ? ` data-tid="${r.id}"` : ''}>
+            <div class="vc-label">${r.label}${r.id === currentTid ? ' ✓' : ''}</div>
             <div class="vc-text">${r.text ?? '<em style="opacity:0.4">No disponible</em>'}</div>
-        </div>`).join('');
+        </div>`).join('')
+        + '<div class="vc-hint">Toca una versión para leer en ella</div>';
+
+    // Tocar una versión: cambia la traducción activa y cierra el comparador
+    content.querySelectorAll('.vc-item.vc-selectable').forEach(el => {
+        el.addEventListener('click', () => {
+            const tid = el.dataset.tid;
+            document.getElementById('verse-compare').classList.add('vc-hidden');
+            if (tid && tid !== elements.translationSelect.value) {
+                elements.translationSelect.value = tid;
+                elements.translationSelect.onchange({ target: elements.translationSelect });
+            }
+        });
+    });
 }
 
 document.getElementById('vc-overlay').addEventListener('click', () => {
