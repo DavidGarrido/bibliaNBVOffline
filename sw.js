@@ -1,11 +1,13 @@
-const CACHE_NAME = 'biblia-v2.31';
+const CACHE_NAME = 'biblia-v2.32';
 const CORE_ASSETS = [
   './',
   './index.html',
+  './landing.html',
   './style.css',
   './app.js',
   './translations.json',
   './logo_iglesia.svg',
+  './icons/icon.svg',
   'https://telegram.org/js/telegram-web-app.js'
 ];
 
@@ -43,7 +45,9 @@ self.addEventListener('fetch', event => {
   // version.json: siempre de red
   if (url.pathname.endsWith('version.json')) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request).catch(() =>
+        caches.match(event.request).then(r => r || new Response('{}', { status: 503 }))
+      )
     );
     return;
   }
@@ -53,11 +57,15 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          if (response && response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() =>
+          caches.match(event.request).then(r => r || new Response('Sin conexión', { status: 503 }))
+        )
     );
     return;
   }
@@ -69,25 +77,33 @@ self.addEventListener('fetch', event => {
         cache.match(event.request).then(cached => {
           if (cached) return cached;
           return fetch(event.request).then(response => {
-            cache.put(event.request, response.clone());
+            if (response && response.ok) cache.put(event.request, response.clone());
             return response;
-          });
+          }).catch(() => new Response('Sin conexión', { status: 503 }));
         })
       )
     );
     return;
   }
 
-  // Todo lo demás: cache first, actualiza en segundo plano
+  // Todo lo demás: cache first, actualiza en segundo plano.
+  // Siempre retorna un Response válido (nunca null).
   event.respondWith(
-    caches.open(CACHE_NAME).then(cache =>
-      cache.match(event.request).then(cached => {
-        const networkFetch = fetch(event.request).then(response => {
-          cache.put(event.request, response.clone());
-          return response;
-        }).catch(() => null);
-        return cached || networkFetch;
-      })
-    )
+    caches.open(CACHE_NAME).then(async cache => {
+      const cached = await cache.match(event.request);
+      if (cached) {
+        fetch(event.request).then(response => {
+          if (response && response.ok) cache.put(event.request, response.clone());
+        }).catch(() => {});
+        return cached;
+      }
+      try {
+        const response = await fetch(event.request);
+        if (response && response.ok) cache.put(event.request, response.clone());
+        return response;
+      } catch (err) {
+        return new Response('Sin conexión', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+      }
+    })
   );
 });

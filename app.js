@@ -1978,7 +1978,6 @@ function ocrInsertIntoNote() {
 // ── Transcripción de audio (MediaRecorder + Whisper en worker) ─
 // El worker necesita el binding [ai] y `wrangler deploy`. El audio se
 // parte en trozos de 8MB y se envía secuencialmente.
-const AI_WORKER_TRANSCRIBE_URL = AI_WORKER_URL.replace(/\/bible$/, '/transcribe');
 const STT_PART_BYTES = 8 * 1024 * 1024;
 let sttStream = null;
 let sttRecorder = null;
@@ -4216,6 +4215,7 @@ function openConfigModal() {
 // ── Configuración de IA ───────────────────────────────────────
 
 const AI_WORKER_URL = 'https://biblia-nbv-ai.www-davidalexander.workers.dev/bible';
+const AI_WORKER_TRANSCRIBE_URL = AI_WORKER_URL.replace(/\/bible$/, '/transcribe');
 
 // ── Sheet IA ─────────────────────────────────────────────────
 

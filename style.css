@@ -2285,7 +2285,8 @@ h2 {
 .pv-ocr-btn:disabled { opacity: 0.6; }
 
 /* Modal OCR */
-#ocr-modal {
+#ocr-modal,
+#stt-modal {
     position: fixed;
     inset: 0;
     z-index: 560;
@@ -2293,8 +2294,10 @@ h2 {
     align-items: flex-end;
     justify-content: center;
 }
-#ocr-modal.ocr-hidden { display: none; }
-#ocr-overlay {
+#ocr-modal.ocr-hidden,
+#stt-modal.ocr-hidden { display: none; }
+#ocr-overlay,
+#stt-overlay {
     position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.45);
