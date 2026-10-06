@@ -1977,13 +1977,66 @@ function ocrInsertIntoNote() {
 
 // ── Transcripción de audio (MediaRecorder + Whisper en worker) ─
 // El worker necesita el binding [ai] y `wrangler deploy`. El audio se
-// parte en trozos de 8MB y se envía secuencialmente.
-const STT_PART_BYTES = 8 * 1024 * 1024;
+// parte en trozos de 4MB y se envía secuencialmente.
+const STT_PART_BYTES = 4 * 1024 * 1024;
+const STT_PENDING_KEY = 'stt-pending-id';
 let sttStream = null;
 let sttRecorder = null;
 let sttChunks = [];
 let sttTimerInt = null;
 let sttStartTs = 0;
+let sttPauseStart = 0;
+let sttPausedTotal = 0;
+let sttLastBlob = null;
+
+// Respaldo de la grabación en IndexedDB: si la transcripción falla o se
+// cierra la app, el audio no se pierde y se puede reintentar.
+const sttBackupDB = (() => {
+    function open() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open('biblia-audio', 1);
+            req.onupgradeneeded = e => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('grabaciones')) {
+                    db.createObjectStore('grabaciones', { keyPath: 'id' });
+                }
+            };
+            req.onsuccess = e => resolve(e.target.result);
+            req.onerror = e => reject(e.target.error);
+        });
+    }
+    return {
+        async save(id, blob) {
+            const db = await open();
+            return new Promise((resolve, reject) => {
+                const t = db.transaction('grabaciones', 'readwrite');
+                t.objectStore('grabaciones').put({ id, blob, createdAt: new Date().toISOString() });
+                t.oncomplete = () => { db.close(); resolve(); };
+                t.onerror = e => { db.close(); reject(e.target.error); };
+            });
+        },
+        async get(id) {
+            const db = await open();
+            return new Promise((resolve, reject) => {
+                const req = db.transaction('grabaciones', 'readonly').objectStore('grabaciones').get(id);
+                req.onsuccess = e => { db.close(); resolve(e.target.result?.blob || null); };
+                req.onerror = e => { db.close(); reject(e.target.error); };
+            });
+        },
+        async del(id) {
+            if (!id) return;
+            try {
+                const db = await open();
+                await new Promise((resolve, reject) => {
+                    const t = db.transaction('grabaciones', 'readwrite');
+                    t.objectStore('grabaciones').delete(id);
+                    t.oncomplete = () => { db.close(); resolve(); };
+                    t.onerror = e => { db.close(); reject(e.target.error); };
+                });
+            } catch (err) { /* noop */ }
+        }
+    };
+})();
 
 function sttPickMime() {
     if (!window.MediaRecorder) return '';
@@ -2029,12 +2082,40 @@ async function sttStart() {
     };
     sttRecorder.start(1000);
     sttStartTs = Date.now();
+    sttPauseStart = 0;
     document.getElementById('stt-rec-timer').textContent = '00:00';
+    const pauseBtn = document.getElementById('stt-rec-pause');
+    pauseBtn.textContent = '⏸ Pausar';
+    // Safari y otros pueden no implementar pause(): se oculta el botón
+    pauseBtn.style.display = (typeof sttRecorder.pause === 'function') ? '' : 'none';
     clearInterval(sttTimerInt);
     sttTimerInt = setInterval(() => {
-        document.getElementById('stt-rec-timer').textContent = sttFmt(Date.now() - sttStartTs);
+        const paused = sttPauseStart ? (Date.now() - sttPauseStart) : 0;
+        // sttPausedTotal se acumula al reanudar; ver sttTogglePause
+        document.getElementById('stt-rec-timer').textContent =
+            (sttRecorder && sttRecorder.state === 'paused' ? '⏸ ' : '') +
+            sttFmt(Date.now() - sttStartTs - sttPausedTotal - paused);
     }, 500);
     document.getElementById('stt-rec-modal').classList.remove('ncm-hidden');
+}
+
+function sttTogglePause() {
+    const rec = sttRecorder;
+    if (!rec) return;
+    try {
+        if (rec.state === 'recording') {
+            rec.pause();
+            sttPauseStart = Date.now();
+            document.getElementById('stt-rec-pause').textContent = '▶ Reanudar';
+        } else if (rec.state === 'paused') {
+            rec.resume();
+            sttPausedTotal += Date.now() - sttPauseStart;
+            sttPauseStart = 0;
+            document.getElementById('stt-rec-pause').textContent = '⏸ Pausar';
+        }
+    } catch (err) {
+        showSaveToast('Tu navegador no permite pausar');
+    }
 }
 
 function sttCloseRecModal() {
@@ -2046,6 +2127,8 @@ async function sttFinish(cancel) {
     const rec = sttRecorder;
     sttRecorder = null;
     sttCloseRecModal();
+    sttPausedTotal = 0;
+    sttPauseStart = 0;
     if (!rec) return;
     const prevStop = rec.onstop;
     const done = new Promise(res => {
@@ -2057,13 +2140,39 @@ async function sttFinish(cancel) {
     const blob = new Blob(sttChunks, { type: rec.mimeType || 'audio/webm' });
     sttChunks = [];
     if (!blob.size) { showSaveToast('Grabación vacía'); return; }
-    sttTranscribe(blob);
+    sttLastBlob = blob;
+    // Respaldo antes de enviar: si falla la red o se cierra la app, se reintenta
+    const backupId = 'stt_' + Date.now().toString(36);
+    try {
+        await sttBackupDB.save(backupId, blob);
+        localStorage.setItem(STT_PENDING_KEY, backupId);
+    } catch (err) { /* sin espacio: se sigue solo en memoria */ }
+    sttTranscribe(blob, backupId);
 }
 
-async function sttTranscribe(blob) {
+async function sttRetry() {
+    document.getElementById('stt-retry').style.display = 'none';
+    let blob = sttLastBlob;
+    if (!blob) {
+        const pendingId = localStorage.getItem(STT_PENDING_KEY);
+        if (pendingId) {
+            try { blob = await sttBackupDB.get(pendingId); } catch (err) { /* noop */ }
+        }
+    }
+    if (!blob) { showSaveToast('No hay audio pendiente'); return; }
+    sttLastBlob = blob;
+    sttTranscribe(blob, localStorage.getItem(STT_PENDING_KEY));
+}
+
+async function sttTranscribe(blob, backupId) {
     document.getElementById('stt-text').value = '';
+    document.getElementById('stt-retry').style.display = 'none';
     document.getElementById('stt-modal').classList.remove('ocr-hidden');
     const setStatus = msg => { document.getElementById('stt-status').textContent = msg; };
+    const fail = msg => {
+        setStatus(msg + ' El audio quedó respaldado: usa ↻ Reintentar envío.');
+        document.getElementById('stt-retry').style.display = '';
+    };
     const parts = [];
     for (let off = 0; off < blob.size; off += STT_PART_BYTES) {
         parts.push(blob.slice(off, off + STT_PART_BYTES, blob.type));
@@ -2079,22 +2188,28 @@ async function sttTranscribe(blob) {
                 body: parts[i],
             });
         } catch (err) {
-            setStatus('Sin conexión con el servidor de IA. Inténtalo de nuevo.');
+            fail('Sin conexión con el servidor de IA.');
             return;
         }
         let data = null;
         try { data = await res.json(); } catch (err) { /* noop */ }
         if (!res.ok) {
-            setStatus(data?.error || `Error del servidor (${res.status})`);
+            fail(data?.error || `Error del servidor (${res.status}).`);
             return;
         }
         texts.push((data?.text || '').trim());
     }
     const full = texts.filter(Boolean).join(' ');
     document.getElementById('stt-text').value = full;
-    setStatus(full
-        ? 'Revisa la transcripción antes de insertarla en la nota'
-        : 'No se detectó habla en el audio');
+    if (full) {
+        setStatus('Revisa la transcripción antes de insertarla en la nota');
+        // Éxito: se borra el respaldo
+        sttBackupDB.del(backupId).catch(() => {});
+        localStorage.removeItem(STT_PENDING_KEY);
+        sttLastBlob = null;
+    } else {
+        fail('No se detectó habla en el audio.');
+    }
 }
 
 function closeSttModal() {
@@ -2347,6 +2462,8 @@ function setupStudiesListeners() {
     document.getElementById('stt-rec-overlay').addEventListener('click', () => sttFinish(true));
     document.getElementById('stt-rec-cancel').addEventListener('click', () => sttFinish(true));
     document.getElementById('stt-rec-stop').addEventListener('click', () => sttFinish(false));
+    document.getElementById('stt-rec-pause').addEventListener('click', sttTogglePause);
+    document.getElementById('stt-retry').addEventListener('click', sttRetry);
     document.getElementById('stt-close').addEventListener('click', closeSttModal);
     document.getElementById('stt-overlay').addEventListener('click', closeSttModal);
     document.getElementById('stt-copy').addEventListener('click', sttCopyText);
