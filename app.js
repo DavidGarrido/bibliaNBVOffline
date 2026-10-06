@@ -1182,7 +1182,7 @@ function renderQS() {
                 ${item.rangeText
                     ? `<div class="qs-item-sub qs-item-range">${item.rangeText.replace(/\n/g, '<br>')}</div>`
                     : item.sub ? `<div class="qs-item-sub qs-item-verse-text">${item.sub}</div>` : ''}
-                ${item.verseData ? `<button class="qs-save-btn">🔖 Guardar</button>` : ''}
+                ${item.verseData ? `<button class="qs-save-btn">💾 Guardar</button>` : ''}
             </div>`;
         div.addEventListener('click', () => {
             if (item.type === 'word-search-fallback') {
