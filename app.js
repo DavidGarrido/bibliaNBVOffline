@@ -1874,9 +1874,14 @@ function entryPhotosHtml(entry) {
     return `<div class="entry-photos" data-ids='${JSON.stringify(ids)}'></div>`;
 }
 
+let photoViewerSrc = '';
+
 function openPhotoViewer(src) {
+    photoViewerSrc = src || '';
     const viewer = document.getElementById('photo-viewer');
-    document.getElementById('photo-viewer-img').src = src;
+    document.getElementById('photo-viewer-img').src = photoViewerSrc;
+    const ocrBtn = document.getElementById('photo-viewer-ocr');
+    if (ocrBtn) ocrBtn.disabled = false;
     viewer.classList.remove('pv-hidden');
 }
 
@@ -1884,6 +1889,90 @@ function closePhotoViewer() {
     const viewer = document.getElementById('photo-viewer');
     viewer.classList.add('pv-hidden');
     document.getElementById('photo-viewer-img').src = '';
+    photoViewerSrc = '';
+}
+
+// ── OCR de fotos (Tesseract.js, español) ───────────────────────
+// Lazy-load desde CDN (solo online); el texto queda editable antes
+// de insertarse en la nota.
+let tesseractPromise = null;
+
+function ensureTesseract() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (tesseractPromise) return tesseractPromise;
+    tesseractPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        s.onload = () => resolve(window.Tesseract);
+        s.onerror = () => reject(new Error('cdn'));
+        document.head.appendChild(s);
+    }).catch(err => { tesseractPromise = null; throw err; });
+    return tesseractPromise;
+}
+
+function setOcrStatus(msg) {
+    const el = document.getElementById('ocr-status');
+    if (el) el.textContent = msg || '';
+}
+
+function openOcrModal() {
+    document.getElementById('ocr-modal').classList.remove('ocr-hidden');
+}
+
+function closeOcrModal() {
+    document.getElementById('ocr-modal').classList.add('ocr-hidden');
+}
+
+async function runViewerOcr() {
+    if (!photoViewerSrc) return;
+    const btn = document.getElementById('photo-viewer-ocr');
+    document.getElementById('ocr-text').value = '';
+    openOcrModal();
+    setOcrStatus('Cargando motor OCR… (la primera vez requiere internet)');
+    if (btn) btn.disabled = true;
+    try {
+        await ensureTesseract();
+        setOcrStatus('Leyendo la imagen… esto puede tardar unos segundos');
+        const worker = await window.Tesseract.createWorker('spa');
+        const { data: { text } } = await worker.recognize(photoViewerSrc);
+        await worker.terminate();
+        const clean = (text || '').trim();
+        document.getElementById('ocr-text').value = clean;
+        setOcrStatus(clean
+            ? 'Revisa el texto antes de insertarlo en la nota'
+            : 'No se detectó texto en la imagen');
+    } catch {
+        setOcrStatus('No se pudo hacer el OCR. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function ocrCopyText() {
+    const text = document.getElementById('ocr-text').value.trim();
+    if (!text) { showSaveToast('Nada que copiar'); return; }
+    try {
+        await navigator.clipboard.writeText(text);
+        showSaveToast('Texto copiado ✓');
+    } catch {
+        showSaveToast('No se pudo copiar');
+    }
+}
+
+function ocrInsertIntoNote() {
+    const text = document.getElementById('ocr-text').value.trim();
+    if (!text) { showSaveToast('Nada que insertar'); return; }
+    const sheet = document.getElementById('note-sheet');
+    if (sheet.classList.contains('ns-hidden')) {
+        showSaveToast('Abre una nota para insertarlo (o usa Copiar)');
+        return;
+    }
+    const input = document.getElementById('ns-note-input');
+    input.value = input.value.trim() ? input.value.trim() + '\n\n' + text : text;
+    closeOcrModal();
+    closePhotoViewer();
+    showSaveToast('Texto insertado ✓');
+    setTimeout(() => input.focus(), 100);
 }
 
 // Variables de estado
@@ -2092,6 +2181,13 @@ function setupStudiesListeners() {
     // Visor fullscreen de fotos
     document.getElementById('photo-viewer-close').addEventListener('click', closePhotoViewer);
     document.getElementById('photo-viewer-overlay').addEventListener('click', closePhotoViewer);
+    document.getElementById('photo-viewer-ocr').addEventListener('click', runViewerOcr);
+
+    // Modal OCR
+    document.getElementById('ocr-close').addEventListener('click', closeOcrModal);
+    document.getElementById('ocr-overlay').addEventListener('click', closeOcrModal);
+    document.getElementById('ocr-copy').addEventListener('click', ocrCopyText);
+    document.getElementById('ocr-insert').addEventListener('click', ocrInsertIntoNote);
 
     // Autocomplete @version: en el textarea
     const noteInput    = document.getElementById('ns-note-input');

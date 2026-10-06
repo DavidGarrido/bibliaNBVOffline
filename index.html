@@ -275,6 +275,24 @@
         <div id="photo-viewer-overlay"></div>
         <button id="photo-viewer-close" class="icon-btn">✕</button>
         <img id="photo-viewer-img" alt="Foto ampliada">
+        <button id="photo-viewer-ocr" class="pv-ocr-btn">📝 Extraer texto</button>
+    </div>
+
+    <!-- Modal texto extraído (OCR) -->
+    <div id="ocr-modal" class="ocr-hidden">
+        <div id="ocr-overlay"></div>
+        <div id="ocr-box">
+            <div id="ocr-header">
+                <span>📝 Texto de la imagen</span>
+                <button id="ocr-close" class="icon-btn">✕</button>
+            </div>
+            <div id="ocr-status" class="ocr-status"></div>
+            <textarea id="ocr-text" placeholder="Aquí aparecerá el texto extraído para revisarlo antes de usarlo"></textarea>
+            <div class="ocr-actions">
+                <button id="ocr-copy" class="cfg-toggle-btn">📋 Copiar</button>
+                <button id="ocr-insert" class="primary-btn">➕ Insertar en nota</button>
+            </div>
+        </div>
     </div>
 
     <!-- Toast de confirmación -->
