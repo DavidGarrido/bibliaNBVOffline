@@ -3886,6 +3886,7 @@ function studyNavInit() {
         const entries = studyNavEntries();
         const totalSteps = studyNavTotalSteps(entries);
         if (totalSteps === 0 || studyNavIndex >= totalSteps - 1) {
+            closeStudyNavModal();
             openNoteSheet();
             return;
         }
