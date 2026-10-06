@@ -1,4 +1,4 @@
-name               = "procliup-quoter"
+name               = "biblia-nbv-ai"
 main               = "bible-ai-worker.js"
 compatibility_date = "2024-01-01"
 
