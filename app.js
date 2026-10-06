@@ -1668,7 +1668,34 @@ function studiesLoad() {
 }
 
 function studiesSave(state) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        return true;
+    } catch (err) {
+        const quota = err && (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014);
+        showSaveToast(quota
+            ? '⚠️ Almacenamiento lleno: exporta tus estudios y borra los viejos'
+            : '⚠️ No se pudo guardar el estudio');
+        return false;
+    }
+}
+
+// Cuota aproximada de localStorage: 5MB (UTF-16 = 2 bytes por carácter)
+function studiesStorageInfo() {
+    let bytes = 0;
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY) || '';
+        bytes = raw.length * 2;
+    } catch (err) { /* noop */ }
+    const quota = 5 * 1024 * 1024;
+    return { bytes, mb: bytes / (1024 * 1024), pct: Math.round((bytes / quota) * 100) };
+}
+
+function updateStorageInfoText() {
+    const el = document.getElementById('cfg-storage-info');
+    if (!el) return;
+    const { mb, pct } = studiesStorageInfo();
+    el.textContent = `${mb.toFixed(2)} MB de ~5 MB (${pct}%)${pct >= 80 ? ' ⚠️ casi lleno: exporta y borra estudios viejos' : ''}`;
 }
 
 function studiesGetActive(state) {
@@ -4326,6 +4353,7 @@ function openConfigModal() {
     updateRestorePositionToggleText();
     updateAutosaveToggleText();
     updateNotifyEmailDisplay();
+    updateStorageInfoText();
     document.getElementById('config-modal').classList.remove('cfg-hidden');
 }
 
