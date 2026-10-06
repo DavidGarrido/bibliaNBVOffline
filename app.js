@@ -2305,37 +2305,99 @@ async function sttStudyNotes() {
     if (!text) { showSaveToast('No hay transcripción'); return; }
     sttSetBusy(true, 'Generando notas de estudio con IA…');
     try {
-        const system = 'Eres un pastor y teólogo cristiano evangélico que toma notas de estudio de una reunión o prédica transcrita. Genera notas de estudio en español con: 1) Resumen breve, 2) Puntos clave, 3) Aplicaciones prácticas, 4) Referencias bíblicas relacionadas (libro capítulo:verso) cuando apliquen. Usa exclusivamente la Biblia como autoridad. Formato claro con títulos.';
+        const system = 'Eres un pastor y teólogo cristiano evangélico que toma notas de estudio de una reunión o prédica transcrita. '
+            + 'Devuelve EXCLUSIVAMENTE un JSON válido, sin markdown, sin cercas de código ni explicaciones, con esta forma exacta: '
+            + '{"notes":[{"ref":"Libro capítulo:verso","note":"..."},{"text":"nota libre","note":"..."}]} '
+            + 'Reglas: usa "ref" (nombre del libro en español, ej. "Juan 3:16" o "Salmos 23:1-3") cuando la nota corresponda a un versículo citado o aludido; '
+            + 'usa "text" para puntos generales (resumen, aplicaciones). "note" lleva tu comentario breve y es opcional. '
+            + 'Máximo 12 notas: 1 resumen general en "text", el resto puntos clave y aplicaciones. Todo en español.';
         const parts = sttSplit(text, STT_AI_CHUNK);
-        const partials = [];
+        const allNotes = [];
         for (let i = 0; i < parts.length; i++) {
             if (parts.length > 1) sttSetBusy(true, `Analizando parte ${i + 1}/${parts.length}…`);
-            partials.push(await sttCallAI(system + ' Esta es la parte ' + (i + 1) + ' de ' + parts.length + ' de la transcripción.', parts[i]));
+            const raw = await sttCallAI(
+                system + (parts.length > 1 ? ` Esta es la parte ${i + 1} de ${parts.length} de la transcripción.` : ''),
+                parts[i]);
+            allNotes.push(...sttParseNotesJson(raw));
         }
-        let notes = partials.join('\n\n');
-        if (partials.length > 1) {
-            sttSetBusy(true, 'Uniendo las notas…');
-            notes = await sttCallAI(system + ' Une las siguientes notas parciales en unas notas de estudio finales, sin repetir contenido.',
-                partials.map((p, i) => `--- Parte ${i + 1} ---\n${p}`).join('\n\n'));
-        }
-        // Muestra el resultado en el sheet de IA (reutiliza Guardar en estudio)
-        aiVerseContexts = [];
-        aiConversation = [];
-        updateAIContextDisplay();
-        aiLastNoteText = '🤖 Notas de transcripción\n\n' + notes;
-        document.getElementById('ais-question').value = '';
-        document.getElementById('ais-response').innerHTML = linkifyAIResponse(notes);
-        setupAIResponseLinks();
-        document.getElementById('ais-response').classList.remove('ais-response-hidden');
-        document.getElementById('ais-save-area').classList.remove('ais-save-hidden');
-        closeSttModal();
-        showAISheet();
-        showSaveToast('Notas listas: guárdalas en tu estudio ✓');
+        if (!allNotes.length) throw new Error('la IA no devolvió notas en JSON');
+        const added = sttAddNotesToActiveStudy(allNotes);
+        sttSetBusy(false);
+        showSaveToast(`${added} nota(s) agregadas al estudio ✓`);
     } catch (err) {
-        sttSetBusy(false, 'IA no disponible: ' + err.message);
+        sttSetBusy(false, 'IA no disponible o respuesta inválida: ' + err.message);
         return;
     }
-    sttSetBusy(false);
+}
+
+// Extrae el JSON de notas de la respuesta (tolera cercas ```json)
+function sttParseNotesJson(raw) {
+    const txt = (raw || '').trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '');
+    const start = txt.indexOf('{');
+    const end = txt.lastIndexOf('}');
+    if (start < 0 || end <= start) return [];
+    let data;
+    try {
+        data = JSON.parse(txt.slice(start, end + 1));
+    } catch (err) { return []; }
+    if (!data || !Array.isArray(data.notes)) return [];
+    return data.notes.filter(n => n && (n.ref || n.text)).slice(0, 20);
+}
+
+// Convierte las notas IA en entradas del estudio activo.
+// Las citas se resuelven contra la Biblia cargada (navegación y marcadores
+// funcionan); lo irresoluble entra como nota libre.
+function sttAddNotesToActiveStudy(notes) {
+    const activeStudy = studiesGetActive(studiesState);
+    if (!activeStudy) { showSaveToast('Sin estudio activo'); return 0; }
+    const tid = elements.translationSelect.value;
+    const seen = new Set();
+    let added = 0;
+    for (const n of notes) {
+        const noteText = (n.note || '').trim();
+        if (n.ref) {
+            const parsed = parseQuery(String(n.ref).trim());
+            const book = parsed?.books?.[0];
+            const chap = parsed?.chap;
+            const vNum = parsed?.verse ?? parsed?.verseStart;
+            const chapter = (book && chap) ? bibleData?.find(b => b.id === book.id)?.chapters.find(c => c.n === chap) : null;
+            const verseObj = (chapter && vNum) ? chapter.v.find(v => v.n == vNum) : null;
+            if (book && chapter && verseObj) {
+                const verseEnd = parsed?.verseEnd && parsed.verseEnd !== vNum ? parsed.verseEnd : null;
+                const ref = `${book.name} ${chap}:${vNum}${verseEnd ? '-' + verseEnd : ''}`;
+                const key = 'v|' + ref + '|' + noteText;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    studiesState = studiesAddEntry(studiesState, activeStudy.id, {
+                        type: 'verse', ref, bookId: book.id, chapN: chap,
+                        verseN: vNum, verseEnd, text: verseObj.t,
+                        translationId: tid, note: noteText,
+                    });
+                    added++;
+                }
+                continue;
+            }
+            // Cita irresoluble: cae como nota libre con la referencia incluida
+        }
+        const freeText = (n.ref && !noteText && !(n.text || '').trim())
+            ? `${n.ref}`
+            : [(n.text || '').trim(), n.ref ? `(${n.ref})` : '', noteText].filter(Boolean).join('\n');
+        if (!freeText) continue;
+        const key = 't|' + freeText;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'note', text: freeText, note: '' });
+        added++;
+    }
+    if (added) {
+        studiesSave(studiesState);
+        studyNavReset();
+        studyNavUpdate();
+        reapplyStudyMarkers();
+    }
+    return added;
 }
 
 async function sttCopyText() {
