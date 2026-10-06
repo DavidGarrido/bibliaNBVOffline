@@ -28,6 +28,11 @@ export default {
     if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
     let body;
+    // Audio (transcripción con Whisper) o JSON (chat con DeepSeek)
+    const contentType = request.headers.get('content-type') || '';
+    if (contentType.startsWith('audio/')) {
+      return transcribeAudio(request, env);
+    }
     try {
       body = await request.json();
     } catch {
@@ -52,7 +57,7 @@ export default {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages,
-        max_tokens: 4096,
+        max_tokens: 8192,
         temperature: 0.7,
       }),
     });
@@ -67,3 +72,35 @@ export default {
     return jsonResponse({ reply });
   },
 };
+
+// ── Transcripción de audio con Whisper (Workers AI) ────────────
+// Requiere el binding [ai] en wrangler.toml. El cliente parte el
+// audio en trozos (~8MB) y los envía secuencialmente.
+
+async function transcribeAudio(request, env) {
+  if (!env.AI || typeof env.AI.run !== 'function') {
+    return jsonResponse({ error: 'Workers AI no configurado: agrega el binding [ai] y haz wrangler deploy' }, 500);
+  }
+  const buf = await request.arrayBuffer();
+  if (!buf.byteLength) {
+    return jsonResponse({ error: 'Audio vacío' }, 400);
+  }
+  if (buf.byteLength > 25 * 1024 * 1024) {
+    return jsonResponse({ error: 'Trozo muy grande: máximo 25MB por parte' }, 413);
+  }
+  const url = new URL(request.url);
+  const bytes = new Uint8Array(buf);
+  const arr = new Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes[i];
+
+  let out;
+  try {
+    out = await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
+      audio: arr,
+      language: url.searchParams.get('lang') || 'es',
+    });
+  } catch (e) {
+    return jsonResponse({ error: 'Whisper falló: ' + (e?.message || e) }, 502);
+  }
+  return jsonResponse({ text: out?.text || '' });
+}

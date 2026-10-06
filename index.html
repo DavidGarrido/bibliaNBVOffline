@@ -239,6 +239,15 @@
                         <button type="button" id="ns-photo-cam" class="ns-photo-btn">📷 Cámara</button>
                     </div>
                 </div>
+                <div class="ns-photo-section">
+                    <div class="ns-photo-header">
+                        <span>🎙️ Audio</span>
+                        <span class="ns-photo-count">Se transcribe con IA</span>
+                    </div>
+                    <div class="ns-photo-btns">
+                        <button type="button" id="ns-audio-rec" class="ns-photo-btn">🎙️ Grabar audio</button>
+                    </div>
+                </div>
                 <label id="ns-base-ref-row" class="ns-base-ref-row" style="display:none">
                     <input type="checkbox" id="ns-base-ref-check">
                     <span id="ns-base-ref-label"></span>
@@ -276,6 +285,39 @@
         <button id="photo-viewer-close" class="icon-btn">✕</button>
         <img id="photo-viewer-img" alt="Foto ampliada">
         <button id="photo-viewer-ocr" class="pv-ocr-btn">📝 Extraer texto</button>
+    </div>
+
+    <!-- Modal grabación de audio -->
+    <div id="stt-rec-modal" class="ncm-hidden">
+        <div id="stt-rec-overlay"></div>
+        <div id="stt-rec-box">
+            <div id="stt-rec-header">
+                <span>🎙️ Grabando…</span>
+                <button id="stt-rec-close" class="icon-btn">✕</button>
+            </div>
+            <div id="stt-rec-timer" class="stt-rec-timer">00:00</div>
+            <div class="note-cam-actions">
+                <button type="button" id="stt-rec-cancel" class="cfg-toggle-btn">Cancelar</button>
+                <button type="button" id="stt-rec-stop" class="primary-btn">⏹ Detener y transcribir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal transcripción de audio -->
+    <div id="stt-modal" class="ocr-hidden">
+        <div id="stt-overlay"></div>
+        <div id="ocr-box">
+            <div id="ocr-header">
+                <span>🎙️ Transcripción</span>
+                <button id="stt-close" class="icon-btn">✕</button>
+            </div>
+            <div id="stt-status" class="ocr-status"></div>
+            <textarea id="stt-text" placeholder="Aquí aparecerá la transcripción para revisarla antes de usarla"></textarea>
+            <div class="ocr-actions">
+                <button id="stt-copy" class="cfg-toggle-btn">📋 Copiar</button>
+                <button id="stt-insert" class="primary-btn">➕ Insertar en nota</button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal texto extraído (OCR) -->

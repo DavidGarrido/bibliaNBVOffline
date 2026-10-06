@@ -2180,7 +2180,8 @@ h2 {
 }
 
 /* Modal cámara de notas */
-#note-cam-modal {
+#note-cam-modal,
+#stt-rec-modal {
     position: fixed;
     inset: 0;
     z-index: 520;
@@ -2188,13 +2189,16 @@ h2 {
     align-items: center;
     justify-content: center;
 }
-#note-cam-modal.ncm-hidden { display: none; }
-#note-cam-overlay {
+#note-cam-modal.ncm-hidden,
+#stt-rec-modal.ncm-hidden { display: none; }
+#note-cam-overlay,
+#stt-rec-overlay {
     position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.6);
 }
-#note-cam-box {
+#note-cam-box,
+#stt-rec-box {
     position: relative;
     z-index: 1;
     background: var(--airbnb-white);
@@ -2203,7 +2207,8 @@ h2 {
     max-width: 480px;
     overflow: hidden;
 }
-#note-cam-header {
+#note-cam-header,
+#stt-rec-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2322,7 +2327,8 @@ h2 {
     color: var(--airbnb-foggy);
     min-height: 18px;
 }
-#ocr-text {
+#ocr-text,
+#stt-text {
     margin: 8px 16px;
     min-height: 180px;
     padding: 12px;
@@ -2341,6 +2347,16 @@ h2 {
 }
 .ocr-actions .cfg-toggle-btn,
 .ocr-actions .primary-btn { flex: 1; }
+
+.stt-rec-timer {
+    padding: 24px 16px;
+    text-align: center;
+    font-size: 40px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    background: #000;
+    color: #fff;
+}
 
 .ns-base-ref-row {
     display: flex;

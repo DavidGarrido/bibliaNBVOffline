@@ -1975,6 +1975,159 @@ function ocrInsertIntoNote() {
     setTimeout(() => input.focus(), 100);
 }
 
+// ── Transcripción de audio (MediaRecorder + Whisper en worker) ─
+// El worker necesita el binding [ai] y `wrangler deploy`. El audio se
+// parte en trozos de 8MB y se envía secuencialmente.
+const AI_WORKER_TRANSCRIBE_URL = AI_WORKER_URL.replace(/\/bible$/, '/transcribe');
+const STT_PART_BYTES = 8 * 1024 * 1024;
+let sttStream = null;
+let sttRecorder = null;
+let sttChunks = [];
+let sttTimerInt = null;
+let sttStartTs = 0;
+
+function sttPickMime() {
+    if (!window.MediaRecorder) return '';
+    const cands = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+    for (const m of cands) {
+        try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (err) { /* noop */ }
+    }
+    return '';
+}
+
+function sttFmt(ms) {
+    const s = Math.floor(ms / 1000);
+    const hh = Math.floor(s / 3600);
+    const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const ss = String(s % 60).padStart(2, '0');
+    return hh ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+async function sttStart() {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+        showSaveToast('Tu navegador no soporta grabación de audio');
+        return;
+    }
+    try {
+        sttStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+        showSaveToast('Permiso de micrófono denegado');
+        return;
+    }
+    sttChunks = [];
+    const mime = sttPickMime();
+    try {
+        sttRecorder = mime ? new MediaRecorder(sttStream, { mimeType: mime }) : new MediaRecorder(sttStream);
+    } catch (err) {
+        sttStream.getTracks().forEach(t => t.stop());
+        sttStream = null;
+        showSaveToast('No se pudo iniciar la grabación');
+        return;
+    }
+    sttRecorder.ondataavailable = e => { if (e.data && e.data.size) sttChunks.push(e.data); };
+    sttRecorder.onstop = () => {
+        if (sttStream) { sttStream.getTracks().forEach(t => t.stop()); sttStream = null; }
+    };
+    sttRecorder.start(1000);
+    sttStartTs = Date.now();
+    document.getElementById('stt-rec-timer').textContent = '00:00';
+    clearInterval(sttTimerInt);
+    sttTimerInt = setInterval(() => {
+        document.getElementById('stt-rec-timer').textContent = sttFmt(Date.now() - sttStartTs);
+    }, 500);
+    document.getElementById('stt-rec-modal').classList.remove('ncm-hidden');
+}
+
+function sttCloseRecModal() {
+    document.getElementById('stt-rec-modal').classList.add('ncm-hidden');
+    clearInterval(sttTimerInt);
+}
+
+async function sttFinish(cancel) {
+    const rec = sttRecorder;
+    sttRecorder = null;
+    sttCloseRecModal();
+    if (!rec) return;
+    const prevStop = rec.onstop;
+    const done = new Promise(res => {
+        rec.onstop = e => { try { prevStop && prevStop(e); } catch (err) { /* noop */ } res(); };
+    });
+    try { if (rec.state !== 'inactive') rec.stop(); } catch (err) { /* noop */ }
+    await done;
+    if (cancel) { sttChunks = []; return; }
+    const blob = new Blob(sttChunks, { type: rec.mimeType || 'audio/webm' });
+    sttChunks = [];
+    if (!blob.size) { showSaveToast('Grabación vacía'); return; }
+    sttTranscribe(blob);
+}
+
+async function sttTranscribe(blob) {
+    document.getElementById('stt-text').value = '';
+    document.getElementById('stt-modal').classList.remove('ocr-hidden');
+    const setStatus = msg => { document.getElementById('stt-status').textContent = msg; };
+    const parts = [];
+    for (let off = 0; off < blob.size; off += STT_PART_BYTES) {
+        parts.push(blob.slice(off, off + STT_PART_BYTES, blob.type));
+    }
+    const texts = [];
+    for (let i = 0; i < parts.length; i++) {
+        setStatus(`Transcribiendo parte ${i + 1}/${parts.length}…`);
+        let res;
+        try {
+            res = await fetch(AI_WORKER_TRANSCRIBE_URL + '?lang=es', {
+                method: 'POST',
+                headers: { 'Content-Type': parts[i].type || 'audio/webm' },
+                body: parts[i],
+            });
+        } catch (err) {
+            setStatus('Sin conexión con el servidor de IA. Inténtalo de nuevo.');
+            return;
+        }
+        let data = null;
+        try { data = await res.json(); } catch (err) { /* noop */ }
+        if (!res.ok) {
+            setStatus(data?.error || `Error del servidor (${res.status})`);
+            return;
+        }
+        texts.push((data?.text || '').trim());
+    }
+    const full = texts.filter(Boolean).join(' ');
+    document.getElementById('stt-text').value = full;
+    setStatus(full
+        ? 'Revisa la transcripción antes de insertarla en la nota'
+        : 'No se detectó habla en el audio');
+}
+
+function closeSttModal() {
+    document.getElementById('stt-modal').classList.add('ocr-hidden');
+}
+
+async function sttCopyText() {
+    const text = document.getElementById('stt-text').value.trim();
+    if (!text) { showSaveToast('Nada que copiar'); return; }
+    try {
+        await navigator.clipboard.writeText(text);
+        showSaveToast('Transcripción copiada ✓');
+    } catch (err) {
+        showSaveToast('No se pudo copiar');
+    }
+}
+
+function sttInsertIntoNote() {
+    const text = document.getElementById('stt-text').value.trim();
+    if (!text) { showSaveToast('Nada que insertar'); return; }
+    const sheet = document.getElementById('note-sheet');
+    if (sheet.classList.contains('ns-hidden')) {
+        showSaveToast('Abre una nota para insertarla (o usa Copiar)');
+        return;
+    }
+    const input = document.getElementById('ns-note-input');
+    input.value = input.value.trim() ? input.value.trim() + '\n\n' + text : text;
+    closeSttModal();
+    showSaveToast('Transcripción insertada ✓');
+    setTimeout(() => input.focus(), 100);
+}
+
 // Variables de estado
 let studiesState = studiesLoad();
 
@@ -2188,6 +2341,17 @@ function setupStudiesListeners() {
     document.getElementById('ocr-overlay').addEventListener('click', closeOcrModal);
     document.getElementById('ocr-copy').addEventListener('click', ocrCopyText);
     document.getElementById('ocr-insert').addEventListener('click', ocrInsertIntoNote);
+
+    // Grabación y transcripción de audio
+    document.getElementById('ns-audio-rec').addEventListener('click', sttStart);
+    document.getElementById('stt-rec-close').addEventListener('click', () => sttFinish(true));
+    document.getElementById('stt-rec-overlay').addEventListener('click', () => sttFinish(true));
+    document.getElementById('stt-rec-cancel').addEventListener('click', () => sttFinish(true));
+    document.getElementById('stt-rec-stop').addEventListener('click', () => sttFinish(false));
+    document.getElementById('stt-close').addEventListener('click', closeSttModal);
+    document.getElementById('stt-overlay').addEventListener('click', closeSttModal);
+    document.getElementById('stt-copy').addEventListener('click', sttCopyText);
+    document.getElementById('stt-insert').addEventListener('click', sttInsertIntoNote);
 
     // Autocomplete @version: en el textarea
     const noteInput    = document.getElementById('ns-note-input');
