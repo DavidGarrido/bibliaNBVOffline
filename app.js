@@ -967,6 +967,7 @@ function buildQsSuggestions(raw) {
                             const activeStudy = studiesGetActive(studiesState);
                             studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref, bookId: book.id, chapN: parsed.chap, verseN: fv.n, text: fv.t, translationId: tid, note: '' });
                             studiesSave(studiesState);
+                            studyNavUpdate();
                             showSaveToast('Guardado ✓');
                         }
                     }
@@ -998,6 +999,7 @@ function buildQsSuggestions(raw) {
                         const activeStudy = studiesGetActive(studiesState);
                         studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref, bookId: book.id, chapN: parsed.chap, verseN: parsed.verse, text: verseText, translationId: tid, note: '' });
                         studiesSave(studiesState);
+                        studyNavUpdate();
                         showSaveToast('Guardado ✓');
                     }
                     pendingVerse = parsed.verse;
@@ -1220,6 +1222,7 @@ function renderQS() {
                     const activeStudy = studiesGetActive(studiesState);
                     studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'verse', ref: item.verseData.ref, bookId: item.verseData.bookId, chapN: item.verseData.chapN, verseN: item.verseData.verseN, verseEnd: item.verseData.verseEnd || null, text: item.verseData.text, translationId: tid, note: '' });
                     studiesSave(studiesState);
+                    studyNavUpdate();
                     showSaveToast('Guardado ✓');
                     saveBtn.textContent = '✓ Guardado';
                     saveBtn.disabled = true;
@@ -3278,7 +3281,8 @@ function studyNavIsEnabled() {
 }
 
 function studyNavEntries() {
-    return studiesGetActive(studiesState).entries;
+    const active = studiesState ? studiesGetActive(studiesState) : null;
+    return active?.entries || [];
 }
 
 function studyNavHasNotifyStep() {
@@ -3296,35 +3300,55 @@ function studyNavUpdate() {
         if (window.innerWidth >= 1024) closeStudyNavModal();
         return;
     }
-    const entries = studyNavEntries();
-    if (!entries.length) {
-        bar.classList.add('snb-hidden');
-        if (window.innerWidth >= 1024) closeStudyNavModal();
-        return;
-    }
+    // La barra siempre queda visible en el lector: con 0 entradas muestra
+    // el estado en vez de ocultarse (el historial ☰ queda siempre accesible).
     bar.classList.remove('snb-hidden');
-
-    // Clamp index (allowing notify step if applicable)
-    const totalSteps = studyNavTotalSteps(entries);
-    if (studyNavIndex >= totalSteps) studyNavIndex = totalSteps - 1;
-    if (studyNavIndex < 0) studyNavIndex = 0;
 
     const refEl = document.getElementById('snb-ref');
     const posEl = document.getElementById('snb-pos');
-
-    if (studyNavIndex === entries.length) {
-        refEl.textContent = '🔔 Notificaciones';
-    } else {
-        const entry = entries[studyNavIndex];
-        refEl.textContent = entry.type === 'verse' ? entry.ref : '📝 Nota';
-    }
-    posEl.textContent = `${studyNavIndex + 1}/${totalSteps}`;
-
-    document.getElementById('snb-prev').disabled = studyNavIndex === 0;
-    document.getElementById('snb-next').disabled = studyNavIndex === totalSteps - 1;
-
+    const prevBtn = document.getElementById('snb-prev');
+    const nextBtn = document.getElementById('snb-next');
     const baseBtn = document.getElementById('snb-base');
-    const activeStudy = studiesGetActive(studiesState);
+    const activeStudy = studiesState ? studiesGetActive(studiesState) : null;
+    const entries = activeStudy?.entries || [];
+
+    if (!activeStudy) {
+        refEl.textContent = 'Sin estudio seleccionado';
+        refEl.classList.add('snb-empty');
+        posEl.textContent = '';
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        baseBtn.classList.add('snb-base-hidden');
+        return;
+    }
+
+    if (!entries.length) {
+        studyNavIndex = 0;
+        localStorage.setItem('bible-study-nav-index', 0);
+        refEl.textContent = `📓 ${activeStudy.name}: 0 entradas`;
+        refEl.classList.add('snb-empty');
+        posEl.textContent = '0/0';
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+    } else {
+        refEl.classList.remove('snb-empty');
+        // Clamp index (allowing notify step if applicable)
+        const totalSteps = studyNavTotalSteps(entries);
+        if (studyNavIndex >= totalSteps) studyNavIndex = totalSteps - 1;
+        if (studyNavIndex < 0) studyNavIndex = 0;
+
+        if (studyNavIndex === entries.length) {
+            refEl.textContent = '🔔 Notificaciones';
+        } else {
+            const entry = entries[studyNavIndex];
+            refEl.textContent = entry.type === 'verse' ? entry.ref : '📝 Nota';
+        }
+        posEl.textContent = `${studyNavIndex + 1}/${totalSteps}`;
+
+        prevBtn.disabled = studyNavIndex === 0;
+        nextBtn.disabled = studyNavIndex === totalSteps - 1;
+    }
+
     if (activeStudy.baseRef) {
         baseBtn.classList.remove('snb-base-hidden');
         baseBtn.title = `Texto base: ${activeStudy.baseRef}`;
@@ -3552,15 +3576,17 @@ function renderStudyNavList() {
             btn.addEventListener('click', () => {
                 const entryId = btn.dataset.entryId;
                 if (confirm('¿Eliminar esta entrada del estudio?')) {
-                    studiesState = studiesDeleteEntry(studiesState, entryId);
+                    const active = studiesGetActive(studiesState);
+                    const doomed = active.entries.find(e => e.id === entryId);
+                    studiesState = studiesDeleteEntry(studiesState, active.id, entryId);
                     studiesSave(studiesState);
-                    if (studyNavEntries().length > 0) {
-                        studyNavIndex = Math.min(studyNavIndex, studyNavEntries().length - 1);
-                        studyNavUpdate();
-                        renderStudyNavList();
-                    } else {
-                        closeStudyNavModal();
-                    }
+                    if (doomed?.images?.length) notePhotoDB.delMany(doomed.images).catch(() => {});
+                    const total = studyNavTotalSteps(studyNavEntries());
+                    studyNavIndex = total ? Math.min(studyNavIndex, total - 1) : 0;
+                    if (studyNavIndex < 0) studyNavIndex = 0;
+                    localStorage.setItem('bible-study-nav-index', studyNavIndex);
+                    studyNavUpdate();
+                    renderStudyNavList();
                 }
             });
         });
@@ -4457,6 +4483,8 @@ async function doImport() {
 
     if (lastId) studiesState = studiesSetActive(studiesState, lastId);
     studiesSave(studiesState);
+    studyNavReset();
+    studyNavUpdate();
     renderStudiesDropdown();
     closeImportSheet();
     const msg = [added && `${added} añadido(s)`, replaced && `${replaced} reemplazado(s)`].filter(Boolean).join(', ');
@@ -4677,6 +4705,8 @@ function doImportFromShared() {
 
     if (lastId) studiesState = studiesSetActive(studiesState, lastId);
     studiesSave(studiesState);
+    studyNavReset();
+    studyNavUpdate();
     renderStudiesDropdown();
     closeSharedSheet();
     showSaveToast(added ? `${added} estudio(s) importado(s)` : 'Sin cambios (ya los tienes)');

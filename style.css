@@ -2388,6 +2388,10 @@ h2 {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+#snb-ref.snb-empty {
+    font-weight: 600;
+    color: var(--airbnb-foggy);
+}
 
 #snb-pos {
     font-size: 10px;
