@@ -3529,6 +3529,19 @@ function studyNavUpdate() {
             renderStudyNavList();
         }
     }
+
+    refreshSnmNext();
+}
+
+// › del modal: al llegar al final se vuelve + para crear una nota nueva
+function refreshSnmNext() {
+    const nextBtn = document.getElementById('snm-next');
+    if (!nextBtn) return;
+    const total = studyNavTotalSteps(studyNavEntries());
+    const atEnd = total === 0 || studyNavIndex >= total - 1;
+    nextBtn.textContent = atEnd ? '+' : '›';
+    nextBtn.disabled = false;
+    nextBtn.title = atEnd ? 'Nueva nota' : 'Siguiente';
 }
 
 function studyNavGo(index) {
@@ -3587,6 +3600,7 @@ function renderStudyNavList() {
     const entries = studyNavEntries();
     const content = document.getElementById('snm-content');
     document.getElementById('snm-pos').textContent = `${studyNavIndex + 1} de ${entries.length}`;
+    refreshSnmNext();
 
     if (!entries.length) {
         content.innerHTML = '<div class="ss-empty">No hay entradas en este estudio.</div>';
@@ -3772,7 +3786,7 @@ function renderStudyNavModal() {
 
     document.getElementById('snm-pos').textContent = `${studyNavIndex + 1} de ${totalSteps}`;
     document.getElementById('snm-prev').disabled = studyNavIndex === 0;
-    document.getElementById('snm-next').disabled = studyNavIndex === totalSteps - 1;
+    refreshSnmNext();
 
     // Paso de notificación (último paso virtual)
     if (studyNavIndex === entries.length) {
@@ -3871,6 +3885,10 @@ function studyNavInit() {
     document.getElementById('snm-next').addEventListener('click', () => {
         const entries = studyNavEntries();
         const totalSteps = studyNavTotalSteps(entries);
+        if (totalSteps === 0 || studyNavIndex >= totalSteps - 1) {
+            openNoteSheet();
+            return;
+        }
         studyNavIndex = Math.min(totalSteps - 1, studyNavIndex + 1);
         localStorage.setItem('bible-study-nav-index', studyNavIndex);
         studyNavUpdate();
