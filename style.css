@@ -483,6 +483,8 @@ main#content.continuous {
     border-radius: var(--border-radius-medium);
     padding: 8px 12px;
     transition: background-color 0.2s, color 0.15s;
+    -webkit-touch-callout: none; /* iOS: no mostrar lupa/copiar en long-press */
+    touch-action: manipulation; /* sin doble-tap zoom, gestos táctiles propios */
 }
 
 .verse.verse-selected {

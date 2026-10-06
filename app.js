@@ -1387,6 +1387,8 @@ function updateVerseActionBar() {
 elements.versesContent.addEventListener('click', e => {
     if (e.target.classList.contains('study-note-badge')) return;
     if (e.target.classList.contains('verse-checkbox')) return;
+    // Ignora el click que sigue a un long-press (ya gestionado por el timer)
+    if (Date.now() - verseLongPressAt < 800) return;
     const verseEl = e.target.closest('.verse');
     if (!verseEl) { clearVerseSelection(); return; }
 
@@ -1430,10 +1432,62 @@ elements.versesContent.addEventListener('click', e => {
     }
 });
 
-// Long-press para rango en móvil
+// Long-press táctil para rango en móvil.
+// iOS no dispara contextmenu de forma fiable y el long-press nativo
+// selecciona la palabra; por eso se usa timer propio y se limpia la
+// selección nativa al disparar.
 let rangeModeTimeout = null;
+let verseLongPressTimer = null;
+let verseLongPressStartX = 0;
+let verseLongPressStartY = 0;
+let verseLongPressEl = null;
+let verseLongPressAt = 0;
+const VERSE_LONGPRESS_MS = 500;
+
+elements.versesContent.addEventListener('touchstart', e => {
+    if (window.innerWidth >= 1024 || e.touches.length !== 1) return;
+    verseLongPressEl = e.target.closest ? e.target.closest('.verse') : null;
+    if (!verseLongPressEl) return;
+    verseLongPressStartX = e.touches[0].clientX;
+    verseLongPressStartY = e.touches[0].clientY;
+    clearTimeout(verseLongPressTimer);
+    verseLongPressTimer = setTimeout(() => {
+        if (window.getSelection) window.getSelection().removeAllRanges();
+        verseLongPressAt = Date.now();
+        try { navigator.vibrate && navigator.vibrate(25); } catch (err) { /* noop */ }
+        // Si ya hay verso seleccionado, long-press crea rango
+        if (selectedVerseEl && selectedVerseEl !== verseLongPressEl) {
+            const { chapN: startChap } = getVerseInfo(selectedVerseEl);
+            const { chapN: endChap } = getVerseInfo(verseLongPressEl);
+            if (startChap === endChap) {
+                selectedVerseEndEl = verseLongPressEl;
+                highlightVerseRange();
+                updateVerseActionBar();
+                return;
+            }
+        }
+        clearVerseSelection();
+        selectedVerseEl = verseLongPressEl;
+        verseLongPressEl.classList.add('verse-selected');
+        updateVerseActionBar();
+        document.getElementById('verse-actions').classList.add('va-active');
+    }, VERSE_LONGPRESS_MS);
+}, { passive: true });
+
+elements.versesContent.addEventListener('touchmove', e => {
+    if (!verseLongPressTimer) return;
+    const dx = e.touches[0].clientX - verseLongPressStartX;
+    const dy = e.touches[0].clientY - verseLongPressStartY;
+    if (Math.hypot(dx, dy) > 12) clearTimeout(verseLongPressTimer); // scroll: cancela
+}, { passive: true });
+
+['touchend', 'touchcancel'].forEach(evName =>
+    elements.versesContent.addEventListener(evName, () => clearTimeout(verseLongPressTimer), { passive: true }));
+
 elements.versesContent.addEventListener('contextmenu', e => {
     if (window.innerWidth >= 1024) return; // solo móvil
+    // Ya gestionado por el timer táctil: solo bloquea el menú nativo
+    if (Date.now() - verseLongPressAt < 800) { e.preventDefault(); return; }
     const verseEl = e.target.closest('.verse');
     if (!verseEl) return;
     e.preventDefault();
