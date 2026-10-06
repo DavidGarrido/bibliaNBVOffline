@@ -2243,6 +2243,101 @@ function closeSttModal() {
     document.getElementById('stt-modal').classList.add('ocr-hidden');
 }
 
+// ── IA sobre la transcripción: limpiar texto y notas de estudio ──
+const STT_AI_CHUNK = 15000;
+
+function sttSplit(text, max) {
+    const parts = [];
+    let rest = text;
+    while (rest.length > max) {
+        let cut = rest.lastIndexOf('. ', max);
+        if (cut < max * 0.5) cut = rest.lastIndexOf('\n', max);
+        if (cut < max * 0.5) cut = rest.lastIndexOf(' ', max);
+        if (cut <= 0) cut = max;
+        parts.push(rest.slice(0, cut + 1).trim());
+        rest = rest.slice(cut + 1).trim();
+    }
+    if (rest) parts.push(rest);
+    return parts.filter(Boolean);
+}
+
+async function sttCallAI(system, user) {
+    const res = await fetch(AI_WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.error) throw new Error(data?.error || `Error ${res.status}`);
+    return (data.reply || '').trim();
+}
+
+function sttSetBusy(busy, statusMsg) {
+    ['stt-clean', 'stt-notes', 'stt-insert', 'stt-copy'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = busy;
+    });
+    if (statusMsg !== undefined) document.getElementById('stt-status').textContent = statusMsg;
+}
+
+async function sttCleanText() {
+    const area = document.getElementById('stt-text');
+    const text = area.value.trim();
+    if (!text) { showSaveToast('No hay texto que limpiar'); return; }
+    sttSetBusy(true, 'Limpiando el texto con IA…');
+    try {
+        const system = 'Eres un corrector de transcripciones de voz en español. Devuelve el texto corregido con puntuación y párrafos, sin agregar ni quitar contenido. Responde SOLO con el texto corregido, sin introducciones ni comentarios.';
+        const parts = sttSplit(text, STT_AI_CHUNK);
+        const out = [];
+        for (let i = 0; i < parts.length; i++) {
+            if (parts.length > 1) sttSetBusy(true, `Limpiando parte ${i + 1}/${parts.length}…`);
+            out.push(await sttCallAI(system, parts[i]));
+        }
+        area.value = out.join('\n\n');
+        sttSetBusy(false, 'Texto limpio ✓ Revísalo antes de insertarlo');
+    } catch (err) {
+        sttSetBusy(false, 'IA no disponible: ' + err.message);
+    }
+}
+
+async function sttStudyNotes() {
+    const text = document.getElementById('stt-text').value.trim();
+    if (!text) { showSaveToast('No hay transcripción'); return; }
+    sttSetBusy(true, 'Generando notas de estudio con IA…');
+    try {
+        const system = 'Eres un pastor y teólogo cristiano evangélico que toma notas de estudio de una reunión o prédica transcrita. Genera notas de estudio en español con: 1) Resumen breve, 2) Puntos clave, 3) Aplicaciones prácticas, 4) Referencias bíblicas relacionadas (libro capítulo:verso) cuando apliquen. Usa exclusivamente la Biblia como autoridad. Formato claro con títulos.';
+        const parts = sttSplit(text, STT_AI_CHUNK);
+        const partials = [];
+        for (let i = 0; i < parts.length; i++) {
+            if (parts.length > 1) sttSetBusy(true, `Analizando parte ${i + 1}/${parts.length}…`);
+            partials.push(await sttCallAI(system + ' Esta es la parte ' + (i + 1) + ' de ' + parts.length + ' de la transcripción.', parts[i]));
+        }
+        let notes = partials.join('\n\n');
+        if (partials.length > 1) {
+            sttSetBusy(true, 'Uniendo las notas…');
+            notes = await sttCallAI(system + ' Une las siguientes notas parciales en unas notas de estudio finales, sin repetir contenido.',
+                partials.map((p, i) => `--- Parte ${i + 1} ---\n${p}`).join('\n\n'));
+        }
+        // Muestra el resultado en el sheet de IA (reutiliza Guardar en estudio)
+        aiVerseContexts = [];
+        aiConversation = [];
+        updateAIContextDisplay();
+        aiLastNoteText = '🤖 Notas de transcripción\n\n' + notes;
+        document.getElementById('ais-question').value = '';
+        document.getElementById('ais-response').innerHTML = linkifyAIResponse(notes);
+        setupAIResponseLinks();
+        document.getElementById('ais-response').classList.remove('ais-response-hidden');
+        document.getElementById('ais-save-area').classList.remove('ais-save-hidden');
+        closeSttModal();
+        showAISheet();
+        showSaveToast('Notas listas: guárdalas en tu estudio ✓');
+    } catch (err) {
+        sttSetBusy(false, 'IA no disponible: ' + err.message);
+        return;
+    }
+    sttSetBusy(false);
+}
+
 async function sttCopyText() {
     const text = document.getElementById('stt-text').value.trim();
     if (!text) { showSaveToast('Nada que copiar'); return; }
@@ -2495,6 +2590,8 @@ function setupStudiesListeners() {
     document.getElementById('stt-overlay').addEventListener('click', closeSttModal);
     document.getElementById('stt-copy').addEventListener('click', sttCopyText);
     document.getElementById('stt-insert').addEventListener('click', sttInsertIntoNote);
+    document.getElementById('stt-clean').addEventListener('click', sttCleanText);
+    document.getElementById('stt-notes').addEventListener('click', sttStudyNotes);
 
     // Autocomplete @version: en el textarea
     const noteInput    = document.getElementById('ns-note-input');
