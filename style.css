@@ -2361,6 +2361,39 @@ h2 {
     color: #fff;
 }
 
+/* Widget flotante de grabación */
+#stt-float {
+    position: fixed;
+    right: 12px;
+    bottom: 76px;
+    z-index: 480;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #b91c1c;
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    padding: 10px 14px;
+    font-weight: 800;
+    font-size: 14px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+}
+#stt-float.stt-float-hidden { display: none; }
+.stt-float-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    animation: stt-blink 1s infinite;
+}
+@keyframes stt-blink { 50% { opacity: 0.3; } }
+
 .ns-base-ref-row {
     display: flex;
     align-items: center;

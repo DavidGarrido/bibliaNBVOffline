@@ -2119,12 +2119,79 @@ async function sttStart() {
     sttTimerInt = setInterval(() => {
         const paused = sttPauseStart ? (Date.now() - sttPauseStart) : 0;
         // sttPausedTotal se acumula al reanudar; ver sttTogglePause
-        document.getElementById('stt-rec-timer').textContent =
+        const label =
             (sttRecorder && sttRecorder.state === 'paused' ? '⏸ ' : '') +
             sttFmt(Date.now() - sttStartTs - sttPausedTotal - paused);
+        document.getElementById('stt-rec-timer').textContent = label;
+        const floatTimer = document.getElementById('stt-float-timer');
+        if (floatTimer) floatTimer.textContent = label.replace('⏸ ', '');
     }, 500);
     document.getElementById('stt-rec-modal').classList.remove('ncm-hidden');
 }
+
+// Minimizar la grabación a widget flotante para seguir navegando
+// (citas, notas, estudio). La grabación continúa en segundo plano.
+function sttMinimize() {
+    if (!sttRecorder) return;
+    document.getElementById('stt-rec-modal').classList.add('ncm-hidden');
+    document.getElementById('stt-float').classList.remove('stt-float-hidden');
+}
+
+function sttExpand() {
+    document.getElementById('stt-float').classList.add('stt-float-hidden');
+    if (sttRecorder) {
+        document.getElementById('stt-rec-modal').classList.remove('ncm-hidden');
+    }
+}
+
+function sttHideFloat() {
+    document.getElementById('stt-float').classList.add('stt-float-hidden');
+}
+
+// Widget arrastrable (tap = volver al modal, arrastrar = mover)
+(function () {
+    const btn = document.getElementById('stt-float');
+    if (!btn) return;
+    let dragging = false, startX, startY, origLeft, origTop, moved;
+
+    function applyPos(left, top) {
+        const maxX = window.innerWidth - btn.offsetWidth;
+        const maxY = window.innerHeight - btn.offsetHeight;
+        left = Math.max(0, Math.min(left, maxX));
+        top = Math.max(0, Math.min(top, maxY));
+        btn.style.right = 'auto';
+        btn.style.bottom = 'auto';
+        btn.style.left = left + 'px';
+        btn.style.top = top + 'px';
+    }
+    function onStart(cx, cy) {
+        dragging = true;
+        moved = false;
+        const rect = btn.getBoundingClientRect();
+        origLeft = rect.left;
+        origTop = rect.top;
+        startX = cx;
+        startY = cy;
+    }
+    function onMove(cx, cy) {
+        if (!dragging) return;
+        const dx = cx - startX, dy = cy - startY;
+        if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
+        if (moved) applyPos(origLeft + dx, origTop + dy);
+    }
+    function onEnd() { dragging = false; }
+
+    btn.addEventListener('mousedown', e => { onStart(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', e => { onMove(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', () => onEnd());
+    btn.addEventListener('touchstart', e => { const t = e.touches[0]; onStart(t.clientX, t.clientY); }, { passive: true });
+    window.addEventListener('touchmove', e => { if (dragging) { e.preventDefault(); const t = e.touches[0]; onMove(t.clientX, t.clientY); } }, { passive: false });
+    window.addEventListener('touchend', () => onEnd());
+    btn.addEventListener('click', e => {
+        if (moved) { moved = false; e.stopImmediatePropagation(); return; }
+        sttExpand();
+    });
+})();
 
 function sttTogglePause() {
     const rec = sttRecorder;
@@ -2147,6 +2214,7 @@ function sttTogglePause() {
 
 function sttCloseRecModal() {
     document.getElementById('stt-rec-modal').classList.add('ncm-hidden');
+    sttHideFloat();
     clearInterval(sttTimerInt);
 }
 
@@ -2647,6 +2715,7 @@ function setupStudiesListeners() {
     document.getElementById('stt-rec-cancel').addEventListener('click', () => sttFinish(true));
     document.getElementById('stt-rec-stop').addEventListener('click', () => sttFinish(false));
     document.getElementById('stt-rec-pause').addEventListener('click', sttTogglePause);
+    document.getElementById('stt-rec-min').addEventListener('click', sttMinimize);
     document.getElementById('stt-retry').addEventListener('click', sttRetry);
     document.getElementById('stt-close').addEventListener('click', closeSttModal);
     document.getElementById('stt-overlay').addEventListener('click', closeSttModal);
