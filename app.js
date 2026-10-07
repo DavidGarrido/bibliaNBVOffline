@@ -2306,7 +2306,13 @@ async function sttFinish(cancel) {
     }
     const segments = sttSegments.filter(s => s.size > 0);
     sttSegments = [];
-    if (!segments.length) { showSaveToast('Grabación vacía'); return; }
+    const totalBytes = segments.reduce((a, s) => a + s.size, 0);
+    const elapsedMs = Date.now() - sttStartTs - sttPausedTotal - (sttPauseStart ? Date.now() - sttPauseStart : 0);
+    // Grabación vacía o de ~1 segundo: Whisper no puede decodificarla (error 3030)
+    if (!segments.length || totalBytes < 8 * 1024 || elapsedMs < 2500) {
+        showSaveToast('Grabación muy corta, nada que transcribir');
+        return;
+    }
     sttLastSegments = segments;
     // Respaldo antes de enviar: si falla la red o se cierra la app, se reintenta
     const backupId = 'stt_' + Date.now().toString(36);
@@ -2336,7 +2342,18 @@ async function sttTranscribe(segments, backupId) {
     document.getElementById('stt-retry').style.display = 'none';
     document.getElementById('stt-modal').classList.remove('ocr-hidden');
     const setStatus = msg => { document.getElementById('stt-status').textContent = msg; };
-    const fail = msg => {
+    const fail = (msg, retry = true) => {
+        if (!retry) {
+            // Audio inservible (ej. Whisper 3030): el respaldo no sirve, se elimina
+            setStatus(msg + ' Se eliminó ese respaldo inservible.');
+            sttBackupDB.del(backupId).catch(() => {});
+            if (localStorage.getItem(STT_PENDING_KEY) === backupId) {
+                localStorage.removeItem(STT_PENDING_KEY);
+            }
+            sttLastSegments = null;
+            sttUpdatePendingBadge();
+            return;
+        }
         setStatus(msg + ' El audio quedó respaldado: usa ↻ Reintentar envío.');
         document.getElementById('stt-retry').style.display = '';
     };
@@ -2366,7 +2383,10 @@ async function sttTranscribe(segments, backupId) {
         let data = null;
         try { data = await res.json(); } catch (err) { /* noop */ }
         if (!res.ok) {
-            fail(data?.error || `Error del servidor (${res.status}).`);
+            const errMsg = data?.error || `Error del servidor (${res.status}).`;
+            // 3030 = audio indecodificable: reintentar no sirve
+            const useless = /3030|decode|decod/i.test(errMsg);
+            fail(useless ? 'Audio inválido o muy corto (Whisper no pudo leerlo).' : errMsg, !useless);
             return;
         }
         texts.push((data?.text || '').trim());
