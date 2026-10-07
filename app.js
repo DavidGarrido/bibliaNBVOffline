@@ -2871,9 +2871,17 @@ function setupStudiesListeners() {
 
     // Grabación y transcripción de audio
     document.getElementById('ns-audio-rec').addEventListener('click', sttStart);
-    document.getElementById('stt-rec-close').addEventListener('click', () => sttFinish(true));
-    document.getElementById('stt-rec-overlay').addEventListener('click', () => sttFinish(true));
-    document.getElementById('stt-rec-cancel').addEventListener('click', () => sttFinish(true));
+    document.getElementById('stt-rec-close').addEventListener('click', () => {
+        sttMinimize();
+        showSaveToast('Grabando en segundo plano 🎙️');
+    });
+    document.getElementById('stt-rec-overlay').addEventListener('click', () => {
+        sttMinimize();
+        showSaveToast('Grabando en segundo plano 🎙️');
+    });
+    document.getElementById('stt-rec-cancel').addEventListener('click', () => {
+        showConfirmModal('¿Descartar la grabación en curso? El audio se perderá.', () => sttFinish(true));
+    });
     document.getElementById('stt-rec-stop').addEventListener('click', () => sttFinish(false));
     document.getElementById('stt-rec-pause').addEventListener('click', sttTogglePause);
     document.getElementById('stt-rec-min').addEventListener('click', sttMinimize);

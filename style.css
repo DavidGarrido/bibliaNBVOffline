@@ -2153,7 +2153,7 @@ h2 {
     text-align: center;
     padding: 10px;
     border-radius: 8px;
-    border: 1.5px dashed var(--airbnb-foggy);
+    border: 1.5px solid var(--airbnb-light-gray);
     background: var(--airbnb-extra-light-gray);
     color: var(--airbnb-dark);
     font-size: 14px;
@@ -2196,6 +2196,8 @@ h2 {
     position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 #note-cam-box,
 #stt-rec-box {
@@ -2298,12 +2300,15 @@ h2 {
     position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 #stt-pending-box {
     position: relative;
     z-index: 1;
     background: var(--airbnb-white);
     border-radius: 24px 24px 0 0;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.12);
     width: 100%;
     max-width: 600px;
     max-height: 80vh;
@@ -2359,12 +2364,15 @@ h2 {
     position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 #ocr-box {
     position: relative;
     z-index: 1;
     background: var(--airbnb-white);
     border-radius: 24px 24px 0 0;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.12);
     width: 100%;
     max-width: 600px;
     max-height: 85vh;
@@ -2415,7 +2423,7 @@ h2 {
     font-size: 40px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
-    background: #000;
+    background: var(--airbnb-dark);
     color: #fff;
 }
 
@@ -2428,7 +2436,7 @@ h2 {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: #b91c1c;
+    background: #C13515;
     color: #fff;
     border: none;
     border-radius: 24px;
