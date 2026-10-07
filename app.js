@@ -2556,6 +2556,22 @@ function sttInsertIntoNote() {
     setTimeout(() => input.focus(), 100);
 }
 
+// Guarda la transcripción como entrada directa del estudio activo.
+// No necesita el panel de notas abierto.
+function sttSaveToStudy() {
+    const text = document.getElementById('stt-text').value.trim();
+    if (!text) { showSaveToast('Nada que guardar'); return; }
+    const activeStudy = studiesGetActive(studiesState);
+    if (!activeStudy) { showSaveToast('Sin estudio activo'); return; }
+    studiesState = studiesAddEntry(studiesState, activeStudy.id, { type: 'note', text, note: '' });
+    studiesSave(studiesState);
+    studyNavReset();
+    studyNavUpdate();
+    reapplyStudyMarkers();
+    closeSttModal();
+    showSaveToast(`Guardada en "${activeStudy.name}" ✓`);
+}
+
 // Variables de estado
 let studiesState = studiesLoad();
 
@@ -2785,6 +2801,7 @@ function setupStudiesListeners() {
     document.getElementById('stt-insert').addEventListener('click', sttInsertIntoNote);
     document.getElementById('stt-clean').addEventListener('click', sttCleanText);
     document.getElementById('stt-notes').addEventListener('click', sttStudyNotes);
+    document.getElementById('stt-save-study').addEventListener('click', sttSaveToStudy);
 
     // Autocomplete @version: en el textarea
     const noteInput    = document.getElementById('ns-note-input');
