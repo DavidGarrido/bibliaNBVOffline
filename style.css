@@ -2234,6 +2234,21 @@ h2 {
 .note-cam-actions .primary-btn,
 .note-cam-actions .cfg-toggle-btn { flex: 1; }
 
+/* Grabación: detener protagonista arriba, secundarios abajo */
+.note-cam-actions.stt-rec-actions {
+    flex-direction: column;
+}
+.stt-rec-actions .stt-stop-btn {
+    width: 100%;
+    background: #C13515;
+    padding: 14px;
+}
+.stt-rec-row {
+    display: flex;
+    gap: 8px;
+}
+.stt-rec-row .cfg-toggle-btn { flex: 1; }
+
 /* Visor fullscreen */
 #photo-viewer {
     position: fixed;

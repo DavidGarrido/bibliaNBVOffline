@@ -298,11 +298,13 @@
                 <button id="stt-rec-close" class="icon-btn">✕</button>
             </div>
             <div id="stt-rec-timer" class="stt-rec-timer">00:00</div>
-            <div class="note-cam-actions">
-                <button type="button" id="stt-rec-cancel" class="cfg-toggle-btn">Cancelar</button>
-                <button type="button" id="stt-rec-pause" class="cfg-toggle-btn">⏸ Pausar</button>
-                <button type="button" id="stt-rec-min" class="cfg-toggle-btn" title="Seguir navegando">➖</button>
-                <button type="button" id="stt-rec-stop" class="primary-btn">⏹ Detener y transcribir</button>
+            <div class="note-cam-actions stt-rec-actions">
+                <button type="button" id="stt-rec-stop" class="primary-btn stt-stop-btn">⏹ Detener y transcribir</button>
+                <div class="stt-rec-row">
+                    <button type="button" id="stt-rec-pause" class="cfg-toggle-btn">⏸ Pausar</button>
+                    <button type="button" id="stt-rec-min" class="cfg-toggle-btn" title="Seguir navegando">➖</button>
+                    <button type="button" id="stt-rec-cancel" class="cfg-toggle-btn" title="Descartar grabación">🗑️</button>
+                </div>
             </div>
         </div>
     </div>
