@@ -2053,6 +2053,21 @@ const sttBackupDB = (() => {
                 req.onerror = e => { db.close(); reject(e.target.error); };
             });
         },
+        async list() {
+            const db = await open();
+            return new Promise((resolve, reject) => {
+                const req = db.transaction('grabaciones', 'readonly').objectStore('grabaciones').getAll();
+                req.onsuccess = e => {
+                    db.close();
+                    resolve((e.target.result || []).map(r => ({
+                        id: r.id,
+                        createdAt: r.createdAt,
+                        segments: Array.isArray(r.segments) ? r.segments : (r.segments ? [r.segments] : []),
+                    })));
+                };
+                req.onerror = e => { db.close(); reject(e.target.error); };
+            });
+        },
         async del(id) {
             if (!id) return;
             try {
@@ -2572,6 +2587,74 @@ function sttSaveToStudy() {
     showSaveToast(`Guardada en "${activeStudy.name}" ✓`);
 }
 
+// ── Transcripciones pendientes (audios respaldados) ────────────
+function sttFmtSize(bytes) {
+    const mb = (bytes || 0) / (1024 * 1024);
+    return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round((bytes || 0) / 1024)} KB`;
+}
+
+async function sttUpdatePendingBadge() {
+    const el = document.getElementById('ns-audio-pending-count');
+    if (!el) return;
+    try {
+        const items = await sttBackupDB.list();
+        el.textContent = items.length ? ` (${items.length})` : '';
+    } catch (err) { /* noop */ }
+}
+
+async function openSttPending() {
+    const list = document.getElementById('stt-pending-list');
+    list.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.5">Cargando…</div>';
+    document.getElementById('stt-pending-modal').classList.remove('spm-hidden');
+    let items = [];
+    try { items = await sttBackupDB.list(); } catch (err) { /* noop */ }
+    if (!items.length) {
+        list.innerHTML = '<div class="ss-empty">Sin transcripciones pendientes 🎉</div>';
+        return;
+    }
+    list.innerHTML = items.map(r => {
+        const size = (r.segments || []).reduce((a, b) => a + (b?.size || 0), 0);
+        const when = r.createdAt ? new Date(r.createdAt).toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : r.id;
+        return `
+            <div class="spm-item">
+                <div class="spm-info">
+                    <div class="spm-date">🎙️ ${when}</div>
+                    <div class="spm-meta">${(r.segments || []).length} segmento(s) · ${sttFmtSize(size)}</div>
+                </div>
+                <div class="spm-actions">
+                    <button class="cfg-toggle-btn spm-transcribe" data-id="${r.id}">Transcribir</button>
+                    <button class="cfg-toggle-btn spm-delete" data-id="${r.id}">🗑️</button>
+                </div>
+            </div>`;
+    }).join('');
+    list.querySelectorAll('.spm-transcribe').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const rec = items.find(x => x.id === btn.dataset.id);
+            if (!rec || !rec.segments.length) return;
+            closeSttPending();
+            sttLastSegments = rec.segments;
+            localStorage.setItem(STT_PENDING_KEY, rec.id);
+            sttTranscribe(rec.segments, rec.id);
+        });
+    });
+    list.querySelectorAll('.spm-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+            showConfirmModal('¿Eliminar este audio respaldado?', async () => {
+                await sttBackupDB.del(btn.dataset.id);
+                if (localStorage.getItem(STT_PENDING_KEY) === btn.dataset.id) {
+                    localStorage.removeItem(STT_PENDING_KEY);
+                }
+                sttUpdatePendingBadge();
+                openSttPending();
+            });
+        });
+    });
+}
+
+function closeSttPending() {
+    document.getElementById('stt-pending-modal').classList.add('spm-hidden');
+}
+
 // Variables de estado
 let studiesState = studiesLoad();
 
@@ -2802,6 +2885,9 @@ function setupStudiesListeners() {
     document.getElementById('stt-clean').addEventListener('click', sttCleanText);
     document.getElementById('stt-notes').addEventListener('click', sttStudyNotes);
     document.getElementById('stt-save-study').addEventListener('click', sttSaveToStudy);
+    document.getElementById('ns-audio-pending').addEventListener('click', openSttPending);
+    document.getElementById('stt-pending-close').addEventListener('click', closeSttPending);
+    document.getElementById('stt-pending-overlay').addEventListener('click', closeSttPending);
 
     // Autocomplete @version: en el textarea
     const noteInput    = document.getElementById('ns-note-input');
@@ -3541,6 +3627,7 @@ function openNoteSheet(verseData = null, editEntry = null, editStudyId = null) {
     sheet.classList.remove('ns-hidden');
     closeStudiesDropdown();
     setTimeout(() => noteInput.focus(), 100);
+    sttUpdatePendingBadge();
 
     // Store verse data for save
     sheet.dataset.verseData = verseData ? JSON.stringify(verseData) : '';

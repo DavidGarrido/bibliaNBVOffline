@@ -247,6 +247,7 @@
                     </div>
                     <div class="ns-photo-btns">
                         <button type="button" id="ns-audio-rec" class="ns-photo-btn">🎙️ Grabar audio</button>
+                        <button type="button" id="ns-audio-pending" class="ns-photo-btn">📋 Pendientes<span id="ns-audio-pending-count" class="ns-photo-count"></span></button>
                     </div>
                 </div>
                 <label id="ns-base-ref-row" class="ns-base-ref-row" style="display:none">
@@ -331,6 +332,18 @@
                 <button id="stt-notes" class="cfg-toggle-btn">📓 Notas de estudio</button>
                 <button id="stt-save-study" class="cfg-toggle-btn">💾 Guardar en estudio</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal transcripciones pendientes -->
+    <div id="stt-pending-modal" class="spm-hidden">
+        <div id="stt-pending-overlay"></div>
+        <div id="stt-pending-box">
+            <div id="stt-pending-header">
+                <span>📋 Transcripciones pendientes</span>
+                <button id="stt-pending-close" class="icon-btn">✕</button>
+            </div>
+            <div id="stt-pending-list"></div>
         </div>
     </div>
 
