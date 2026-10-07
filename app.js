@@ -2014,7 +2014,10 @@ let sttTimerInt = null;
 let sttStartTs = 0;
 let sttPauseStart = 0;
 let sttPausedTotal = 0;
-let sttLastBlob = null;
+let sttLastSegments = null;
+let sttSegments = [];      // segmentos cerrados (archivos válidos)
+let sttSegmentStart = 0;
+let sttRotating = false;
 
 // Respaldo de la grabación en IndexedDB: si la transcripción falla o se
 // cierra la app, el audio no se pierde y se puede reintentar.
@@ -2033,11 +2036,11 @@ const sttBackupDB = (() => {
         });
     }
     return {
-        async save(id, blob) {
+        async save(id, segments) {
             const db = await open();
             return new Promise((resolve, reject) => {
                 const t = db.transaction('grabaciones', 'readwrite');
-                t.objectStore('grabaciones').put({ id, blob, createdAt: new Date().toISOString() });
+                t.objectStore('grabaciones').put({ id, segments, createdAt: new Date().toISOString() });
                 t.oncomplete = () => { db.close(); resolve(); };
                 t.onerror = e => { db.close(); reject(e.target.error); };
             });
@@ -2046,7 +2049,7 @@ const sttBackupDB = (() => {
             const db = await open();
             return new Promise((resolve, reject) => {
                 const req = db.transaction('grabaciones', 'readonly').objectStore('grabaciones').get(id);
-                req.onsuccess = e => { db.close(); resolve(e.target.result?.blob || null); };
+                req.onsuccess = e => { db.close(); resolve(e.target.result?.segments || null); };
                 req.onerror = e => { db.close(); reject(e.target.error); };
             });
         },
@@ -2110,6 +2113,9 @@ async function sttStart() {
     sttRecorder.start(1000);
     sttStartTs = Date.now();
     sttPauseStart = 0;
+    sttSegments = [];
+    sttSegmentStart = Date.now();
+    sttRotating = false;
     document.getElementById('stt-rec-timer').textContent = '00:00';
     const pauseBtn = document.getElementById('stt-rec-pause');
     pauseBtn.textContent = '⏸ Pausar';
@@ -2125,8 +2131,52 @@ async function sttStart() {
         document.getElementById('stt-rec-timer').textContent = label;
         const floatTimer = document.getElementById('stt-float-timer');
         if (floatTimer) floatTimer.textContent = label.replace('⏸ ', '');
+        // Rota el segmento cada STT_SEGMENT_MS para que cada parte enviada
+        // sea un archivo de audio válido (los cortes crudos no decodifican)
+        if (!sttRotating && sttRecorder && sttRecorder.state === 'recording' &&
+            Date.now() - sttSegmentStart >= STT_SEGMENT_MS) {
+            sttRotateSegment();
+        }
     }, 500);
     document.getElementById('stt-rec-modal').classList.remove('ncm-hidden');
+}
+
+// Cierra el segmento actual (archivo válido) y abre otro de inmediato.
+// La pausa entre ambos es de milisegundos.
+async function sttRotateSegment() {
+    const rec = sttRecorder;
+    if (!rec || rec.state !== 'recording') return;
+    sttRotating = true;
+    const prevStop = rec.onstop;
+    const done = new Promise(res => {
+        rec.onstop = e => { try { prevStop && prevStop(e); } catch (err) { /* noop */ } res(); };
+    });
+    try { rec.stop(); } catch (err) { sttRotating = false; return; }
+    await done;
+    if (sttChunks.length) {
+        sttSegments.push(new Blob(sttChunks, { type: rec.mimeType || 'audio/webm' }));
+        sttChunks = [];
+    }
+    // El onstop original detuvo el micrófono: se reabre para seguir
+    if (sttRecorder === rec) {
+        try {
+            sttStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err) {
+            sttRotating = false;
+            showSaveToast('No se pudo continuar grabando');
+            return;
+        }
+        rec.onstop = () => {
+            if (sttStream) { sttStream.getTracks().forEach(t => t.stop()); sttStream = null; }
+        };
+        try {
+            rec.start(1000);
+            sttSegmentStart = Date.now();
+        } catch (err) {
+            showSaveToast('No se pudo continuar grabando');
+        }
+    }
+    sttRotating = false;
 }
 
 // Minimizar la grabación a widget flotante para seguir navegando
@@ -2219,47 +2269,54 @@ function sttCloseRecModal() {
 }
 
 async function sttFinish(cancel) {
+    // Si hay una rotación en curso, se espera a que termine
+    let guard = 0;
+    while (sttRotating && guard++ < 40) await new Promise(r => setTimeout(r, 250));
     const rec = sttRecorder;
     sttRecorder = null;
     sttCloseRecModal();
     sttPausedTotal = 0;
     sttPauseStart = 0;
-    if (!rec) return;
+    if (!rec) { sttChunks = []; sttSegments = []; return; }
     const prevStop = rec.onstop;
     const done = new Promise(res => {
         rec.onstop = e => { try { prevStop && prevStop(e); } catch (err) { /* noop */ } res(); };
     });
     try { if (rec.state !== 'inactive') rec.stop(); } catch (err) { /* noop */ }
     await done;
-    if (cancel) { sttChunks = []; return; }
-    const blob = new Blob(sttChunks, { type: rec.mimeType || 'audio/webm' });
-    sttChunks = [];
-    if (!blob.size) { showSaveToast('Grabación vacía'); return; }
-    sttLastBlob = blob;
+    if (cancel) { sttChunks = []; sttSegments = []; return; }
+    if (sttChunks.length) {
+        sttSegments.push(new Blob(sttChunks, { type: rec.mimeType || 'audio/webm' }));
+        sttChunks = [];
+    }
+    const segments = sttSegments.filter(s => s.size > 0);
+    sttSegments = [];
+    if (!segments.length) { showSaveToast('Grabación vacía'); return; }
+    sttLastSegments = segments;
     // Respaldo antes de enviar: si falla la red o se cierra la app, se reintenta
     const backupId = 'stt_' + Date.now().toString(36);
     try {
-        await sttBackupDB.save(backupId, blob);
+        await sttBackupDB.save(backupId, segments);
         localStorage.setItem(STT_PENDING_KEY, backupId);
     } catch (err) { /* sin espacio: se sigue solo en memoria */ }
-    sttTranscribe(blob, backupId);
+    sttTranscribe(segments, backupId);
 }
 
 async function sttRetry() {
     document.getElementById('stt-retry').style.display = 'none';
-    let blob = sttLastBlob;
-    if (!blob) {
+    let segments = sttLastSegments;
+    if (!segments) {
         const pendingId = localStorage.getItem(STT_PENDING_KEY);
         if (pendingId) {
-            try { blob = await sttBackupDB.get(pendingId); } catch (err) { /* noop */ }
+            try { segments = await sttBackupDB.get(pendingId); } catch (err) { /* noop */ }
         }
     }
-    if (!blob) { showSaveToast('No hay audio pendiente'); return; }
-    sttLastBlob = blob;
-    sttTranscribe(blob, localStorage.getItem(STT_PENDING_KEY));
+    if (!segments || !segments.length) { showSaveToast('No hay audio pendiente'); return; }
+    sttLastSegments = segments;
+    sttTranscribe(segments, localStorage.getItem(STT_PENDING_KEY));
 }
 
-async function sttTranscribe(blob, backupId) {
+async function sttTranscribe(segments, backupId) {
     document.getElementById('stt-text').value = '';
     document.getElementById('stt-retry').style.display = 'none';
     document.getElementById('stt-modal').classList.remove('ocr-hidden');
@@ -2268,19 +2325,24 @@ async function sttTranscribe(blob, backupId) {
         setStatus(msg + ' El audio quedó respaldado: usa ↻ Reintentar envío.');
         document.getElementById('stt-retry').style.display = '';
     };
-    const parts = [];
-    for (let off = 0; off < blob.size; off += STT_PART_BYTES) {
-        parts.push(blob.slice(off, off + STT_PART_BYTES, blob.type));
-    }
+    // Cada segmento es un archivo válido; por seguridad se sub-parte a 4MB
+    // solo si alguno excede (no debería con segmentos de 3 min)
+    const jobs = [];
+    segments.forEach((seg, si) => {
+        for (let off = 0; off < seg.size; off += STT_PART_BYTES) {
+            jobs.push({ seg, si, blob: seg.slice(off, off + STT_PART_BYTES, seg.type) });
+        }
+    });
     const texts = [];
-    for (let i = 0; i < parts.length; i++) {
-        setStatus(`Transcribiendo parte ${i + 1}/${parts.length}…`);
+    for (let i = 0; i < jobs.length; i++) {
+        const tag = segments.length > 1 ? `Seg ${jobs[i].si + 1}/${segments.length} · ` : '';
+        setStatus(`Transcribiendo ${tag}parte ${i + 1}/${jobs.length}…`);
         let res;
         try {
             res = await fetch(AI_WORKER_TRANSCRIBE_URL + '?lang=es', {
                 method: 'POST',
-                headers: { 'Content-Type': parts[i].type || 'audio/webm' },
-                body: parts[i],
+                headers: { 'Content-Type': jobs[i].blob.type || 'audio/webm' },
+                body: jobs[i].blob,
             });
         } catch (err) {
             fail('Sin conexión con el servidor de IA.');
@@ -2301,7 +2363,7 @@ async function sttTranscribe(blob, backupId) {
         // Éxito: se borra el respaldo
         sttBackupDB.del(backupId).catch(() => {});
         localStorage.removeItem(STT_PENDING_KEY);
-        sttLastBlob = null;
+        sttLastSegments = null;
     } else {
         fail('No se detectó habla en el audio.');
     }
