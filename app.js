@@ -8,9 +8,55 @@ let bibleData = null;
 let currentBook = null;
 let currentChapter = null;
 let translations = [];
-const bibleCache = {};
+const bibleCache = {}; // memoria (sesión); el persistente es bibleIDB (IndexedDB)
 let readingMode = localStorage.getItem('bible-reading-mode') || 'paged';
 let chapterObserver = null;
+
+// Traducciones persistentes en IndexedDB (~4.5MB c/u): así no se
+// re-descargan en cada sesión; memoria = solo lo usado.
+const bibleIDB = (() => {
+    function open() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open('biblia-datos', 1);
+            req.onupgradeneeded = e => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('traducciones')) {
+                    db.createObjectStore('traducciones', { keyPath: 'id' });
+                }
+            };
+            req.onsuccess = e => resolve(e.target.result);
+            req.onerror = e => reject(e.target.error);
+        });
+    }
+    return {
+        async get(id) {
+            const db = await open();
+            return new Promise((resolve, reject) => {
+                const req = db.transaction('traducciones', 'readonly').objectStore('traducciones').get(id);
+                req.onsuccess = e => { db.close(); resolve(e.target.result?.data || null); };
+                req.onerror = e => { db.close(); reject(e.target.error); };
+            });
+        },
+        async save(id, data) {
+            const db = await open();
+            return new Promise((resolve, reject) => {
+                const t = db.transaction('traducciones', 'readwrite');
+                t.objectStore('traducciones').put({ id, data });
+                t.oncomplete = () => { db.close(); resolve(); };
+                t.onerror = e => { db.close(); reject(e.target.error); };
+            });
+        },
+    };
+})();
+
+async function loadCachedBible(translationId) {
+    if (bibleCache[translationId]) return bibleCache[translationId];
+    try {
+        const data = await bibleIDB.get(translationId);
+        if (data) bibleCache[translationId] = data;
+    } catch (err) { /* IDB no disponible: se sigue a red */ }
+    return bibleCache[translationId] || null;
+}
 
 // ── Comentarios bíblicos ──────────────────────────────────────
 let commentaries = [];
@@ -180,6 +226,9 @@ async function loadBible(translationId, restorePosition = true) {
     elements.loader.style.display = 'block';
     elements.viewBooks.style.display = 'none';
 
+    if (!bibleCache[translationId]) {
+        await loadCachedBible(translationId); // memoria <- IndexedDB
+    }
     if (bibleCache[translationId]) {
         bibleData = bibleCache[translationId];
     } else {
@@ -187,6 +236,7 @@ async function loadBible(translationId, restorePosition = true) {
             const response = await fetch(translation.file);
             bibleData = await response.json();
             bibleCache[translationId] = bibleData;
+            bibleIDB.save(translationId, bibleData).catch(() => {});
         } catch (error) {
             elements.loader.innerText = 'Error al cargar la traducción.';
             console.error(error);
@@ -1558,20 +1608,21 @@ async function openVerseCompare(bookId, chapN, verseN) {
     renderCompareContent(bookId, chapN, verseN);
 }
 
-// Solo lee versiones YA descargadas (bibleCache); las faltantes se
-// descargan individualmente al tocarlas, no todas al abrir.
-function renderCompareContent(bookId, chapN, verseN) {
+// Solo lee versiones YA descargadas (memoria o IndexedDB); las faltantes
+// se descargan individualmente al tocarlas, no todas al abrir.
+async function renderCompareContent(bookId, chapN, verseN) {
     const content = document.getElementById('vc-content');
     const currentTid = elements.translationSelect.value;
 
-    const items = translations.map(t => {
-        const data = bibleCache[t.id];
+    const items = await Promise.all(translations.map(async t => {
+        let data = bibleCache[t.id];
+        if (!data) data = await loadCachedBible(t.id);
         if (!data) return { id: t.id, label: t.label, text: null, pending: true };
         const book = data.find(b => b.id == bookId);
         const chap = book?.chapters.find(c => c.n == chapN);
         const verse = chap?.v.find(v => v.n == verseN);
         return { id: t.id, label: t.label, text: verse?.t || null, pending: false };
-    });
+    }));
 
     content.innerHTML = items.map(r => {
         if (r.pending) {
@@ -1611,7 +1662,9 @@ function renderCompareContent(bookId, chapN, verseN) {
             el.querySelector('.vc-download').textContent = '⏳ Descargando…';
             try {
                 const res = await fetch(t.file);
-                bibleCache[tid] = await res.json();
+                const data = await res.json();
+                bibleCache[tid] = data;
+                bibleIDB.save(tid, data).catch(() => {});
             } catch (err) {
                 el.querySelector('.vc-download').textContent = '⚠️ No se pudo descargar, toca para reintentar';
                 delete el.dataset.busy;
@@ -4015,8 +4068,8 @@ function attachNoteRefListeners(container) {
             const chapN     = parseInt(el.dataset.chap);
             const verseN    = parseInt(el.dataset.verse);
 
-            // Cargar traducción si no está en caché
-            let versionData = bibleCache[versionId];
+            // Cargar traducción si no está en caché (memoria o IndexedDB)
+            let versionData = bibleCache[versionId] || await loadCachedBible(versionId);
             if (!versionData) {
                 const translation = translations.find(t => t.id === versionId);
                 if (!translation) return;
@@ -4026,6 +4079,7 @@ function attachNoteRefListeners(container) {
                     const resp = await fetch(translation.file);
                     versionData = await resp.json();
                     bibleCache[versionId] = versionData;
+                    bibleIDB.save(versionId, versionData).catch(() => {});
                 } catch {
                     el.textContent = originalText;
                     return;
