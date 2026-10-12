@@ -258,6 +258,7 @@ async function loadBible(translationId, restorePosition = true) {
 
     elements.loader.style.display = 'none';
     renderBooks();
+    qsWarmIndex(translationId);
 
     if (restorePosition && localStorage.getItem('bible-restore-position') !== 'off') {
         const saved = JSON.parse(localStorage.getItem('bible-position'));
@@ -856,6 +857,39 @@ function normStr(s) {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').trim();
 }
 
+// Índice plano pre-normalizado para búsqueda libre: evita normalizar
+// ~31k versículos en cada tecla (eso colgaba el input con 2 letras).
+const QS_MAX_RESULTS = 50;
+const qsIndexCache = new Map(); // tid -> [{bid,bname,chap,n,t,nt}] (máx. 2)
+
+function qsNorm(s) {
+    return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function qsGetIndex(tid) {
+    if (qsIndexCache.has(tid)) return qsIndexCache.get(tid);
+    const bible = bibleCache[tid] || (tid === elements.translationSelect?.value ? bibleData : null);
+    if (!bible) return null;
+    const idx = [];
+    for (const book of bible) {
+        for (const chapter of book.chapters) {
+            for (const verse of chapter.v) {
+                idx.push({ bid: book.id, bname: book.name, chap: chapter.n, n: verse.n, t: verse.t, nt: qsNorm(verse.t) });
+            }
+        }
+    }
+    if (qsIndexCache.size >= 2) qsIndexCache.delete(qsIndexCache.keys().next().value);
+    qsIndexCache.set(tid, idx);
+    return idx;
+}
+
+// Precalienta el índice en segundo plano tras cargar (una sola vez)
+function qsWarmIndex(tid) {
+    setTimeout(() => {
+        try { qsGetIndex(tid); } catch (err) { /* noop */ }
+    }, 1500);
+}
+
 function findBooks(query) {
     const q = normStr(query);
     if (q.length < 1) return [];
@@ -908,8 +942,9 @@ function buildQsSuggestions(raw) {
 
     // Si no es referencia válida, buscar palabra en la Biblia
     if (!parsed && raw.trim().length >= 2) {
-        const bible = bibleCache[elements.translationSelect.value] || bibleData;
-        const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const tid = elements.translationSelect.value;
+        const bible = bibleCache[tid] || bibleData;
+        const norm = qsNorm;
 
         const words = raw.trim().split(/\s+/);
         let bookScope = null;
@@ -945,28 +980,31 @@ function buildQsSuggestions(raw) {
 
         const searchTerms = norm(bookScope ? bookScope.searchTerm : raw.trim()).split(/\s+/).filter(t => t.length > 0);
 
+        // Índice plano pre-normalizado: evita normalizar 31k versículos por tecla
+        const idx = qsGetIndex(tid);
         const searchResults = [];
-        if (bible && searchTerms.length > 0) {
-            for (const book of bible) {
-                if (scopeBooks && !scopeBooks.includes(book.id)) continue;
-                for (const chapter of book.chapters) {
-                    for (const verse of chapter.v) {
-                        if (searchTerms.every(term => norm(verse.t).includes(term))) {
-                            searchResults.push({ book, chapter, verse });
-                        }
-                    }
+        let totalMatches = 0;
+        if (idx && idx.length && searchTerms.length > 0) {
+            for (const e of idx) {
+                if (scopeBooks && !scopeBooks.includes(e.bid)) continue;
+                let ok = true;
+                for (const term of searchTerms) {
+                    if (!e.nt.includes(term)) { ok = false; break; }
                 }
+                if (!ok) continue;
+                totalMatches++;
+                if (searchResults.length < QS_MAX_RESULTS) searchResults.push(e);
             }
         }
 
-        if (searchResults.length > 0) {
+        if (totalMatches > 0) {
             items.push({
                 type: 'word-search',
                 icon: '🔍',
                 title: bookScope
                     ? `"${bookScope.searchTerm}" en ${scopeLabel}`
                     : `"${raw.trim()}" en la Biblia`,
-                sub: `${searchResults.length} versículos encontrados`,
+                sub: `${totalMatches} versículos encontrados${totalMatches > QS_MAX_RESULTS ? ` (mostrando ${QS_MAX_RESULTS})` : ''}`,
                 searchTerm: bookScope ? bookScope.searchTerm : raw.trim()
             });
             // Fallback antes de los resultados
@@ -978,23 +1016,24 @@ function buildQsSuggestions(raw) {
                     sub: null
                 });
             }
-            searchResults.forEach(result => {
-                const ref = `${result.book.name} ${result.chapter.n}:${result.verse.n}`;
+            searchResults.forEach(e => {
+                const ref = `${e.bname} ${e.chap}:${e.n}`;
                 items.push({
                     type: 'verse',
                     icon: '📖',
-                    bookName: result.book.name,
+                    bookName: e.bname,
                     title: ref,
-                    sub: result.verse.t,
-                    verseData: { ref, bookId: result.book.id, chapN: result.chapter.n, verseN: parseInt(result.verse.n), text: result.verse.t },
+                    sub: e.t,
+                    verseData: { ref, bookId: e.bid, chapN: e.chap, verseN: parseInt(e.n), text: e.t },
                     action: () => {
-                        const chapObj = result.book.chapters.find(c => c.n === result.chapter.n);
+                        const bk = (bibleCache[tid] || bibleData)?.find(b => b.id === e.bid);
+                        const chapObj = bk?.chapters.find(c => c.n === e.chap);
                         if (chapObj) {
-                            pendingVerse = parseInt(result.verse.n);
-                            pendingChapterN = result.chapter.n;
+                            pendingVerse = parseInt(e.n);
+                            pendingChapterN = e.chap;
                             closeQS();
-                            showChapters(result.book);
-                            showReader(result.book, chapObj);
+                            showChapters(bk);
+                            showReader(bk, chapObj);
                         }
                     }
                 });
