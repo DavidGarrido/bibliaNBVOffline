@@ -1,5 +1,8 @@
-const tg = window.Telegram.WebApp;
-tg.expand();
+// Telegram es opcional: sin conexión el script no carga y la app debe seguir
+const tg = (window.Telegram && window.Telegram.WebApp)
+    ? window.Telegram.WebApp
+    : { expand() {}, isVersionAtLeast() { return false; }, BackButton: { hide() {}, show() {}, onClick() {} } };
+try { tg.expand(); } catch (err) { /* fuera de Telegram */ }
 
 // Evita que el browser restaure scroll al recargar (desplazaría la study-nav-bar fuera del viewport)
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -107,8 +110,16 @@ function updateTopBar(view, data = {}) {
 }
 
 async function init() {
-    const response = await fetch('translations.json');
-    translations = await response.json();
+    try {
+        const response = await fetch('translations.json');
+        translations = await response.json();
+    } catch (err) {
+        // Sin conexión y sin caché: no se puede arrancar
+        elements.loader.innerText = 'Sin conexión y sin datos guardados. Conéctate una vez para descargar.';
+        console.error(err);
+        translations = [];
+        return;
+    }
 
     translations.forEach(t => {
         const opt = document.createElement('option');
@@ -117,7 +128,8 @@ async function init() {
         elements.translationSelect.appendChild(opt);
     });
 
-    const saved = localStorage.getItem('bible-translation') || translations[0].id;
+    const saved = localStorage.getItem('bible-translation') || translations[0]?.id;
+    if (!saved) return; // ya se mostró el error en el loader
     elements.translationSelect.value = saved;
 
     await loadBible(saved);
@@ -4785,8 +4797,11 @@ function toggleStudySubscription(studyId, currentEntryCount) {
 async function checkStudyUpdates() {
     const subs = getSubscriptions();
     if (!Object.keys(subs).length) return;
+    // Timeout para no colgar el arranque en redes lentas/cautivas
+    let signal;
+    try { signal = AbortSignal.timeout(10000); } catch (err) { signal = undefined; }
     try {
-        const res = await fetch(SHARED_API, { headers: { Accept: 'application/vnd.github.v3+json' } });
+        const res = await fetch(SHARED_API, { headers: { Accept: 'application/vnd.github.v3+json' }, signal });
         if (!res.ok) return;
         const files = (await res.json()).filter(f => f.type === 'file' && f.name.endsWith('.json'));
         const results = await Promise.all(files.map(f => fetch(f.download_url).then(r => r.json()).catch(() => null)));

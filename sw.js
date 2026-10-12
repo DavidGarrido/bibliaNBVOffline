@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblia-v2.45';
+const CACHE_NAME = 'biblia-v2.46';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -15,8 +15,11 @@ const CORE_ASSETS = [
 const NETWORK_FIRST = ['style.css', 'app.js', 'index.html'];
 
 self.addEventListener('install', event => {
+  // Un asset que falle (ej. CDN) no debe tumbar todo el precache offline
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(CORE_ASSETS))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(CORE_ASSETS.map(url => cache.add(url)))
+    )
     // NO skipWaiting — esperamos confirmación del usuario
   );
 });
