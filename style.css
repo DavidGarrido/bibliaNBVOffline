@@ -814,6 +814,14 @@ main#content.continuous {
     -webkit-tap-highlight-color: transparent;
 }
 .vc-item.vc-selectable:active { opacity: 0.6; }
+.vc-item.vc-pending {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.vc-download {
+    color: var(--airbnb-foggy);
+    font-size: 13px;
+}
 .vc-item.vc-current .vc-label::after {
     content: ' · actual';
     font-weight: 600;

@@ -1552,36 +1552,44 @@ document.getElementById('va-compare').addEventListener('click', () => {
 
 async function openVerseCompare(bookId, chapN, verseN) {
     const modal = document.getElementById('verse-compare');
-    const content = document.getElementById('vc-content');
     document.getElementById('vc-title').textContent =
         `${currentBook.name} ${chapN}:${verseN}`;
-    content.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.5">Cargando…</div>';
     modal.classList.remove('vc-hidden');
+    renderCompareContent(bookId, chapN, verseN);
+}
 
-    const results = await Promise.all(translations.map(async t => {
-        let data = bibleCache[t.id];
-        if (!data) {
-            try {
-                const res = await fetch(t.file);
-                data = await res.json();
-                bibleCache[t.id] = data;
-            } catch { return { id: t.id, label: t.label, text: null }; }
-        }
+// Solo lee versiones YA descargadas (bibleCache); las faltantes se
+// descargan individualmente al tocarlas, no todas al abrir.
+function renderCompareContent(bookId, chapN, verseN) {
+    const content = document.getElementById('vc-content');
+    const currentTid = elements.translationSelect.value;
+
+    const items = translations.map(t => {
+        const data = bibleCache[t.id];
+        if (!data) return { id: t.id, label: t.label, text: null, pending: true };
         const book = data.find(b => b.id == bookId);
         const chap = book?.chapters.find(c => c.n == chapN);
         const verse = chap?.v.find(v => v.n == verseN);
-        return { id: t.id, label: t.label, text: verse?.t || null };
-    }));
+        return { id: t.id, label: t.label, text: verse?.t || null, pending: false };
+    });
 
-    const currentTid = elements.translationSelect.value;
-    content.innerHTML = results.map(r => `
+    content.innerHTML = items.map(r => {
+        if (r.pending) {
+            return `
+            <div class="vc-item vc-pending" data-tid="${r.id}">
+                <div class="vc-label">${r.label}</div>
+                <div class="vc-text vc-download">⬇ Toca para descargar esta versión</div>
+            </div>`;
+        }
+        return `
         <div class="vc-item${r.text ? ' vc-selectable' : ''}${r.id === currentTid ? ' vc-current' : ''}"${r.text ? ` data-tid="${r.id}"` : ''}>
             <div class="vc-label">${r.label}${r.id === currentTid ? ' ✓' : ''}</div>
-            <div class="vc-text">${r.text ?? '<em style="opacity:0.4">No disponible</em>'}</div>
-        </div>`).join('')
+            <div class="vc-text">${r.text ?? '<em style="opacity:0.4">No disponible en esta versión</em>'}</div>
+        </div>`;
+    }).join('')
         + '<div class="vc-hint">Toca una versión para leer en ella</div>';
 
-    // Tocar una versión: cambia la traducción activa y cierra el comparador
+    // Tocar una versión descargada: cambia la traducción y cierra
     content.querySelectorAll('.vc-item.vc-selectable').forEach(el => {
         el.addEventListener('click', () => {
             const tid = el.dataset.tid;
@@ -1590,6 +1598,26 @@ async function openVerseCompare(bookId, chapN, verseN) {
                 elements.translationSelect.value = tid;
                 elements.translationSelect.onchange({ target: elements.translationSelect });
             }
+        });
+    });
+
+    // Tocar una pendiente: descarga SOLO esa versión y refresca
+    content.querySelectorAll('.vc-item.vc-pending').forEach(el => {
+        el.addEventListener('click', async () => {
+            const tid = el.dataset.tid;
+            const t = translations.find(x => x.id === tid);
+            if (!t || el.dataset.busy) return;
+            el.dataset.busy = '1';
+            el.querySelector('.vc-download').textContent = '⏳ Descargando…';
+            try {
+                const res = await fetch(t.file);
+                bibleCache[tid] = await res.json();
+            } catch (err) {
+                el.querySelector('.vc-download').textContent = '⚠️ No se pudo descargar, toca para reintentar';
+                delete el.dataset.busy;
+                return;
+            }
+            renderCompareContent(bookId, chapN, verseN);
         });
     });
 }
