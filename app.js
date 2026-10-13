@@ -4960,13 +4960,31 @@ function addAIContext(ref, text, bookId, chapN, verseN) {
 
 function buildSystemPrompt() {
     var ctxText = aiVerseContexts.map(function (c) { return c.ref + ' — "' + c.text + '"'; }).join('; ');
+    if (aiExpertIsOn()) {
+        return 'Eres un teólogo y hermeneuta evangélico en modo especialista. Respondes ÚNICAMENTE temas con relación directa con la Biblia o la fe cristiana; si no la hay responde exactamente: "No es posible responder esta pregunta porque no tiene relacion con la Biblia." y nada más. '
+            + 'Enfócate en hermenéutica y exégesis: contexto histórico-cultural, gramática y género literario del pasaje (aporta el término original hebreo/griego transliterado cuando aclare el sentido), intención del autor, la Escritura interpreta la Escritura y Cristo como centro. '
+            + 'Apóyate en los métodos de estudio bíblico según convenga: inductivo (observación, interpretación, aplicación), sintético, temático, biográfico o devocional. '
+            + 'Responde siempre en español, con rol teológico, estructurado con títulos breves y citas libro capítulo:verso. Máximo 6 secciones cortas. Los versiculos de contexto son: ' + ctxText;
+    }
     return 'Eres un pastor y teologo cristiano evangelico. Respondes UNICAMENTE preguntas que tengan relacion directa con la Biblia, la fe cristiana o los versiculos de contexto. Si la pregunta no tiene relacion biblica responde exactamente: "No es posible responder esta pregunta porque no tiene relacion con la Biblia." y nada mas. Usa exclusivamente la Biblia como autoridad. No des consejos psicologicos, filosoficos ni seculares. Responde siempre en espanol. Se conciso: maximo 3 parrafos. Los versiculos de contexto son: ' + ctxText;
+}
+
+const AI_EXPERT_KEY = 'bible-ai-expert';
+
+function aiExpertIsOn() {
+    return localStorage.getItem(AI_EXPERT_KEY) === 'on';
+}
+
+function updateExpertToggleText() {
+    const btn = document.getElementById('ais-expert-toggle');
+    if (btn) btn.textContent = aiExpertIsOn() ? '🎓 Experto: ON' : '🎓 Experto: OFF';
 }
 
 function showAISheet() {
     document.getElementById('ai-sheet').classList.remove('ais-hidden');
     document.getElementById('ai-minimized-indicator').classList.add('ais-min-hidden');
     aiMinimized = false;
+    updateExpertToggleText();
 }
 
 function minimizeAISheet() {
@@ -5094,6 +5112,12 @@ document.getElementById('ais-add-to-current').addEventListener('click', function
 });
 
 document.getElementById('ais-send').addEventListener('click', askAI);
+document.getElementById('ais-expert-toggle').addEventListener('click', function () {
+    const on = !aiExpertIsOn();
+    localStorage.setItem(AI_EXPERT_KEY, on ? 'on' : 'off');
+    updateExpertToggleText();
+    showSaveToast(on ? 'Modo especialista activado 🎓' : 'Modo especialista desactivado');
+});
 document.getElementById('ais-question').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
