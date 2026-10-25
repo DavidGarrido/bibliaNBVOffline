@@ -1619,6 +1619,35 @@ h2 {
     transform: scale(0.97);
 }
 
+/* ── Botón Compartir estudio con QR (drawer) ── */
+#sd-qr-btn {
+    width: calc(100% - 24px);
+    margin: 3px 12px;
+    padding: 13px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--airbnb-rausch);
+    text-align: left;
+    background: linear-gradient(135deg, rgba(36,129,204,0.06), rgba(36,129,204,0.13));
+    border: 1px solid rgba(36,129,204,0.28);
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.15s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    box-sizing: border-box;
+}
+#sd-qr-btn:hover {
+    background: linear-gradient(135deg, rgba(36,129,204,0.12), rgba(36,129,204,0.22));
+    border-color: rgba(36,129,204,0.5);
+    box-shadow: 0 4px 12px rgba(36,129,204,0.18);
+}
+#sd-qr-btn:active {
+    transform: scale(0.97);
+}
+
 /* ── Sheets estudios compartidos ── */
 #shared-sheet, #shared-studies-sheet {
     position: fixed;
