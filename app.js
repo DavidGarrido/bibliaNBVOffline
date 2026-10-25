@@ -2825,11 +2825,15 @@ function studiesInit() {
     
     // Alerta de estudio activo al iniciar (si está habilitada)
     updateStudyAlertToggleText();
-    // Estudio embebido en la URL (#s=...): lo genera "Compartir con QR" y funciona sin internet
+    // Compartido por QR: #s= (embebido, sin internet), ?remote= (almacén KV) o ?study= (Compartidos)
+    const params = new URLSearchParams(window.location.search);
     const inlineStudy = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('s');
-    const urlStudyId = new URLSearchParams(window.location.search).get('study');
+    const remoteId = params.get('remote');
+    const urlStudyId = params.get('study');
     if (inlineStudy) {
         handleInlineStudy(inlineStudy);
+    } else if (remoteId) {
+        handleRemoteStudy(remoteId);
     } else if (urlStudyId) {
         handleStudyFromUrl(urlStudyId);
     } else if (localStorage.getItem('bible-study-alert') !== 'off') {
@@ -6172,6 +6176,7 @@ const landingModal = (function () {
 // Modo "link": el QR lleva ?study=<id> y el receptor lo baja de "Estudios compartidos".
 
 const QR_MAX_TEXT = 2600; // margen bajo el límite del QR versión 40-L (~2953 bytes)
+const SHARE_API = 'https://biblia-nbv-ai.www-davidalexander.workers.dev/share';
 
 function qrBaseUrl() {
     return window.location.origin + window.location.pathname;
@@ -6285,7 +6290,21 @@ function drawQR(canvas, text) {
     return true;
 }
 
+// Sube el estudio al Worker (KV) y devuelve el código corto
+async function uploadStudyToRemote(study) {
+    const res = await fetch(SHARE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ study })
+    });
+    if (!res.ok) throw new Error('upload ' + res.status);
+    const data = await res.json();
+    if (!data || !data.id) throw new Error('sin id');
+    return data.id;
+}
+
 async function buildStudyQRLink(study) {
+    // 1) Autocontenido: el estudio va dentro del QR (sin internet)
     if (typeof qrcode === 'function' && typeof CompressionStream === 'function') {
         try {
             const packed = await gzipToBase64Url(JSON.stringify(studyToCompact(study)));
@@ -6293,8 +6312,15 @@ async function buildStudyQRLink(study) {
             if (candidate.length <= QR_MAX_TEXT && makeQRMatrix(candidate)) {
                 return { url: candidate, mode: 'inline', size: packed.length };
             }
-        } catch (_) { /* sin compresión o no cabe: se usa el enlace */ }
+        } catch (_) { /* sin compresión o no cabe: seguimos */ }
     }
+    // 2) Almacén temporal (KV): sirve para cualquier estudio, aunque solo esté en local
+    try {
+        const id = await uploadStudyToRemote(study);
+        const candidate = qrBaseUrl() + '?remote=' + id;
+        if (makeQRMatrix(candidate)) return { url: candidate, mode: 'remote', size: 0 };
+    } catch (_) { /* sin red o worker caído: seguimos */ }
+    // 3) Enlace a Compartidos (solo funciona si el estudio está publicado)
     return { url: qrBaseUrl() + '?study=' + encodeURIComponent(study.id), mode: 'link', size: 0 };
 }
 
@@ -6319,6 +6345,8 @@ async function openQRShareModal() {
         hint.textContent = 'No se pudo generar el QR. Copia el enlace manualmente.';
     } else if (link.mode === 'inline') {
         hint.textContent = 'Incluye el estudio completo: funciona sin internet. Escanéalo desde la app Cámara.';
+    } else if (link.mode === 'remote') {
+        hint.textContent = 'Escanea este código para recibir el estudio. Se descarga una vez y caduca en 180 días.';
     } else {
         hint.textContent = 'Solo funciona si el estudio ya está publicado en "Compartidos". Si solo lo tienes en local, usa "📤 Compartir archivo".';
     }
@@ -6353,25 +6381,49 @@ function copyQRLink() {
     }
 }
 
+// Inserta el estudio recibido y lo activa
+function importStudyObject(study) {
+    const exists = studiesState.studies.some(s => s.id === study.id);
+    studiesState = exists
+        ? { ...studiesState, studies: studiesState.studies.map(s => s.id === study.id ? study : s) }
+        : { ...studiesState, studies: [...studiesState.studies, study] };
+    studiesState = studiesSetActive(studiesState, study.id);
+    studiesSave(studiesState);
+    renderStudiesDropdown();
+    updateStudiesButton();
+    studyNavReset();
+    studyNavUpdate();
+}
+
 // Importa un estudio embebido en la URL (#s=...) sin tocar la red
 async function handleInlineStudy(payload) {
     try {
         const json = await gunzipFromBase64Url(payload);
         const study = compactToStudy(JSON.parse(json));
         if (!study.id || !study.entries) throw new Error('formato');
-        const exists = studiesState.studies.some(s => s.id === study.id);
-        studiesState = exists
-            ? { ...studiesState, studies: studiesState.studies.map(s => s.id === study.id ? study : s) }
-            : { ...studiesState, studies: [...studiesState.studies, study] };
-        studiesState = studiesSetActive(studiesState, study.id);
-        studiesSave(studiesState);
-        renderStudiesDropdown();
-        updateStudiesButton();
-        studyNavReset();
-        studyNavUpdate();
+        importStudyObject(study);
         showSaveToast('Estudio "' + study.name + '" recibido ✓');
     } catch (_) {
         showSaveToast('QR no válido o versión no compatible');
+    } finally {
+        const q = window.location.search || '';
+        history.replaceState(null, '', qrBaseUrl() + q);
+    }
+}
+
+// Descarga un estudio del almacén temporal (?remote=) e impórtalo
+async function handleRemoteStudy(id) {
+    showSaveToast('Descargando estudio compartido…');
+    try {
+        const res = await fetch(SHARE_API + '/' + encodeURIComponent(id));
+        if (!res.ok) throw new Error('download ' + res.status);
+        const data = await res.json();
+        const study = data && data.study ? data.study : null;
+        if (!study || !study.id) throw new Error('formato');
+        importStudyObject(study);
+        showSaveToast('Estudio "' + study.name + '" recibido ✓');
+    } catch (_) {
+        showSaveToast('No se pudo descargar (¿caducó o no hay conexión?)');
     } finally {
         const q = window.location.search || '';
         history.replaceState(null, '', qrBaseUrl() + q);

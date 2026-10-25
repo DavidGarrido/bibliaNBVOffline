@@ -9,3 +9,8 @@ compatibility_date = "2024-01-01"
 # Después de agregarlo: wrangler deploy
 [ai]
 binding = "AI"
+
+# Estudios compartidos por QR: almacén temporal (KV)
+[[kv_namespaces]]
+binding = "SHARED_STUDIES"
+id = "faef1891e762458e943bd381b277a775"
