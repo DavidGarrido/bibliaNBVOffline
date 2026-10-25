@@ -4395,8 +4395,29 @@ h2 {
     padding: 10px 16px 16px;
     flex-shrink: 0;
     border-top: 1px solid var(--airbnb-extra-light-gray);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 #qr-actions .primary-btn { width: 100%; }
+#qr-file-btn {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 12px;
+    border: 1.5px solid rgba(36,129,204,0.3);
+    background: rgba(36,129,204,0.05);
+    color: var(--airbnb-rausch);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    box-sizing: border-box;
+}
+#qr-file-btn:hover {
+    background: rgba(36,129,204,0.12);
+    border-color: rgba(36,129,204,0.5);
+}
+#qr-file-btn:active { transform: scale(0.97); }
 
 @media (min-width: 768px) {
     #qr-sheet { align-items: center; justify-content: center; }

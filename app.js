@@ -6320,7 +6320,7 @@ async function openQRShareModal() {
     } else if (link.mode === 'inline') {
         hint.textContent = 'Incluye el estudio completo: funciona sin internet. Escanéalo desde la app Cámara.';
     } else {
-        hint.textContent = 'El receptor lo descargará de "Estudios compartidos" (necesita internet la primera vez).';
+        hint.textContent = 'Solo funciona si el estudio ya está publicado en "Compartidos". Si solo lo tienes en local, usa "📤 Compartir archivo".';
     }
     urlEl.textContent = link.url;
     canvas.dataset.url = link.url;
@@ -6378,6 +6378,43 @@ async function handleInlineStudy(payload) {
     }
 }
 
+// Comparte el estudio activo como archivo JSON (funciona aunque sea local y no quepa en el QR)
+async function shareQRStudyFile() {
+    const study = studiesGetActive(studiesState);
+    if (!study) return;
+    const payload = { version: 1, exportedAt: new Date().toISOString(), studies: [study] };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const safe = (study.name || 'estudio')
+        .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ _-]/g, '')
+        .slice(0, 60)
+        .trim()
+        .replace(/\s+/g, '-')
+        .toLowerCase() || 'estudio';
+    const filename = safe + '.json';
+    const file = new File([blob], filename, { type: 'application/json' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                files: [file],
+                title: study.name,
+                text: 'Estudio bíblico para importar en Biblia NBV'
+            });
+            return;
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+        }
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // Listeners del modal QR (los elementos ya existen al cargar app.js)
 (function () {
     const sheet = document.getElementById('qr-sheet');
@@ -6385,5 +6422,6 @@ async function handleInlineStudy(payload) {
     document.getElementById('qr-overlay').addEventListener('click', closeQRShareModal);
     document.getElementById('qr-close').addEventListener('click', closeQRShareModal);
     document.getElementById('qr-copy-btn').addEventListener('click', copyQRLink);
+    document.getElementById('qr-file-btn').addEventListener('click', shareQRStudyFile);
 })();
 
