@@ -1,9 +1,10 @@
-const CACHE_NAME = 'biblia-v2.49';
+const CACHE_NAME = 'biblia-v2.50';
 const CORE_ASSETS = [
   './',
   './index.html',
   './landing.html',
   './style.css',
+  './qr.js',
   './app.js',
   './translations.json',
   './logo_iglesia.svg',

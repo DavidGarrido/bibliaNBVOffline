@@ -2825,8 +2825,12 @@ function studiesInit() {
     
     // Alerta de estudio activo al iniciar (si está habilitada)
     updateStudyAlertToggleText();
+    // Estudio embebido en la URL (#s=...): lo genera "Compartir con QR" y funciona sin internet
+    const inlineStudy = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('s');
     const urlStudyId = new URLSearchParams(window.location.search).get('study');
-    if (urlStudyId) {
+    if (inlineStudy) {
+        handleInlineStudy(inlineStudy);
+    } else if (urlStudyId) {
         handleStudyFromUrl(urlStudyId);
     } else if (localStorage.getItem('bible-study-alert') !== 'off') {
         showActiveStudyAlert(studiesState.activeStudyId || 'general');
@@ -5346,6 +5350,11 @@ function setupExportImport() {
         openWaSheet();
     });
 
+    document.getElementById('sd-qr-btn').addEventListener('click', () => {
+        closeStudiesDropdown();
+        openQRShareModal();
+    });
+
     document.getElementById('cfg-import-btn').addEventListener('click', () => {
         closeConfigModal();
         document.getElementById('sd-import-file').click();
@@ -6156,3 +6165,225 @@ const landingModal = (function () {
 
     return { open, close, isEnabled };
 })();
+
+// ── Compartir con QR ──────────────────────────────────────────
+// Genera el QR 100% en el cliente (qr.js, sin backend ni internet).
+// Modo "inline": el estudio completo va dentro del QR (solo si cabe).
+// Modo "link": el QR lleva ?study=<id> y el receptor lo baja de "Estudios compartidos".
+
+const QR_MAX_TEXT = 2600; // margen bajo el límite del QR versión 40-L (~2953 bytes)
+
+function qrBaseUrl() {
+    return window.location.origin + window.location.pathname;
+}
+
+function bytesToBase64Url(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlToBytes(str) {
+    const b64 = String(str || '').replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64.length % 4 ? '='.repeat(4 - (b64.length % 4)) : '';
+    const bin = atob(b64 + pad);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+}
+
+async function gzipToBase64Url(text) {
+    if (typeof CompressionStream !== 'function') throw new Error('sin-compresion');
+    const stream = new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('gzip'));
+    const buf = await new Response(stream).arrayBuffer();
+    return bytesToBase64Url(new Uint8Array(buf));
+}
+
+async function gunzipFromBase64Url(payload) {
+    if (typeof DecompressionStream !== 'function') throw new Error('sin-descompresion');
+    const stream = new Blob([base64UrlToBytes(payload)]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return await new Response(stream).text();
+}
+
+// Versión compacta del estudio (claves cortas) para que quepa más en el QR
+function studyToCompact(study) {
+    return {
+        i: study.id,
+        n: study.name || '',
+        t: study.tags || [],
+        e: (study.entries || []).map(en => {
+            const o = {};
+            if (en.type) o.y = en.type;
+            if (en.ref) o.r = en.ref;
+            if (en.bookId != null) o.b = en.bookId;
+            if (en.chapN != null) o.c = en.chapN;
+            if (en.verseN != null) o.v = en.verseN;
+            if (en.verseEnd != null) o.ve = en.verseEnd;
+            if (en.text) o.x = en.text;
+            if (en.note) o.o = en.note;
+            return o;
+        })
+    };
+}
+
+function compactToStudy(c) {
+    const now = new Date().toISOString();
+    return {
+        id: c.i,
+        name: c.n || 'Estudio compartido',
+        tags: c.t || [],
+        createdAt: now,
+        entries: (c.e || []).map((x, idx) => ({
+            id: 'entry_' + Date.now() + '_' + idx,
+            type: x.y || 'note',
+            ref: x.r || null,
+            bookId: x.b != null ? x.b : null,
+            chapN: x.c != null ? x.c : null,
+            verseN: x.v != null ? x.v : null,
+            verseEnd: x.ve != null ? x.ve : null,
+            text: x.x || '',
+            translationId: null,
+            note: x.o || '',
+            savedAt: now
+        }))
+    };
+}
+
+// Genera la matriz del QR o null si el texto no cabe / no hay generador
+function makeQRMatrix(text) {
+    try {
+        const qr = qrcode(0, 'L');
+        qr.addData(text);
+        qr.make();
+        return qr;
+    } catch (_) {
+        return null;
+    }
+}
+
+function drawQR(canvas, text) {
+    const qr = makeQRMatrix(text);
+    if (!qr) return false;
+    const count = qr.getModuleCount();
+    const margin = 4;
+    const total = count + margin * 2;
+    const scale = Math.max(2, Math.floor(canvas.width / total));
+    const size = total * scale;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#000000';
+    for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+            if (qr.isDark(r, c)) {
+                ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
+            }
+        }
+    }
+    return true;
+}
+
+async function buildStudyQRLink(study) {
+    if (typeof qrcode === 'function' && typeof CompressionStream === 'function') {
+        try {
+            const packed = await gzipToBase64Url(JSON.stringify(studyToCompact(study)));
+            const candidate = qrBaseUrl() + '#s=' + packed;
+            if (candidate.length <= QR_MAX_TEXT && makeQRMatrix(candidate)) {
+                return { url: candidate, mode: 'inline', size: packed.length };
+            }
+        } catch (_) { /* sin compresión o no cabe: se usa el enlace */ }
+    }
+    return { url: qrBaseUrl() + '?study=' + encodeURIComponent(study.id), mode: 'link', size: 0 };
+}
+
+async function openQRShareModal() {
+    const study = studiesGetActive(studiesState);
+    if (!study) return;
+
+    const sheet  = document.getElementById('qr-sheet');
+    const title  = document.getElementById('qr-title');
+    const hint   = document.getElementById('qr-hint');
+    const urlEl  = document.getElementById('qr-url');
+    const canvas = document.getElementById('qr-canvas');
+
+    title.textContent = 'Compartir: ' + (study.name || 'Estudio');
+    hint.textContent = 'Generando QR…';
+    urlEl.textContent = '';
+    sheet.classList.remove('qs-hidden');
+
+    const link = await buildStudyQRLink(study);
+
+    if (!drawQR(canvas, link.url)) {
+        hint.textContent = 'No se pudo generar el QR. Copia el enlace manualmente.';
+    } else if (link.mode === 'inline') {
+        hint.textContent = 'Incluye el estudio completo: funciona sin internet. Escanéalo desde la app Cámara.';
+    } else {
+        hint.textContent = 'El receptor lo descargará de "Estudios compartidos" (necesita internet la primera vez).';
+    }
+    urlEl.textContent = link.url;
+    canvas.dataset.url = link.url;
+}
+
+function closeQRShareModal() {
+    const sheet = document.getElementById('qr-sheet');
+    if (sheet) sheet.classList.add('qs-hidden');
+}
+
+function copyTextFallback(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (_) { showSaveToast('No se pudo copiar'); }
+    ta.remove();
+}
+
+function copyQRLink() {
+    const url = document.getElementById('qr-canvas').dataset.url || '';
+    if (!url) { showSaveToast('Genera el QR primero'); return; }
+    const done = () => showSaveToast('Enlace copiado ✓');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(() => copyTextFallback(url, done));
+    } else {
+        copyTextFallback(url, done);
+    }
+}
+
+// Importa un estudio embebido en la URL (#s=...) sin tocar la red
+async function handleInlineStudy(payload) {
+    try {
+        const json = await gunzipFromBase64Url(payload);
+        const study = compactToStudy(JSON.parse(json));
+        if (!study.id || !study.entries) throw new Error('formato');
+        const exists = studiesState.studies.some(s => s.id === study.id);
+        studiesState = exists
+            ? { ...studiesState, studies: studiesState.studies.map(s => s.id === study.id ? study : s) }
+            : { ...studiesState, studies: [...studiesState.studies, study] };
+        studiesState = studiesSetActive(studiesState, study.id);
+        studiesSave(studiesState);
+        renderStudiesDropdown();
+        updateStudiesButton();
+        studyNavReset();
+        studyNavUpdate();
+        showSaveToast('Estudio "' + study.name + '" recibido ✓');
+    } catch (_) {
+        showSaveToast('QR no válido o versión no compatible');
+    } finally {
+        const q = window.location.search || '';
+        history.replaceState(null, '', qrBaseUrl() + q);
+    }
+}
+
+// Listeners del modal QR (los elementos ya existen al cargar app.js)
+(function () {
+    const sheet = document.getElementById('qr-sheet');
+    if (!sheet) return;
+    document.getElementById('qr-overlay').addEventListener('click', closeQRShareModal);
+    document.getElementById('qr-close').addEventListener('click', closeQRShareModal);
+    document.getElementById('qr-copy-btn').addEventListener('click', copyQRLink);
+})();
+

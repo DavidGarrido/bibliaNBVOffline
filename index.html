@@ -192,6 +192,7 @@
                 <div class="sd-divider"></div>
                 <div class="sd-section-label">📬 Contacto</div>
                 <button id="sd-whatsapp-btn">💬 Enviar estudio por WhatsApp</button>
+                <button id="sd-qr-btn">📱 Compartir estudio con QR</button>
             </div>
             <div id="sd-bottom-bar">
                 <div id="sd-local-note">📦 Estás en modo local. Haz respaldo de tus estudios para no perder tu información.</div>
@@ -441,6 +442,27 @@
         </div>
     </div>
 
+    <!-- Modal compartir con QR -->
+    <div id="qr-sheet" class="qs-hidden">
+        <div id="qr-overlay"></div>
+        <div id="qr-box">
+            <div id="qr-header">
+                <span id="qr-title">Compartir con QR</span>
+                <button id="qr-close" class="icon-btn">✕</button>
+            </div>
+            <div id="qr-content">
+                <div id="qr-canvas-wrap">
+                    <canvas id="qr-canvas" width="512" height="512"></canvas>
+                </div>
+                <p id="qr-hint" class="qr-hint"></p>
+                <div id="qr-url" class="qr-url"></div>
+            </div>
+            <div id="qr-actions">
+                <button id="qr-copy-btn" class="primary-btn">🔗 Copiar enlace</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Sheet exportar estudios -->
     <div id="export-sheet" class="exs-hidden">
         <div id="exs-overlay"></div>
@@ -671,6 +693,7 @@
         </div>
     </div>
 
+    <script src="qr.js"></script>
     <script src="app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
