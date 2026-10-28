@@ -6175,7 +6175,10 @@ const landingModal = (function () {
 // Modo "inline": el estudio completo va dentro del QR (solo si cabe).
 // Modo "link": el QR lleva ?study=<id> y el receptor lo baja de "Estudios compartidos".
 
-const QR_MAX_TEXT = 2600; // margen bajo el límite del QR versión 40-L (~2953 bytes)
+// Tamaño máximo del QR inline, en módulos. Un QR de 177x177 (versión 40)
+// entra en el límite de bytes pero es imposible de escanear en pantalla:
+// por encima de 77x77 (versión 15) el estudio se comparte por enlace.
+const QR_MAX_MODULES = 77;
 const SHARE_API = 'https://biblia-nbv-ai.www-davidalexander.workers.dev/share';
 
 function qrBaseUrl() {
@@ -6272,7 +6275,8 @@ function drawQR(canvas, text) {
     const count = qr.getModuleCount();
     const margin = 4;
     const total = count + margin * 2;
-    const scale = Math.max(2, Math.floor(canvas.width / total));
+    // Resolución suficiente para que los módulos se vean nítidos en pantalla
+    const scale = Math.max(4, Math.floor(480 / total));
     const size = total * scale;
     canvas.width = size;
     canvas.height = size;
@@ -6304,24 +6308,29 @@ async function uploadStudyToRemote(study) {
 }
 
 async function buildStudyQRLink(study) {
-    // 1) Autocontenido: el estudio va dentro del QR (sin internet)
+    // 1) Autocontenido: el estudio va dentro del QR (sin internet).
+    //    Solo si el QR resultante es pequeño y fácil de escanear.
     if (typeof qrcode === 'function' && typeof CompressionStream === 'function') {
         try {
             const packed = await gzipToBase64Url(JSON.stringify(studyToCompact(study)));
             const candidate = qrBaseUrl() + '#s=' + packed;
-            if (candidate.length <= QR_MAX_TEXT && makeQRMatrix(candidate)) {
-                return { url: candidate, mode: 'inline', size: packed.length };
+            const qr = makeQRMatrix(candidate);
+            if (qr && qr.getModuleCount() <= QR_MAX_MODULES) {
+                return { url: candidate, mode: 'inline', size: packed.length, modules: qr.getModuleCount() };
             }
         } catch (_) { /* sin compresión o no cabe: seguimos */ }
     }
-    // 2) Almacén temporal (KV): sirve para cualquier estudio, aunque solo esté en local
+    // 2) Almacén temporal (KV): QR pequeño para cualquier estudio, aunque sea local
     try {
         const id = await uploadStudyToRemote(study);
         const candidate = qrBaseUrl() + '?remote=' + id;
-        if (makeQRMatrix(candidate)) return { url: candidate, mode: 'remote', size: 0 };
+        const qr = makeQRMatrix(candidate);
+        if (qr) return { url: candidate, mode: 'remote', size: 0, modules: qr.getModuleCount() };
     } catch (_) { /* sin red o worker caído: seguimos */ }
     // 3) Enlace a Compartidos (solo funciona si el estudio está publicado)
-    return { url: qrBaseUrl() + '?study=' + encodeURIComponent(study.id), mode: 'link', size: 0 };
+    const fallback = qrBaseUrl() + '?study=' + encodeURIComponent(study.id);
+    const qrFallback = makeQRMatrix(fallback);
+    return { url: fallback, mode: 'link', size: 0, modules: qrFallback ? qrFallback.getModuleCount() : 0 };
 }
 
 async function openQRShareModal() {
@@ -6344,11 +6353,11 @@ async function openQRShareModal() {
     if (!drawQR(canvas, link.url)) {
         hint.textContent = 'No se pudo generar el QR. Copia el enlace manualmente.';
     } else if (link.mode === 'inline') {
-        hint.textContent = 'Incluye el estudio completo: funciona sin internet. Escanéalo desde la app Cámara.';
+        hint.textContent = 'QR compacto (' + link.modules + '×' + link.modules + '). Incluye el estudio: funciona sin internet.';
     } else if (link.mode === 'remote') {
-        hint.textContent = 'Escanea este código para recibir el estudio. Se descarga una vez y caduca en 180 días.';
+        hint.textContent = 'QR pequeño (' + link.modules + '×' + link.modules + '). Al escanearlo, la app descarga el estudio (caduca en 180 días).';
     } else {
-        hint.textContent = 'Solo funciona si el estudio ya está publicado en "Compartidos". Si solo lo tienes en local, usa "📤 Compartir archivo".';
+        hint.textContent = 'Estudio grande: se comparte por enlace a "Compartidos" (QR de ' + link.modules + '×' + link.modules + '). Si solo lo tienes en local, usa "📤 Compartir archivo".';
     }
     urlEl.textContent = link.url;
     canvas.dataset.url = link.url;
